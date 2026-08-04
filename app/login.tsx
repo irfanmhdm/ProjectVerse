@@ -7,23 +7,34 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase/firebaseConfig";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (email.trim() === "" || password.trim() === "") {
       Alert.alert("Error", "Please enter your email and password.");
       return;
     }
 
-    if (!email.includes("@") || !email.includes(".")) {
-      Alert.alert("Error", "Please enter a valid email address.");
-      return;
-    }
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
 
-    Alert.alert("Success", "Form validation successful!");
+      console.log("Logged in UID:", userCredential.user.uid);
+
+      Alert.alert("Login Successful","Welcome to ProjectVerse");
+    } catch (error: any) {
+      console.log(error);
+
+      Alert.alert("Login Failed", "Invalid email or password.");
+    }
   };
 
   return (
