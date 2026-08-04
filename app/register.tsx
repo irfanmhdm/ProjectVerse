@@ -1,14 +1,9 @@
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { router } from "expo-router";
+import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { auth } from "../firebase/firebaseConfig";
+import {Alert,Pressable,StyleSheet,Text,TextInput,View,} from "react-native";
+import { auth,db } from "../firebase/firebaseConfig";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -42,9 +37,16 @@ export default function RegisterScreen() {
         password,
       );
 
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        name: name.trim(),
+        email: email.trim(),
+        role: "student",
+      });
+
       console.log("User UID:", userCredential.user.uid);
 
       Alert.alert("Success", "Your ProjectVerse account has been created!");
+      router.replace("/login");
     } catch (error: any) {
       console.log(error);
 
