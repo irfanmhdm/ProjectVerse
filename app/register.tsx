@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { useState } from "react";
 import {
   Alert,
   Pressable,
@@ -6,31 +7,49 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
+import { auth } from "../firebase/firebaseConfig";
 
 export default function RegisterScreen() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+    // 1. Check for empty fields
     if (
-      name.trim() === '' ||
-      email.trim() === '' ||
-      password.trim() === '' ||
-      confirmPassword.trim() === ''
+      name.trim() === "" ||
+      email.trim() === "" ||
+      password.trim() === "" ||
+      confirmPassword.trim() === ""
     ) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
+    // 2. Check whether passwords match
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      Alert.alert("Error", "Passwords do not match.");
       return;
     }
 
-    Alert.alert('Success', 'Registration form validated!');
+    // 3. If validation passed, create Firebase account
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
+
+      console.log("User UID:", userCredential.user.uid);
+
+      Alert.alert("Success", "Your ProjectVerse account has been created!");
+    } catch (error: any) {
+      console.log(error);
+
+      Alert.alert("Registration Failed", error.message);
+    }
   };
 
   return (
@@ -79,10 +98,7 @@ export default function RegisterScreen() {
         secureTextEntry
       />
 
-      <Pressable
-        style={styles.registerButton}
-        onPress={handleRegister}
-      >
+      <Pressable style={styles.registerButton} onPress={handleRegister}>
         <Text style={styles.buttonText}>Register</Text>
       </Pressable>
     </View>
@@ -92,56 +108,56 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 30,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
 
   appName: {
     fontSize: 34,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#2563EB',
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#2563EB",
     marginBottom: 10,
   },
 
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#111',
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#111",
   },
 
   subtitle: {
     fontSize: 15,
-    textAlign: 'center',
-    color: '#666',
+    textAlign: "center",
+    color: "#666",
     marginTop: 8,
     marginBottom: 30,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: '#CCC',
+    borderColor: "#CCC",
     borderRadius: 10,
     paddingHorizontal: 15,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#111',
+    color: "#111",
     marginBottom: 15,
   },
 
   registerButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     paddingVertical: 15,
     borderRadius: 10,
     marginTop: 10,
   },
 
   buttonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
 });
