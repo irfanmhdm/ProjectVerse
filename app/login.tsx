@@ -1,9 +1,30 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const handleLogin = () => {
+    if (email.trim() === "" || password.trim() === "") {
+      Alert.alert("Error", "Please enter your email and password.");
+      return;
+    }
+
+    if (!email.includes("@") || !email.includes(".")) {
+      Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
+
+    Alert.alert("Success", "Form validation successful!");
+  };
 
   return (
     <View style={styles.container}>
@@ -27,7 +48,7 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Pressable style={styles.loginButton}>
+      <Pressable style={styles.loginButton} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>
     </View>

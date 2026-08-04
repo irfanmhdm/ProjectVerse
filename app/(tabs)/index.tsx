@@ -16,6 +16,13 @@ export default function HomeScreen() {
       >
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>
+
+      <Pressable
+        style={styles.registerButton}
+        onPress={() => router.push("/register")}
+      >
+        <Text style={styles.registerText}>Register</Text>
+      </Pressable>
     </View>
   );
 }
@@ -53,6 +60,20 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  registerButton: {
+    marginTop: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 55,
+    borderWidth: 1,
+    borderColor: "#2563EB",
+    borderRadius: 10,
+  },
+
+  registerText: {
+    color: "#2563EB",
     fontSize: 16,
     fontWeight: "bold",
   },
