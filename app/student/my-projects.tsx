@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-export default function ExploreProjects() {
+export default function MyProjects() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Projects</Text>

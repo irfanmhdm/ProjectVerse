@@ -1,3 +1,4 @@
+import * as DocumentPicker from "expo-document-picker";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 
 import { auth, db } from "../../firebase/firebaseConfig";
+import { supabase } from "../../supabase/supabaseConfig";
 
 export default function AddProject() {
   const [title, setTitle] = useState("");
@@ -17,17 +19,69 @@ export default function AddProject() {
   const [domain, setDomain] = useState("");
   const [technologies, setTechnologies] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
+
+  // Selected PDF
+  const [report, setReport] =
+    useState<DocumentPicker.DocumentPickerAsset | null>(null);
+
   const [loading, setLoading] = useState(false);
 
+  // =========================================================
+  // SELECT PROJECT REPORT
+  // =========================================================
+
+  const pickReport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const selectedFile = result.assets[0];
+
+      setReport(selectedFile);
+
+      console.log("Selected report:", selectedFile.name);
+    } catch (error) {
+      console.log("Error selecting PDF:", error);
+
+      Alert.alert("Error", "Could not select the project report.");
+    }
+  };
+
+  // =========================================================
+  // SUBMIT PROJECT
+  // =========================================================
+
   const handleSubmit = async () => {
-    // Check required fields
+    // Check required text fields
     if (
       title.trim() === "" ||
       description.trim() === "" ||
       domain.trim() === "" ||
-      technologies.trim() === ""
+      technologies.trim() === "" ||
+      githubUrl.trim() === ""
     ) {
       Alert.alert("Error", "Please fill in all required fields.");
+      return;
+    }
+
+    // Report is mandatory
+    if (!report) {
+      Alert.alert("Error", "Please select your project report PDF.");
+      return;
+    }
+
+    // Basic GitHub URL validation
+    if (!githubUrl.trim().startsWith("https://github.com/")) {
+      Alert.alert(
+        "Invalid GitHub URL",
+        "Please enter a valid GitHub repository URL.",
+      );
       return;
     }
 
@@ -42,16 +96,84 @@ export default function AddProject() {
     try {
       setLoading(true);
 
-      // Create project document in Firestore
+      // =====================================================
+      // 1. READ THE PDF
+      // =====================================================
+
+      console.log("Reading PDF...");
+
+      const response = await fetch(report.uri);
+
+      if (!response.ok) {
+        throw new Error("Could not read the selected PDF.");
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+
+      // =====================================================
+      // 2. CREATE UNIQUE FILE NAME
+      // =====================================================
+
+      const safeFileName = report.name.replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_",
+      );
+
+      const filePath =
+        `${user.uid}/${Date.now()}_${safeFileName}`;
+
+      console.log("Uploading report:", filePath);
+
+      // =====================================================
+      // 3. UPLOAD PDF TO SUPABASE
+      // =====================================================
+
+      const { error: uploadError } = await supabase.storage
+        .from("project-reports")
+        .upload(filePath, arrayBuffer, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      console.log("PDF uploaded successfully.");
+
+      // =====================================================
+      // 4. GET PUBLIC REPORT URL
+      // =====================================================
+
+      const { data: publicUrlData } = supabase.storage
+        .from("project-reports")
+        .getPublicUrl(filePath);
+
+      const reportUrl = publicUrlData.publicUrl;
+
+      console.log("Report URL:", reportUrl);
+
+      // =====================================================
+      // 5. CREATE PROJECT DOCUMENT IN FIRESTORE
+      // =====================================================
+
       const projectRef = await addDoc(collection(db, "projects"), {
         title: title.trim(),
         description: description.trim(),
         domain: domain.trim(),
         technologies: technologies.trim(),
+
         githubUrl: githubUrl.trim(),
 
+        // Report information
+        reportUrl: reportUrl,
+        reportName: report.name,
+        reportPath: filePath,
+
+        // Student
         studentId: user.uid,
 
+        // Project workflow
         status: "pending",
 
         createdAt: serverTimestamp(),
@@ -59,22 +181,36 @@ export default function AddProject() {
 
       console.log("Project created:", projectRef.id);
 
-      Alert.alert("Success", "Project added successfully!");
+      Alert.alert(
+        "Success",
+        "Project and report submitted successfully!",
+      );
 
-      // Clear the form
+      // =====================================================
+      // 6. CLEAR FORM
+      // =====================================================
+
       setTitle("");
       setDescription("");
       setDomain("");
       setTechnologies("");
       setGithubUrl("");
-    } catch (error) {
-      console.log("Error adding project:", error);
+      setReport(null);
+    } catch (error: any) {
+      console.log("Error submitting project:", error);
 
-      Alert.alert("Error", "Something went wrong while adding the project.");
+      Alert.alert(
+        "Submission Error",
+        error?.message || "Something went wrong while submitting the project.",
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   return (
     <ScrollView
@@ -85,8 +221,10 @@ export default function AddProject() {
       <Text style={styles.title}>Add Project</Text>
 
       <Text style={styles.subtitle}>
-        Add your academic project to ProjectVerse
+        Submit your academic project for guide review
       </Text>
+
+      {/* PROJECT TITLE */}
 
       <Text style={styles.label}>Project Title *</Text>
 
@@ -98,17 +236,21 @@ export default function AddProject() {
         onChangeText={setTitle}
       />
 
+      {/* DESCRIPTION */}
+
       <Text style={styles.label}>Description *</Text>
 
       <TextInput
-        style={[styles.input,styles.textArea]}
-        placeholder="Describe your project"
+        style={[styles.input, styles.textArea]}
+        placeholder="Briefly describe your project"
         placeholderTextColor="#777"
         value={description}
         onChangeText={setDescription}
         multiline
         textAlignVertical="top"
       />
+
+      {/* DOMAIN */}
 
       <Text style={styles.label}>Domain *</Text>
 
@@ -120,6 +262,8 @@ export default function AddProject() {
         onChangeText={setDomain}
       />
 
+      {/* TECHNOLOGIES */}
+
       <Text style={styles.label}>Technologies Used *</Text>
 
       <TextInput
@@ -130,20 +274,50 @@ export default function AddProject() {
         onChangeText={setTechnologies}
       />
 
-      <Text style={styles.label}>GitHub Repository</Text>
+      {/* GITHUB */}
+
+      <Text style={styles.label}>GitHub Repository *</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="https://github.com/..."
+        placeholder="https://github.com/username/project"
         placeholderTextColor="#777"
         value={githubUrl}
         onChangeText={setGithubUrl}
         autoCapitalize="none"
+        autoCorrect={false}
         keyboardType="url"
       />
 
+      {/* PROJECT REPORT */}
+
+      <Text style={styles.label}>Project Report (PDF) *</Text>
+
       <Pressable
-        style={[styles.submitButton, loading && styles.disabledButton]}
+        style={styles.reportButton}
+        onPress={pickReport}
+        disabled={loading}
+      >
+        <Text style={styles.reportButtonText}>
+          {report ? "Change Report" : "Select PDF Report"}
+        </Text>
+      </Pressable>
+
+      {/* SELECTED FILE */}
+
+      {report && (
+        <Text style={styles.selectedFile}>
+          📄 {report.name}
+        </Text>
+      )}
+
+      {/* SUBMIT */}
+
+      <Pressable
+        style={[
+          styles.submitButton,
+          loading && styles.disabledButton,
+        ]}
         onPress={handleSubmit}
         disabled={loading}
       >
@@ -155,6 +329,10 @@ export default function AddProject() {
   );
 }
 
+// ===========================================================
+// STYLES
+// ===========================================================
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -163,7 +341,7 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 25,
-    paddingBottom: 50,
+    paddingBottom: 60,
   },
 
   title: {
@@ -198,14 +376,36 @@ const styles = StyleSheet.create({
   },
 
   textArea: {
-    height: 120,
+    height: 110,
+  },
+
+  reportButton: {
+    borderWidth: 1,
+    borderColor: "#2563EB",
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    alignItems: "center",
+  },
+
+  reportButtonText: {
+    color: "#2563EB",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  selectedFile: {
+    fontSize: 14,
+    color: "#444",
+    marginTop: 10,
+    marginBottom: 18,
   },
 
   submitButton: {
     backgroundColor: "#2563EB",
     paddingVertical: 15,
     borderRadius: 10,
-    marginTop: 8,
+    marginTop: 12,
   },
 
   disabledButton: {
