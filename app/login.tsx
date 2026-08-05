@@ -30,7 +30,7 @@ export default function LoginScreen() {
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
-        password
+        password,
       );
 
       // 2. Get logged-in user's UID
@@ -57,21 +57,15 @@ export default function LoginScreen() {
 
         router.replace("/(tabs)");
       } else if (userData.role === "guide") {
-        // Guide dashboard will be created later
-        Alert.alert(
-          "Guide Login",
-          "Guide dashboard coming next."
-        );
+        Alert.alert("Login Successful", "Welcome, Guide!");
+        router.replace("/guide");
       } else {
         Alert.alert("Error", "Invalid user role.");
       }
     } catch (error: any) {
       console.log(error);
 
-      Alert.alert(
-        "Login Failed",
-        "Invalid email or password."
-      );
+      Alert.alert("Login Failed", "Invalid email or password.");
     }
   };
 
@@ -81,9 +75,7 @@ export default function LoginScreen() {
 
       <Text style={styles.title}>Welcome Back</Text>
 
-      <Text style={styles.subtitle}>
-        Login to continue exploring projects
-      </Text>
+      <Text style={styles.subtitle}>Login to continue exploring projects</Text>
 
       <TextInput
         style={styles.input}
@@ -104,10 +96,7 @@ export default function LoginScreen() {
         secureTextEntry
       />
 
-      <Pressable
-        style={styles.loginButton}
-        onPress={handleLogin}
-      >
+      <Pressable style={styles.loginButton} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>
     </View>
