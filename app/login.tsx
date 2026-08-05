@@ -55,7 +55,7 @@ export default function LoginScreen() {
       if (userData.role === "student") {
         Alert.alert("Login Successful", "Welcome to ProjectVerse");
 
-        router.replace("/(tabs)");
+        router.replace("/student");
       } else if (userData.role === "guide") {
         Alert.alert("Login Successful", "Welcome, Guide!");
         router.replace("/guide");

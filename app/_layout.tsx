@@ -59,7 +59,7 @@ export default function RootLayout() {
         if (userData.role === "student") {
           console.log("🎓 Redirecting to Student Dashboard");
 
-          router.replace("/(tabs)");
+          router.replace("/student");
         }
 
         else if (userData.role === "guide") {
