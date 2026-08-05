@@ -43,6 +43,27 @@ export default function AddProject() {
 
       const selectedFile = result.assets[0];
 
+      // Make sure it is actually a PDF
+      const isPdf =
+        selectedFile.mimeType === "application/pdf" ||
+        selectedFile.name.toLowerCase().endsWith(".pdf");
+
+      if (!isPdf) {
+        Alert.alert("Invalid File", "Only PDF project reports are allowed.");
+        return;
+      }
+
+      // Maximum report size: 10 MB
+      const maxSize = 10 * 1024 * 1024;
+
+      if (selectedFile.size && selectedFile.size > maxSize) {
+        Alert.alert(
+          "File Too Large",
+          "The project report must be smaller than 10 MB.",
+        );
+        return;
+      }
+
       setReport(selectedFile);
 
       console.log("Selected report:", selectedFile.name);
@@ -76,11 +97,12 @@ export default function AddProject() {
       return;
     }
 
-    // Basic GitHub URL validation
-    if (!githubUrl.trim().startsWith("https://github.com/")) {
+    const githubPattern = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/?$/i;
+
+    if (!githubPattern.test(githubUrl.trim())) {
       Alert.alert(
         "Invalid GitHub URL",
-        "Please enter a valid GitHub repository URL.",
+        "Enter a valid GitHub repository URL.\n\nExample:\nhttps://github.com/username/project",
       );
       return;
     }
@@ -114,13 +136,9 @@ export default function AddProject() {
       // 2. CREATE UNIQUE FILE NAME
       // =====================================================
 
-      const safeFileName = report.name.replace(
-        /[^a-zA-Z0-9._-]/g,
-        "_",
-      );
+      const safeFileName = report.name.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-      const filePath =
-        `${user.uid}/${Date.now()}_${safeFileName}`;
+      const filePath = `${user.uid}/${Date.now()}_${safeFileName}`;
 
       console.log("Uploading report:", filePath);
 
@@ -181,10 +199,7 @@ export default function AddProject() {
 
       console.log("Project created:", projectRef.id);
 
-      Alert.alert(
-        "Success",
-        "Project and report submitted successfully!",
-      );
+      Alert.alert("Success", "Project and report submitted successfully!");
 
       // =====================================================
       // 6. CLEAR FORM
@@ -306,18 +321,20 @@ export default function AddProject() {
       {/* SELECTED FILE */}
 
       {report && (
-        <Text style={styles.selectedFile}>
-          📄 {report.name}
-        </Text>
-      )}
+        <>
+          <Text style={styles.selectedFile}>📄 {report.name}</Text>
 
+          {report.size && (
+            <Text style={styles.fileSize}>
+              {(report.size / (1024 * 1024)).toFixed(2)} MB
+            </Text>
+          )}
+        </>
+      )}
       {/* SUBMIT */}
 
       <Pressable
-        style={[
-          styles.submitButton,
-          loading && styles.disabledButton,
-        ]}
+        style={[styles.submitButton, loading && styles.disabledButton]}
         onPress={handleSubmit}
         disabled={loading}
       >
@@ -418,4 +435,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
   },
+
+  fileSize: {
+  fontSize: 13,
+  color: "#777",
+  marginTop: -14,
+  marginBottom: 18,
+},
 });
