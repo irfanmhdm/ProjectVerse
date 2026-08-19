@@ -5,6 +5,9 @@ import {
   query,
   where,
 } from "firebase/firestore";
+
+import { useRouter } from "expo-router";
+
 import { useEffect, useState } from "react";
 
 import {
@@ -40,6 +43,8 @@ type Project = {
 };
 
 export default function MyProjects() {
+
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -248,10 +253,18 @@ export default function MyProjects() {
           {/* PROJECT CARDS */}
 
           {projects.map((project) => (
-            <View
-              key={project.id}
-              style={styles.projectCard}
-            >
+            <Pressable
+  key={project.id}
+  style={styles.projectCard}
+  onPress={() =>
+    router.push({
+      pathname: "/student/project-details",
+      params: {
+        id: project.id,
+      },
+    })
+  }
+>
               {/* CARD HEADER */}
 
               <View style={styles.cardHeader}>
@@ -377,7 +390,7 @@ export default function MyProjects() {
                 ) : null}
 
               </View>
-            </View>
+            </Pressable>
           ))}
         </>
       )}
