@@ -49,7 +49,7 @@ export default function AddStudent() {
       const studentQuery = query(
         collection(db, "users"),
         where("email", "==", email.trim().toLowerCase()),
-        where("role", "==", "student")
+        where("role", "==", "student"),
       );
 
       const snapshot = await getDocs(studentQuery);
@@ -57,7 +57,7 @@ export default function AddStudent() {
       if (snapshot.empty) {
         Alert.alert(
           "Student Not Found",
-          "No registered student was found with this email."
+          "No registered student was found with this email.",
         );
 
         setLoading(false);
@@ -79,7 +79,7 @@ export default function AddStudent() {
 
       Alert.alert(
         "Error",
-        "Something went wrong while searching for the student."
+        "Something went wrong while searching for the student.",
       );
     }
 
@@ -111,24 +111,26 @@ export default function AddStudent() {
 
         studentName: student.name,
         studentEmail: student.email,
-        studentClass: student.class,
+        studentClass: student.class || "Not provided",
 
         createdAt: serverTimestamp(),
       });
 
       Alert.alert(
         "Success",
-        `${student.name} has been added to your students.`
+        `${student.name} has been added to your students.`,
       );
 
       setEmail("");
       setStudent(null);
-    } catch (error) {
+    } catch (error: any) {
       console.log("Error adding student:", error);
+      console.log("Error code:", error.code);
+      console.log("Error message:", error.message);
 
       Alert.alert(
-        "Error",
-        "Failed to add the student. Please try again."
+        "Add Student Failed",
+        error.message || "Something went wrong while adding the student.",
       );
     }
 
@@ -198,10 +200,7 @@ export default function AddStudent() {
         </View>
       )}
 
-      <Pressable
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
+      <Pressable style={styles.backButton} onPress={() => router.back()}>
         <Text style={styles.backButtonText}>Back</Text>
       </Pressable>
     </View>
