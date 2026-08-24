@@ -27,14 +27,7 @@ export default function StudentDashboard() {
         Welcome to ProjectVerse
       </Text>
 
-      <Pressable
-        style={styles.logoutButton}
-        onPress={handleLogout}
-      >
-        <Text style={styles.logoutButtonText}>
-          Logout
-        </Text>
-      </Pressable>
+     
     </View>
   );
 }
@@ -59,18 +52,4 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  logoutButton: {
-    borderWidth: 1,
-    borderColor: "#DC2626",
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 30,
-  },
-
-  logoutButtonText: {
-    color: "#DC2626",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
 });
