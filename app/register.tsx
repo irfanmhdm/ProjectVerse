@@ -2,20 +2,29 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { router } from "expo-router";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import {Alert,Pressable,StyleSheet,Text,TextInput,View,} from "react-native";
-import { auth,db } from "../firebase/firebaseConfig";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { auth, db } from "../firebase/firebaseConfig";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [studentClass, setStudentClass] = useState("");
 
   const handleRegister = async () => {
     // 1. Check for empty fields
     if (
       name.trim() === "" ||
       email.trim() === "" ||
+      studentClass.trim() === "" ||
       password.trim() === "" ||
       confirmPassword.trim() === ""
     ) {
@@ -40,6 +49,7 @@ export default function RegisterScreen() {
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name: name.trim(),
         email: email.trim(),
+        class: studentClass.trim(),
         role: "student",
       });
 
@@ -70,6 +80,14 @@ export default function RegisterScreen() {
         placeholderTextColor="#777"
         value={name}
         onChangeText={setName}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Class"
+        placeholderTextColor="#777"
+        value={studentClass}
+        onChangeText={setStudentClass}
       />
 
       <TextInput
