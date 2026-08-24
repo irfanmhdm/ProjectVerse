@@ -31,7 +31,21 @@ export default function GuideDashboard() {
         Welcome to the ProjectVerse Guide Portal
       </Text>
 
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
+      {/* Add Student Button */}
+      <Pressable
+        style={styles.addStudentButton}
+        onPress={() => router.push("/guide/add-student")}
+      >
+        <Text style={styles.addStudentButtonText}>
+          + Add Student
+        </Text>
+      </Pressable>
+
+      {/* Logout Button */}
+      <Pressable
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </View>
@@ -67,12 +81,27 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  addStudentButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 25,
+  },
+
+  addStudentButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+
   logoutButton: {
     backgroundColor: "#DC2626",
-    paddingHorizontal: 25,
+    paddingHorizontal: 40,
     paddingVertical: 12,
     borderRadius: 10,
-    marginTop: 30,
+    marginTop: 15,
   },
 
   logoutText: {
