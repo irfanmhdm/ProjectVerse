@@ -1,13 +1,8 @@
 import { Drawer } from "expo-router/drawer";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   DrawerContentScrollView,
@@ -20,15 +15,11 @@ function CustomDrawerContent(props: any) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-
       router.replace("/login");
     } catch (error) {
       console.log("Logout error:", error);
 
-      Alert.alert(
-        "Logout Failed",
-        "Something went wrong while logging out."
-      );
+      Alert.alert("Logout Failed", "Something went wrong while logging out.");
     }
   };
 
@@ -38,6 +29,7 @@ function CustomDrawerContent(props: any) {
         {/* Drawer Header */}
         <View style={styles.drawerHeader}>
           <Text style={styles.appName}>ProjectVerse</Text>
+
           <Text style={styles.role}>Student Portal</Text>
         </View>
 
@@ -47,10 +39,7 @@ function CustomDrawerContent(props: any) {
 
       {/* Logout */}
       <View style={styles.logoutContainer}>
-        <Pressable
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutIcon}>↪</Text>
 
           <Text style={styles.logoutText}>Logout</Text>
@@ -63,9 +52,7 @@ function CustomDrawerContent(props: any) {
 export default function StudentLayout() {
   return (
     <Drawer
-      drawerContent={(props) => (
-        <CustomDrawerContent {...props} />
-      )}
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: true,
 
@@ -101,7 +88,7 @@ export default function StudentLayout() {
       />
 
       <Drawer.Screen
-        name="projects"
+        name="my-projects"
         options={{
           drawerLabel: "My Projects",
           title: "My Projects",
@@ -117,10 +104,10 @@ export default function StudentLayout() {
       />
 
       <Drawer.Screen
-        name="reports"
+        name="project-details"
         options={{
-          drawerLabel: "My Reports",
-          title: "My Reports",
+          drawerLabel: "Project Details",
+          title: "Project Details",
         }}
       />
 
@@ -131,6 +118,15 @@ export default function StudentLayout() {
           title: "Profile",
         }}
       />
+
+      <Drawer.Screen
+        name="explore"
+        options={{
+          drawerLabel: "Explore",
+          title: "Explore",
+        }}
+      />
+
     </Drawer>
   );
 }
