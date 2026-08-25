@@ -41,21 +41,29 @@ export default function ProjectDetails() {
   useEffect(() => {
     const fetchProject = async () => {
       try {
+        console.log("📌 Project Details ID:", id);
+        console.log("📌 ID type:", typeof id);
+
         if (!id || typeof id !== "string") {
+          console.log("❌ Project ID is missing");
           setLoading(false);
           return;
         }
+
+        console.log("🔍 Fetching project with ID:", id);
 
         const projectRef = doc(db, "projects", id);
         const projectSnap = await getDoc(projectRef);
 
         if (projectSnap.exists()) {
+          console.log("✅ Project found:", projectSnap.data());
+
           setProject(projectSnap.data() as Project);
         } else {
-          console.log("Project not found");
+          console.log("❌ Project does not exist:", id);
         }
       } catch (error) {
-        console.log("Error fetching project:", error);
+        console.log("❌ Error fetching project:", error);
       } finally {
         setLoading(false);
       }

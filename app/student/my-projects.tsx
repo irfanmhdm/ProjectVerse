@@ -43,7 +43,6 @@ type Project = {
 };
 
 export default function MyProjects() {
-
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +63,7 @@ export default function MyProjects() {
     const projectsQuery = query(
       collection(db, "projects"),
       where("studentId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
 
     const unsubscribe = onSnapshot(
@@ -84,11 +83,8 @@ export default function MyProjects() {
         setLoading(false);
         setRefreshing(false);
 
-        Alert.alert(
-          "Error",
-          "Unable to load your projects."
-        );
-      }
+        Alert.alert("Error", "Unable to load your projects.");
+      },
     );
 
     return unsubscribe;
@@ -117,18 +113,12 @@ export default function MyProjects() {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert(
-          "Error",
-          "Unable to open GitHub repository."
-        );
+        Alert.alert("Error", "Unable to open GitHub repository.");
       }
     } catch (error) {
       console.log("Error opening GitHub:", error);
 
-      Alert.alert(
-        "Error",
-        "Something went wrong while opening GitHub."
-      );
+      Alert.alert("Error", "Something went wrong while opening GitHub.");
     }
   };
 
@@ -143,18 +133,12 @@ export default function MyProjects() {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert(
-          "Error",
-          "Unable to open project report."
-        );
+        Alert.alert("Error", "Unable to open project report.");
       }
     } catch (error) {
       console.log("Error opening report:", error);
 
-      Alert.alert(
-        "Error",
-        "Something went wrong while opening the report."
-      );
+      Alert.alert("Error", "Something went wrong while opening the report.");
     }
   };
 
@@ -186,14 +170,9 @@ export default function MyProjects() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator
-          size="large"
-          color="#4F7D4F"
-        />
+        <ActivityIndicator size="large" color="#4F7D4F" />
 
-        <Text style={styles.loadingText}>
-          Loading your projects...
-        </Text>
+        <Text style={styles.loadingText}>Loading your projects...</Text>
       </View>
     );
   }
@@ -207,33 +186,22 @@ export default function MyProjects() {
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
     >
       {/* PAGE HEADER */}
 
-      <Text style={styles.title}>
-        My Projects
-      </Text>
+      <Text style={styles.title}>My Projects</Text>
 
-      <Text style={styles.subtitle}>
-        Projects submitted by you
-      </Text>
+      <Text style={styles.subtitle}>Projects submitted by you</Text>
 
       {/* NO PROJECTS */}
 
       {projects.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>
-            📁
-          </Text>
+          <Text style={styles.emptyIcon}>📁</Text>
 
-          <Text style={styles.emptyTitle}>
-            No Projects Yet
-          </Text>
+          <Text style={styles.emptyTitle}>No Projects Yet</Text>
 
           <Text style={styles.emptyText}>
             You haven't submitted any projects yet.
@@ -244,125 +212,73 @@ export default function MyProjects() {
           {/* PROJECT COUNT */}
 
           <Text style={styles.projectCount}>
-            {projects.length}{" "}
-            {projects.length === 1
-              ? "Project"
-              : "Projects"}
+            {projects.length} {projects.length === 1 ? "Project" : "Projects"}
           </Text>
 
           {/* PROJECT CARDS */}
 
           {projects.map((project) => (
             <Pressable
-  key={project.id}
-  style={styles.projectCard}
-  onPress={() =>
-    router.push({
-      pathname: "/student/project-details",
-      params: {
-        id: project.id,
-      },
-    })
-  }
->
+              key={project.id}
+              style={styles.projectCard}
+              onPress={() =>
+                router.push({
+                  pathname: "/student/project-details",
+                  params: {
+                    id: project.id,
+                  },
+                })
+              }
+            >
               {/* CARD HEADER */}
 
               <View style={styles.cardHeader}>
-                <Text
-                  style={styles.projectTitle}
-                >
-                  {project.title}
-                </Text>
+                <Text style={styles.projectTitle}>{project.title}</Text>
 
                 <View
-                  style={[
-                    styles.statusBadge,
-                    getStatusStyle(
-                      project.status
-                    ),
-                  ]}
+                  style={[styles.statusBadge, getStatusStyle(project.status)]}
                 >
-                  <Text
-                    style={styles.statusText}
-                  >
-                    {project.status ||
-                      "Pending"}
+                  <Text style={styles.statusText}>
+                    {project.status || "Pending"}
                   </Text>
                 </View>
               </View>
 
               {/* DESCRIPTION */}
 
-              <Text
-                style={styles.description}
-              >
-                {project.description}
-              </Text>
+              <Text style={styles.description}>{project.description}</Text>
 
               {/* DOMAIN */}
 
-              <View
-                style={styles.infoSection}
-              >
-                <Text style={styles.label}>
-                  Domain
-                </Text>
+              <View style={styles.infoSection}>
+                <Text style={styles.label}>Domain</Text>
 
-                <Text style={styles.value}>
-                  {project.domain}
-                </Text>
+                <Text style={styles.value}>{project.domain}</Text>
               </View>
 
               {/* TECHNOLOGIES */}
 
-              <View
-                style={styles.infoSection}
-              >
-                <Text style={styles.label}>
-                  Technologies
-                </Text>
+              <View style={styles.infoSection}>
+                <Text style={styles.label}>Technologies</Text>
 
-                <Text style={styles.value}>
-                  {project.technologies}
-                </Text>
+                <Text style={styles.value}>{project.technologies}</Text>
               </View>
 
               {/* BUTTONS */}
 
               <View style={styles.buttonRow}>
-
                 {/* REPORT */}
 
                 {project.reportUrl ? (
                   <Pressable
-                    style={
-                      styles.reportButton
-                    }
-                    onPress={() =>
-                      openReport(
-                        project.reportUrl!
-                      )
-                    }
+                    style={styles.reportButton}
+                    onPress={() => openReport(project.reportUrl!)}
                   >
-                    <Text
-                      style={
-                        styles.reportButtonText
-                      }
-                    >
-                      View Report
-                    </Text>
+                    <Text style={styles.reportButtonText}>View Report</Text>
                   </Pressable>
                 ) : (
-                  <View
-                    style={
-                      styles.noReportContainer
-                    }
-                  >
-                    <Text
-                      style={styles.noGithub}
-                    >
-                      No report uploaded
-                    </Text>
+                  <View style={styles.noReportContainer}>
+                    <Text style={styles.noGithub}>No report uploaded</Text>
                   </View>
                 )}
 
@@ -370,25 +286,12 @@ export default function MyProjects() {
 
                 {project.githubUrl ? (
                   <Pressable
-                    style={
-                      styles.githubButton
-                    }
-                    onPress={() =>
-                      openGithub(
-                        project.githubUrl!
-                      )
-                    }
+                    style={styles.githubButton}
+                    onPress={() => openGithub(project.githubUrl!)}
                   >
-                    <Text
-                      style={
-                        styles.githubButtonText
-                      }
-                    >
-                      GitHub ↗
-                    </Text>
+                    <Text style={styles.githubButtonText}>GitHub ↗</Text>
                   </Pressable>
                 ) : null}
-
               </View>
             </Pressable>
           ))}
@@ -403,7 +306,6 @@ export default function MyProjects() {
 // ======================================================
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#F4F8F3",

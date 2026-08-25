@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -16,7 +18,6 @@ import {
   View,
 } from "react-native";
 
-import { router } from "expo-router";
 import { db } from "../../firebase/firebaseConfig";
 
 type Project = {
@@ -26,6 +27,9 @@ type Project = {
   domain: string;
   technologies: string;
   studentId: string;
+  githubUrl: string;
+  reportUrl: string;
+  reportName: string;
 };
 
 export default function ExploreProjects() {
@@ -52,6 +56,9 @@ export default function ExploreProjects() {
           domain: data.domain || "",
           technologies: data.technologies || "",
           studentId: data.studentId || "",
+          githubUrl: data.githubUrl || "",
+          reportUrl: data.reportUrl || "",
+          reportName: data.reportName || "",
         };
       });
 
@@ -78,50 +85,130 @@ export default function ExploreProjects() {
     );
   });
 
+  const openReport = async (reportUrl: string) => {
+    if (!reportUrl) {
+      Alert.alert("Report Not Available", "This project has no report.");
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(reportUrl);
+
+      if (supported) {
+        await Linking.openURL(reportUrl);
+      } else {
+        Alert.alert("Error", "Cannot open the project report.");
+      }
+    } catch (error) {
+      console.log("Error opening report:", error);
+
+      Alert.alert("Error", "Could not open the project report.");
+    }
+  };
+
+  const openGithub = async (githubUrl: string) => {
+    if (!githubUrl) {
+      Alert.alert(
+        "GitHub Not Available",
+        "This project has no GitHub repository."
+      );
+      return;
+    }
+
+    try {
+      await Linking.openURL(githubUrl);
+    } catch (error) {
+      console.log("Error opening GitHub:", error);
+
+      Alert.alert("Error", "Could not open the GitHub repository.");
+    }
+  };
+
   const renderProject = ({ item }: { item: Project }) => {
     return (
-      <Pressable
-        style={styles.projectCard}
-        onPress={() =>
-          router.push({
-            pathname: "/student/project-details",
-            params: {
-              id: item.id,
-            },
-          })
-        }
-      >
+      <View style={styles.projectCard}>
+
+        {/* Project Title */}
         <Text style={styles.projectTitle}>
           {item.title}
         </Text>
 
-        <Text
-          style={styles.description}
-          numberOfLines={3}
-        >
+        {/* Description */}
+        <Text style={styles.description}>
           {item.description}
         </Text>
 
+        {/* Domain */}
         <View style={styles.infoSection}>
-          <Text style={styles.label}>Domain</Text>
+          <Text style={styles.label}>
+            Domain
+          </Text>
 
           <Text style={styles.value}>
             {item.domain || "Not specified"}
           </Text>
         </View>
 
+        {/* Technologies */}
         <View style={styles.infoSection}>
-          <Text style={styles.label}>Technologies</Text>
+          <Text style={styles.label}>
+            Technologies
+          </Text>
 
           <Text style={styles.value}>
             {item.technologies || "Not specified"}
           </Text>
         </View>
 
-        <Text style={styles.viewText}>
-          View Project →
-        </Text>
-      </Pressable>
+        {/* GitHub */}
+        <View style={styles.infoSection}>
+          <Text style={styles.label}>
+            GitHub Repository
+          </Text>
+
+          {item.githubUrl ? (
+            <Pressable
+              onPress={() => openGithub(item.githubUrl)}
+            >
+              <Text style={styles.link}>
+                Open GitHub Repository →
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.value}>
+              Not available
+            </Text>
+          )}
+        </View>
+
+        {/* Report */}
+        <View style={styles.reportSection}>
+
+          <Text style={styles.reportTitle}>
+            📄 Project Report
+          </Text>
+
+          <Text
+            style={styles.reportName}
+            numberOfLines={1}
+          >
+            {item.reportName || "Report not available"}
+          </Text>
+
+          {item.reportUrl && (
+            <Pressable
+              style={styles.reportButton}
+              onPress={() => openReport(item.reportUrl)}
+            >
+              <Text style={styles.reportButtonText}>
+                Open Report
+              </Text>
+            </Pressable>
+          )}
+
+        </View>
+
+      </View>
     );
   };
 
@@ -145,7 +232,7 @@ export default function ExploreProjects() {
         onChangeText={setSearch}
       />
 
-      {/* Project count */}
+      {/* Project Count */}
       {!loading && (
         <Text style={styles.count}>
           {filteredProjects.length}{" "}
@@ -255,18 +342,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     lineHeight: 21,
-    marginBottom: 15,
+    marginBottom: 18,
   },
 
   infoSection: {
-    marginBottom: 10,
+    marginBottom: 14,
   },
 
   label: {
     fontSize: 12,
     fontWeight: "600",
     color: "#6B7280",
-    marginBottom: 3,
+    marginBottom: 4,
   },
 
   value: {
@@ -274,11 +361,43 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
-  viewText: {
+  link: {
     color: "#2563EB",
     fontSize: 14,
+    fontWeight: "600",
+  },
+
+  reportSection: {
+    marginTop: 5,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+
+  reportTitle: {
+    fontSize: 15,
     fontWeight: "bold",
-    marginTop: 8,
+    color: "#111827",
+    marginBottom: 5,
+  },
+
+  reportName: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 12,
+  },
+
+  reportButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 12,
+    borderRadius: 9,
+    alignItems: "center",
+  },
+
+  reportButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 
   loadingContainer: {
