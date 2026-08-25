@@ -1,15 +1,35 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function HomeScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.appName}>ProjectVerse 🚀</Text>
 
-      <Text style={styles.tagline}>Discover. Learn. Innovate.</Text>
+      {/* Logo */}
+      <Image
+        source={require("../assets/images/ProjectVerseLogo.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
 
-      <Text style={styles.welcome}>Welcome to ProjectVerse</Text>
+      {/* App Name */}
+      <Text style={styles.appName}>ProjectVerse</Text>
 
+      <Text style={styles.tagline}>
+        Discover. Learn. Innovate.
+      </Text>
+
+      <Text style={styles.welcome}>
+        Welcome to ProjectVerse
+      </Text>
+
+      {/* Login */}
       <Pressable
         style={styles.loginButton}
         onPress={() => router.push("/login")}
@@ -17,12 +37,14 @@ export default function HomeScreen() {
         <Text style={styles.loginText}>Login</Text>
       </Pressable>
 
+      {/* Register */}
       <Pressable
         style={styles.registerButton}
         onPress={() => router.push("/register")}
       >
         <Text style={styles.registerText}>Register</Text>
       </Pressable>
+
     </View>
   );
 }
@@ -34,6 +56,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 30,
     backgroundColor: "white",
+  },
+
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 10,
   },
 
   appName: {
@@ -56,11 +84,13 @@ const styles = StyleSheet.create({
   },
 
   loginButton: {
-    width: "90%",
+    width: "60%",
+    height: 70,
     backgroundColor: "#2563EB",
     paddingVertical: 18,
     borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
   },
 
@@ -71,12 +101,14 @@ const styles = StyleSheet.create({
   },
 
   registerButton: {
-    width: "90%",
+    width: "60%",
+    height: 70,
     borderWidth: 2,
     borderColor: "#2563EB",
     paddingVertical: 18,
     borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
   },
 
   registerText: {

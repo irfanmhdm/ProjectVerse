@@ -4,7 +4,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 
-import { router, Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
@@ -25,29 +25,26 @@ export default function RootLayout() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-
       // No logged-in user
+      // Stay on the Index/Home page
       if (!user) {
         console.log("❌ No saved session");
-
-        router.replace("/login");
         return;
       }
 
-      // Session exists
+      // User is already logged in
       console.log("🔥 SESSION RESTORED");
       console.log("UID:", user.uid);
       console.log("Email:", user.email);
 
       try {
-        // Get the user's Firestore profile
+        // Get user's Firestore profile
         const userDoc = await getDoc(
           doc(db, "users", user.uid)
         );
 
         if (!userDoc.exists()) {
           console.log("❌ User profile not found");
-          router.replace("/login");
           return;
         }
 
@@ -55,29 +52,30 @@ export default function RootLayout() {
 
         console.log("Role:", userData.role);
 
-        // Route according to role
+        // Student
         if (userData.role === "student") {
           console.log("🎓 Redirecting to Student Dashboard");
 
           router.replace("/student");
         }
 
+        // Guide
         else if (userData.role === "guide") {
           console.log("👨‍🏫 Redirecting to Guide Dashboard");
 
           router.replace("/guide");
         }
 
+        // Unknown role
         else {
           console.log("❌ Unknown role:", userData.role);
-
-          router.replace("/login");
         }
 
       } catch (error) {
-        console.log("Error loading user profile:", error);
-
-        router.replace("/login");
+        console.log(
+          "Error loading user profile:",
+          error
+        );
       }
     });
 
@@ -86,29 +84,55 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider
-      value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+      value={
+        colorScheme === "dark"
+          ? DarkTheme
+          : DefaultTheme
+      }
     >
       <Stack>
+
+        {/* Main Index Page */}
         <Stack.Screen
-          name="(tabs)"
-          options={{ headerShown: false }}
+          name="index"
+          options={{
+            headerShown: false,
+          }}
         />
 
+        {/* Login */}
         <Stack.Screen
           name="login"
-          options={{ headerShown: false }}
+          options={{
+            headerShown: false,
+          }}
         />
 
+        {/* Register */}
         <Stack.Screen
           name="register"
-          options={{ headerShown: false }}
+          options={{
+            headerShown: false,
+          }}
         />
 
+        {/* Student */}
         <Stack.Screen
-          name="guide/index"
-          options={{ headerShown: false }}
+          name="student"
+          options={{
+            headerShown: false,
+          }}
         />
 
+        {/* Guide */}
+        <Stack.Screen
+          name="guide"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        {/* Modal */}
         <Stack.Screen
           name="modal"
           options={{
@@ -116,6 +140,7 @@ export default function RootLayout() {
             title: "Modal",
           }}
         />
+
       </Stack>
 
       <StatusBar style="auto" />
