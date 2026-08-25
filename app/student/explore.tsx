@@ -86,7 +86,7 @@ export default function ExploreProjects() {
           router.push({
             pathname: "/student/project-details",
             params: {
-              projectId: item.id,
+              id: item.id,
             },
           })
         }
