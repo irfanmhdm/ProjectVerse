@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -20,11 +21,25 @@ type Project = {
   description?: string;
   domain?: string;
   technologies?: string;
+
+  studentId?: string;
+  studentName?: string;
+  studentEmail?: string;
+
   githubUrl?: string;
+
+  liveDemoUrl?: string;
+
   reportUrl?: string;
   reportName?: string;
+  reportPath?: string;
+
+  videoUrl?: string;
+  videoName?: string;
+
+  screenshotUrls?: string[];
+
   status?: string;
-  studentId?: string;
 };
 
 export default function GuideProjectDetails() {
@@ -35,9 +50,9 @@ export default function GuideProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  // ==========================================
+  // ======================================================
   // LOAD PROJECT
-  // ==========================================
+  // ======================================================
 
   useEffect(() => {
     const loadProject = async () => {
@@ -50,13 +65,66 @@ export default function GuideProjectDetails() {
           return;
         }
 
+        console.log("🔍 Fetching project with ID:", id);
+
         const projectRef = doc(db, "projects", id);
         const projectSnap = await getDoc(projectRef);
 
         if (projectSnap.exists()) {
-          console.log("✅ Project found");
+          const data = projectSnap.data();
 
-          setProject(projectSnap.data() as Project);
+          console.log("✅ Project found:", data);
+
+          setProject({
+            title: data.title || "Untitled Project",
+
+            description:
+              data.description || "No description available.",
+
+            domain:
+              data.domain || "Not specified",
+
+            technologies:
+              data.technologies || "Not specified",
+
+            studentId:
+              data.studentId || "",
+
+            studentName:
+              data.studentName || "Unknown Student",
+
+            studentEmail:
+              data.studentEmail || "",
+
+            githubUrl:
+              data.githubUrl || "",
+
+            liveDemoUrl:
+              data.liveDemoUrl || "",
+
+            reportUrl:
+              data.reportUrl || "",
+
+            reportName:
+              data.reportName || "",
+
+            reportPath:
+              data.reportPath || "",
+
+            videoUrl:
+              data.videoUrl || "",
+
+            videoName:
+              data.videoName || "",
+
+            screenshotUrls:
+              Array.isArray(data.screenshotUrls)
+                ? data.screenshotUrls
+                : [],
+
+            status:
+              data.status || "pending",
+          });
         } else {
           console.log("❌ Project not found");
         }
@@ -70,24 +138,68 @@ export default function GuideProjectDetails() {
     loadProject();
   }, [id]);
 
-  // ==========================================
-  // UPDATE PROJECT STATUS
-  // ==========================================
+  // ======================================================
+  // OPEN URL
+  // ======================================================
+
+  const openUrl = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+
+      if (!supported) {
+        Alert.alert(
+          "Unable to Open",
+          "This link cannot be opened."
+        );
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (error) {
+      console.log("❌ Error opening URL:", error);
+
+      Alert.alert(
+        "Error",
+        "Something went wrong while opening the link."
+      );
+    }
+  };
+
+  // ======================================================
+  // UPDATE STATUS
+  // ======================================================
 
   const updateStatus = async (newStatus: string) => {
     if (!id || typeof id !== "string") {
-      Alert.alert("Error", "Project ID is missing.");
+      Alert.alert(
+        "Error",
+        "Project ID is missing."
+      );
       return;
     }
 
     try {
       setUpdating(true);
 
-      const projectRef = doc(db, "projects", id);
+      console.log(
+        "🔄 Updating project status:",
+        newStatus
+      );
+
+      const projectRef = doc(
+        db,
+        "projects",
+        id
+      );
 
       await updateDoc(projectRef, {
         status: newStatus,
       });
+
+      console.log(
+        "✅ Project status updated:",
+        newStatus
+      );
 
       setProject((previousProject) => {
         if (!previousProject) {
@@ -102,34 +214,53 @@ export default function GuideProjectDetails() {
 
       Alert.alert(
         "Success",
-        `Project status updated to "${formatStatus(newStatus)}".`
+        `Project has been ${formatStatus(newStatus).toLowerCase()}.`
       );
-    } catch (error) {
-      console.log("❌ Error updating status:", error);
+    } catch (error: any) {
+      console.log(
+        "❌ Error updating project status:",
+        error
+      );
 
       Alert.alert(
         "Update Failed",
-        "Unable to update the project status."
+        "Unable to update the project status. Please try again."
       );
     } finally {
       setUpdating(false);
     }
   };
 
-  // ==========================================
+  // ======================================================
   // CONFIRM STATUS CHANGE
-  // ==========================================
+  // ======================================================
 
-  const confirmStatusChange = (newStatus: string) => {
-    const message =
-      newStatus === "approved"
-        ? "Are you sure you want to approve this project?"
-        : newStatus === "revision_required"
-        ? "Do you want to request a revision for this project?"
-        : "Are you sure you want to reject this project?";
+  const confirmStatusChange = (
+    newStatus: string
+  ) => {
+    let title = "";
+    let message = "";
+
+    if (newStatus === "approved") {
+      title = "Approve Project";
+      message =
+        "Are you sure you want to approve this project?";
+    }
+
+    if (newStatus === "revision_required") {
+      title = "Request Revision";
+      message =
+        "Are you sure you want to request a revision for this project?";
+    }
+
+    if (newStatus === "rejected") {
+      title = "Reject Project";
+      message =
+        "Are you sure you want to reject this project?";
+    }
 
     Alert.alert(
-      formatStatus(newStatus),
+      title,
       message,
       [
         {
@@ -138,35 +269,20 @@ export default function GuideProjectDetails() {
         },
         {
           text: "Confirm",
-          onPress: () => updateStatus(newStatus),
+          onPress: () =>
+            updateStatus(newStatus),
         },
       ]
     );
   };
 
-  // ==========================================
-  // OPEN URL
-  // ==========================================
-
-  const openUrl = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert("Error", "Cannot open this link.");
-      }
-    } catch (error) {
-      console.log("❌ Error opening URL:", error);
-    }
-  };
-
-  // ==========================================
+  // ======================================================
   // FORMAT STATUS
-  // ==========================================
+  // ======================================================
 
-  const formatStatus = (status?: string) => {
+  const formatStatus = (
+    status?: string
+  ) => {
     if (!status) {
       return "Pending";
     }
@@ -177,14 +293,18 @@ export default function GuideProjectDetails() {
 
     return status
       .replace("_", " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) =>
+        letter.toUpperCase()
+      );
   };
 
-  // ==========================================
+  // ======================================================
   // STATUS STYLE
-  // ==========================================
+  // ======================================================
 
-  const getStatusStyle = (status?: string) => {
+  const getStatusStyle = (
+    status?: string
+  ) => {
     switch (status?.toLowerCase()) {
       case "approved":
         return styles.approved;
@@ -200,9 +320,9 @@ export default function GuideProjectDetails() {
     }
   };
 
-  // ==========================================
+  // ======================================================
   // LOADING
-  // ==========================================
+  // ======================================================
 
   if (loading) {
     return (
@@ -219,9 +339,9 @@ export default function GuideProjectDetails() {
     );
   }
 
-  // ==========================================
+  // ======================================================
   // PROJECT NOT FOUND
-  // ==========================================
+  // ======================================================
 
   if (!project) {
     return (
@@ -242,16 +362,19 @@ export default function GuideProjectDetails() {
     );
   }
 
-  // ==========================================
+  // ======================================================
   // MAIN SCREEN
-  // ==========================================
+  // ======================================================
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
     >
+      {/* ================================================== */}
       {/* BACK */}
+      {/* ================================================== */}
 
       <Pressable
         onPress={() => router.back()}
@@ -262,12 +385,20 @@ export default function GuideProjectDetails() {
         </Text>
       </Pressable>
 
+      {/* ================================================== */}
       {/* HEADER */}
+      {/* ================================================== */}
 
       <View style={styles.headerCard}>
         <Text style={styles.title}>
-          {project.title || "Untitled Project"}
+          {project.title}
         </Text>
+
+        {project.studentName ? (
+          <Text style={styles.studentName}>
+            👨‍🎓 {project.studentName}
+          </Text>
+        ) : null}
 
         <View
           style={[
@@ -281,7 +412,9 @@ export default function GuideProjectDetails() {
         </View>
       </View>
 
+      {/* ================================================== */}
       {/* DESCRIPTION */}
+      {/* ================================================== */}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -289,12 +422,13 @@ export default function GuideProjectDetails() {
         </Text>
 
         <Text style={styles.description}>
-          {project.description ||
-            "No description available."}
+          {project.description}
         </Text>
       </View>
 
-      {/* INFORMATION */}
+      {/* ================================================== */}
+      {/* PROJECT INFORMATION */}
+      {/* ================================================== */}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -307,7 +441,7 @@ export default function GuideProjectDetails() {
           </Text>
 
           <Text style={styles.value}>
-            {project.domain || "Not specified"}
+            {project.domain}
           </Text>
         </View>
 
@@ -319,24 +453,163 @@ export default function GuideProjectDetails() {
           </Text>
 
           <Text style={styles.value}>
-            {project.technologies || "Not specified"}
+            {project.technologies}
           </Text>
         </View>
 
-        <View style={styles.divider} />
+        {project.studentEmail ? (
+          <>
+            <View style={styles.divider} />
 
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>
-            Student ID
-          </Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>
+                Student Email
+              </Text>
 
-          <Text style={styles.value}>
-            {project.studentId || "Not available"}
-          </Text>
-        </View>
+              <Text style={styles.value}>
+                {project.studentEmail}
+              </Text>
+            </View>
+          </>
+        ) : null}
       </View>
 
+      {/* ================================================== */}
+      {/* PROJECT DEMO */}
+      {/* ================================================== */}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>
+          Project Demo
+        </Text>
+
+        <Text style={styles.sectionDescription}>
+          Review the student's project using the
+          available demonstration materials.
+        </Text>
+
+        {/* LIVE DEMO */}
+
+        {project.liveDemoUrl ? (
+          <Pressable
+            style={styles.liveDemoButton}
+            onPress={() =>
+              openUrl(project.liveDemoUrl!)
+            }
+          >
+            <Text style={styles.liveDemoButtonText}>
+              🌐 Open Live Demo
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={styles.unavailableBox}>
+            <Text style={styles.unavailableTitle}>
+              Live Demo
+            </Text>
+
+            <Text style={styles.notAvailable}>
+              No live demo link provided.
+            </Text>
+          </View>
+        )}
+
+        {/* VIDEO */}
+
+        {project.videoUrl ? (
+          <View style={styles.demoItem}>
+            <Text style={styles.demoLabel}>
+              🎥 Video Demonstration
+            </Text>
+
+            {project.videoName ? (
+              <Text style={styles.fileName}>
+                {project.videoName}
+              </Text>
+            ) : null}
+
+            <Pressable
+              style={styles.videoButton}
+              onPress={() =>
+                openUrl(project.videoUrl!)
+              }
+            >
+              <Text style={styles.videoButtonText}>
+                ▶ Watch Project Video
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* SCREENSHOTS */}
+
+        {project.screenshotUrls &&
+        project.screenshotUrls.length > 0 ? (
+          <View style={styles.demoItem}>
+            <Text style={styles.demoLabel}>
+              🖼️ Project Screenshots
+            </Text>
+
+            <Text style={styles.screenshotCount}>
+              {project.screenshotUrls.length} screenshot
+              {project.screenshotUrls.length !== 1
+                ? "s"
+                : ""}
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.screenshotScroll}
+            >
+              {project.screenshotUrls.map(
+                (url, index) => (
+                  <Pressable
+                    key={`${url}-${index}`}
+                    onPress={() =>
+                      openUrl(url)
+                    }
+                    style={styles.screenshotCard}
+                  >
+                    <Image
+                      source={{ uri: url }}
+                      style={styles.screenshot}
+                      resizeMode="cover"
+                    />
+
+                    <Text
+                      style={styles.screenshotNumber}
+                    >
+                      Screenshot {index + 1}
+                    </Text>
+                  </Pressable>
+                )
+              )}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* NOTHING AVAILABLE */}
+
+        {!project.liveDemoUrl &&
+        !project.videoUrl &&
+        (!project.screenshotUrls ||
+          project.screenshotUrls.length === 0) ? (
+          <View style={styles.noDemoBox}>
+            <Text style={styles.noDemoTitle}>
+              No Demo Materials
+            </Text>
+
+            <Text style={styles.notAvailable}>
+              The student has not provided a live
+              demo, video, or screenshots.
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* ================================================== */}
       {/* REPORT */}
+      {/* ================================================== */}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -356,11 +629,11 @@ export default function GuideProjectDetails() {
               </Text>
             </Pressable>
 
-            {project.reportName && (
+            {project.reportName ? (
               <Text style={styles.fileName}>
                 {project.reportName}
               </Text>
-            )}
+            ) : null}
           </>
         ) : (
           <Text style={styles.notAvailable}>
@@ -369,7 +642,9 @@ export default function GuideProjectDetails() {
         )}
       </View>
 
+      {/* ================================================== */}
       {/* GITHUB */}
+      {/* ================================================== */}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -394,7 +669,9 @@ export default function GuideProjectDetails() {
         )}
       </View>
 
+      {/* ================================================== */}
       {/* GUIDE REVIEW */}
+      {/* ================================================== */}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -402,8 +679,9 @@ export default function GuideProjectDetails() {
         </Text>
 
         <Text style={styles.reviewText}>
-          Review the submitted project and choose
-          the appropriate action.
+          Review the project carefully using the
+          submitted materials and choose the
+          appropriate action.
         </Text>
 
         {/* APPROVE */}
@@ -415,7 +693,9 @@ export default function GuideProjectDetails() {
           ]}
           disabled={updating}
           onPress={() =>
-            confirmStatusChange("approved")
+            confirmStatusChange(
+              "approved"
+            )
           }
         >
           <Text style={styles.actionButtonText}>
@@ -432,7 +712,9 @@ export default function GuideProjectDetails() {
           ]}
           disabled={updating}
           onPress={() =>
-            confirmStatusChange("revision_required")
+            confirmStatusChange(
+              "revision_required"
+            )
           }
         >
           <Text style={styles.actionButtonText}>
@@ -449,7 +731,9 @@ export default function GuideProjectDetails() {
           ]}
           disabled={updating}
           onPress={() =>
-            confirmStatusChange("rejected")
+            confirmStatusChange(
+              "rejected"
+            )
           }
         >
           <Text style={styles.actionButtonText}>
@@ -457,7 +741,7 @@ export default function GuideProjectDetails() {
           </Text>
         </Pressable>
 
-        {updating && (
+        {updating ? (
           <View style={styles.updatingContainer}>
             <ActivityIndicator
               size="small"
@@ -468,7 +752,7 @@ export default function GuideProjectDetails() {
               Updating project status...
             </Text>
           </View>
-        )}
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -486,7 +770,7 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 50,
   },
 
   centerContainer: {
@@ -545,6 +829,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     color: "#111827",
+    marginBottom: 7,
+  },
+
+  studentName: {
+    fontSize: 14,
+    color: "#2563EB",
     marginBottom: 12,
   },
 
@@ -593,6 +883,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  sectionDescription: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+    marginBottom: 15,
+  },
+
   description: {
     fontSize: 15,
     lineHeight: 23,
@@ -621,16 +918,127 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 
+  // ====================================================
+  // DEMO
+  // ====================================================
+
+  liveDemoButton: {
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  liveDemoButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+
+  unavailableBox: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  unavailableTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#374151",
+    marginBottom: 5,
+  },
+
+  demoItem: {
+    marginTop: 18,
+  },
+
+  demoLabel: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 5,
+  },
+
+  screenshotCount: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 10,
+  },
+
+  videoButton: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  videoButtonText: {
+    color: "#2563EB",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+
+  screenshotScroll: {
+    marginTop: 5,
+  },
+
+  screenshotCard: {
+    width: 220,
+    marginRight: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  screenshot: {
+    width: 220,
+    height: 140,
+  },
+
+  screenshotNumber: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#374151",
+    padding: 9,
+  },
+
+  noDemoBox: {
+    backgroundColor: "#FFF7ED",
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 15,
+    borderWidth: 1,
+    borderColor: "#FED7AA",
+  },
+
+  noDemoTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#9A3412",
+    marginBottom: 5,
+  },
+
+  // ====================================================
+  // REPORT
+  // ====================================================
+
   reportButton: {
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#BFDBFE",
     borderRadius: 10,
     paddingVertical: 13,
+    alignItems: "center",
   },
 
   reportButtonText: {
-    textAlign: "center",
     color: "#2563EB",
     fontSize: 14,
     fontWeight: "600",
@@ -642,14 +1050,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
+  // ====================================================
+  // GITHUB
+  // ====================================================
+
   githubButton: {
     backgroundColor: "#111827",
     borderRadius: 10,
     paddingVertical: 13,
+    alignItems: "center",
   },
 
   githubButtonText: {
-    textAlign: "center",
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
@@ -659,6 +1071,10 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     fontSize: 14,
   },
+
+  // ====================================================
+  // REVIEW
+  // ====================================================
 
   reviewText: {
     color: "#6B7280",
