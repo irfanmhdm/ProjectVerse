@@ -34,7 +34,11 @@ type Project = {
 
   screenshotUrls?: string[];
 
+  // Guide review
   status?: string;
+  guideFeedback?: string;
+  guideId?: string;
+
   createdAt?: any;
 };
 
@@ -64,9 +68,11 @@ export default function ProjectDetails() {
         const projectSnap = await getDoc(projectRef);
 
         if (projectSnap.exists()) {
-          console.log("✅ Project found");
+          const data = projectSnap.data();
 
-          setProject(projectSnap.data() as Project);
+          console.log("✅ Project found:", data);
+
+          setProject(data as Project);
         } else {
           console.log("❌ Project not found");
         }
@@ -116,6 +122,48 @@ export default function ProjectDetails() {
 
       default:
         return styles.pending;
+    }
+  };
+
+  // =====================================================
+  // STATUS TEXT
+  // =====================================================
+
+  const getStatusText = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case "approved":
+        return "Approved";
+
+      case "revision_required":
+      case "revision required":
+        return "Revision Required";
+
+      case "rejected":
+        return "Rejected";
+
+      default:
+        return "Pending";
+    }
+  };
+
+  // =====================================================
+  // STATUS MESSAGE
+  // =====================================================
+
+  const getStatusMessage = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case "approved":
+        return "Your project has been approved by the guide.";
+
+      case "revision_required":
+      case "revision required":
+        return "Your guide has requested changes to this project. Please review the feedback below.";
+
+      case "rejected":
+        return "Your project has been rejected by the guide. Please review the feedback below.";
+
+      default:
+        return "Your project is waiting for guide review.";
     }
   };
 
@@ -200,9 +248,25 @@ export default function ProjectDetails() {
           ]}
         >
           <Text style={styles.statusText}>
-            {project.status || "Pending"}
+            {getStatusText(project.status)}
           </Text>
         </View>
+
+      </View>
+
+      {/* =================================================
+          REVIEW STATUS
+      ================================================= */}
+
+      <View style={styles.reviewStatusSection}>
+
+        <Text style={styles.reviewStatusTitle}>
+          Project Review Status
+        </Text>
+
+        <Text style={styles.reviewStatusMessage}>
+          {getStatusMessage(project.status)}
+        </Text>
 
       </View>
 
@@ -451,14 +515,27 @@ export default function ProjectDetails() {
           Guide Feedback
         </Text>
 
-        <View style={styles.feedbackBox}>
+        {project.guideFeedback ? (
+          <View style={styles.feedbackBox}>
 
-          <Text style={styles.feedbackText}>
-            Guide feedback will appear here after
-            the project is reviewed.
-          </Text>
+            <Text style={styles.feedbackLabel}>
+              Feedback from your guide
+            </Text>
 
-        </View>
+            <Text style={styles.feedbackText}>
+              {project.guideFeedback}
+            </Text>
+
+          </View>
+        ) : (
+          <View style={styles.feedbackBox}>
+
+            <Text style={styles.feedbackText}>
+              No feedback has been provided by the guide yet.
+            </Text>
+
+          </View>
+        )}
 
       </View>
 
@@ -568,6 +645,32 @@ const styles = StyleSheet.create({
 
   rejected: {
     backgroundColor: "#C94A4A",
+  },
+
+  // ====================================================
+  // REVIEW STATUS
+  // ====================================================
+
+  reviewStatusSection: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#DDE7DB",
+  },
+
+  reviewStatusTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#263626",
+    marginBottom: 7,
+  },
+
+  reviewStatusMessage: {
+    fontSize: 14,
+    color: "#536153",
+    lineHeight: 21,
   },
 
   // ====================================================
@@ -757,10 +860,17 @@ const styles = StyleSheet.create({
     borderColor: "#DDE7DB",
   },
 
+  feedbackLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4F7D4F",
+    marginBottom: 8,
+  },
+
   feedbackText: {
-    color: "#7A877A",
+    color: "#536153",
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
   },
 
   // ====================================================
