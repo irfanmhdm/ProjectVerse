@@ -31,19 +31,33 @@ type Project = {
   domain: string;
   technologies: string;
 
+  // Live demo
+  liveDemoUrl?: string;
+
+  // GitHub
   githubUrl?: string;
 
-  // Report information
+  // Report
   reportUrl?: string;
   reportPath?: string;
   reportName?: string;
 
+  // Video
+  videoUrl?: string;
+  videoName?: string;
+
+  // Screenshots
+  screenshotUrls?: string[];
+
+  // Status
   status?: string;
+
   createdAt?: any;
 };
 
 export default function MyProjects() {
   const router = useRouter();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,6 +94,7 @@ export default function MyProjects() {
       },
       (error) => {
         console.log("Error fetching projects:", error);
+
         setLoading(false);
         setRefreshing(false);
 
@@ -103,42 +118,22 @@ export default function MyProjects() {
   };
 
   // ==============================
-  // OPEN GITHUB
+  // OPEN URL
   // ==============================
 
-  const openGithub = async (url: string) => {
+  const openUrl = async (url: string, errorMessage: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
 
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert("Error", "Unable to open GitHub repository.");
+        Alert.alert("Error", errorMessage);
       }
     } catch (error) {
-      console.log("Error opening GitHub:", error);
+      console.log("Error opening URL:", error);
 
-      Alert.alert("Error", "Something went wrong while opening GitHub.");
-    }
-  };
-
-  // ==============================
-  // OPEN REPORT
-  // ==============================
-
-  const openReport = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert("Error", "Unable to open project report.");
-      }
-    } catch (error) {
-      console.log("Error opening report:", error);
-
-      Alert.alert("Error", "Something went wrong while opening the report.");
+      Alert.alert("Error", errorMessage);
     }
   };
 
@@ -172,7 +167,9 @@ export default function MyProjects() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F7D4F" />
 
-        <Text style={styles.loadingText}>Loading your projects...</Text>
+        <Text style={styles.loadingText}>
+          Loading your projects...
+        </Text>
       </View>
     );
   }
@@ -186,14 +183,19 @@ export default function MyProjects() {
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
       }
     >
       {/* PAGE HEADER */}
 
       <Text style={styles.title}>My Projects</Text>
 
-      <Text style={styles.subtitle}>Projects submitted by you</Text>
+      <Text style={styles.subtitle}>
+        Projects submitted by you
+      </Text>
 
       {/* NO PROJECTS */}
 
@@ -201,7 +203,9 @@ export default function MyProjects() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📁</Text>
 
-          <Text style={styles.emptyTitle}>No Projects Yet</Text>
+          <Text style={styles.emptyTitle}>
+            No Projects Yet
+          </Text>
 
           <Text style={styles.emptyText}>
             You haven't submitted any projects yet.
@@ -212,7 +216,8 @@ export default function MyProjects() {
           {/* PROJECT COUNT */}
 
           <Text style={styles.projectCount}>
-            {projects.length} {projects.length === 1 ? "Project" : "Projects"}
+            {projects.length}{" "}
+            {projects.length === 1 ? "Project" : "Projects"}
           </Text>
 
           {/* PROJECT CARDS */}
@@ -233,10 +238,15 @@ export default function MyProjects() {
               {/* CARD HEADER */}
 
               <View style={styles.cardHeader}>
-                <Text style={styles.projectTitle}>{project.title}</Text>
+                <Text style={styles.projectTitle}>
+                  {project.title}
+                </Text>
 
                 <View
-                  style={[styles.statusBadge, getStatusStyle(project.status)]}
+                  style={[
+                    styles.statusBadge,
+                    getStatusStyle(project.status),
+                  ]}
                 >
                   <Text style={styles.statusText}>
                     {project.status || "Pending"}
@@ -246,25 +256,138 @@ export default function MyProjects() {
 
               {/* DESCRIPTION */}
 
-              <Text style={styles.description}>{project.description}</Text>
+              <Text style={styles.description}>
+                {project.description}
+              </Text>
 
               {/* DOMAIN */}
 
               <View style={styles.infoSection}>
                 <Text style={styles.label}>Domain</Text>
 
-                <Text style={styles.value}>{project.domain}</Text>
+                <Text style={styles.value}>
+                  {project.domain}
+                </Text>
               </View>
 
               {/* TECHNOLOGIES */}
 
               <View style={styles.infoSection}>
-                <Text style={styles.label}>Technologies</Text>
+                <Text style={styles.label}>
+                  Technologies
+                </Text>
 
-                <Text style={styles.value}>{project.technologies}</Text>
+                <Text style={styles.value}>
+                  {project.technologies}
+                </Text>
               </View>
 
+              {/* ============================== */}
+              {/* PROJECT DEMO INFORMATION */}
+              {/* ============================== */}
+
+              <View style={styles.demoSection}>
+                <Text style={styles.demoTitle}>
+                  Project Demonstration
+                </Text>
+
+                <View style={styles.demoItems}>
+                  {/* LIVE DEMO */}
+
+                  {project.liveDemoUrl ? (
+                    <View style={styles.demoItem}>
+                      <Text style={styles.demoIcon}>🌐</Text>
+
+                      <Text style={styles.demoAvailable}>
+                        Live Demo
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* VIDEO */}
+
+                  {project.videoUrl ? (
+                    <View style={styles.demoItem}>
+                      <Text style={styles.demoIcon}>🎥</Text>
+
+                      <Text style={styles.demoAvailable}>
+                        Demo Video
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* SCREENSHOTS */}
+
+                  {project.screenshotUrls &&
+                  project.screenshotUrls.length > 0 ? (
+                    <View style={styles.demoItem}>
+                      <Text style={styles.demoIcon}>🖼️</Text>
+
+                      <Text style={styles.demoAvailable}>
+                        {project.screenshotUrls.length}{" "}
+                        {project.screenshotUrls.length === 1
+                          ? "Screenshot"
+                          : "Screenshots"}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* NOTHING PROVIDED */}
+
+                  {!project.liveDemoUrl &&
+                  !project.videoUrl &&
+                  (!project.screenshotUrls ||
+                    project.screenshotUrls.length === 0) ? (
+                    <Text style={styles.notAvailable}>
+                      No project demonstration provided.
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+
+              {/* ============================== */}
               {/* BUTTONS */}
+              {/* ============================== */}
+
+              <View style={styles.buttonRow}>
+                {/* LIVE DEMO */}
+
+                {project.liveDemoUrl ? (
+                  <Pressable
+                    style={styles.liveDemoButton}
+                    onPress={() =>
+                      openUrl(
+                        project.liveDemoUrl!,
+                        "Unable to open live demo.",
+                      )
+                    }
+                  >
+                    <Text style={styles.liveDemoButtonText}>
+                      🌐 Live Demo
+                    </Text>
+                  </Pressable>
+                ) : null}
+
+                {/* VIDEO */}
+
+                {project.videoUrl ? (
+                  <Pressable
+                    style={styles.videoButton}
+                    onPress={() =>
+                      openUrl(
+                        project.videoUrl!,
+                        "Unable to open project video.",
+                      )
+                    }
+                  >
+                    <Text style={styles.videoButtonText}>
+                      🎥 Video
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              {/* REPORT + GITHUB */}
 
               <View style={styles.buttonRow}>
                 {/* REPORT */}
@@ -272,13 +395,22 @@ export default function MyProjects() {
                 {project.reportUrl ? (
                   <Pressable
                     style={styles.reportButton}
-                    onPress={() => openReport(project.reportUrl!)}
+                    onPress={() =>
+                      openUrl(
+                        project.reportUrl!,
+                        "Unable to open project report.",
+                      )
+                    }
                   >
-                    <Text style={styles.reportButtonText}>View Report</Text>
+                    <Text style={styles.reportButtonText}>
+                      📄 View Report
+                    </Text>
                   </Pressable>
                 ) : (
                   <View style={styles.noReportContainer}>
-                    <Text style={styles.noGithub}>No report uploaded</Text>
+                    <Text style={styles.noGithub}>
+                      No report uploaded
+                    </Text>
                   </View>
                 )}
 
@@ -287,11 +419,26 @@ export default function MyProjects() {
                 {project.githubUrl ? (
                   <Pressable
                     style={styles.githubButton}
-                    onPress={() => openGithub(project.githubUrl!)}
+                    onPress={() =>
+                      openUrl(
+                        project.githubUrl!,
+                        "Unable to open GitHub repository.",
+                      )
+                    }
                   >
-                    <Text style={styles.githubButtonText}>GitHub ↗</Text>
+                    <Text style={styles.githubButtonText}>
+                      GitHub ↗
+                    </Text>
                   </Pressable>
                 ) : null}
+              </View>
+
+              {/* DETAILS HINT */}
+
+              <View style={styles.detailsHint}>
+                <Text style={styles.detailsHintText}>
+                  Tap the project to view complete details →
+                </Text>
               </View>
             </Pressable>
           ))}
@@ -445,6 +592,50 @@ const styles = StyleSheet.create({
   },
 
   // ------------------------------
+  // DEMO SECTION
+  // ------------------------------
+
+  demoSection: {
+    backgroundColor: "#F4F8F3",
+    borderRadius: 10,
+    padding: 13,
+    marginTop: 4,
+    marginBottom: 12,
+
+    borderWidth: 1,
+    borderColor: "#DDE7DB",
+  },
+
+  demoTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#465546",
+    marginBottom: 8,
+  },
+
+  demoItems: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+
+  demoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  demoIcon: {
+    fontSize: 15,
+    marginRight: 5,
+  },
+
+  demoAvailable: {
+    fontSize: 13,
+    color: "#315C31",
+    fontWeight: "600",
+  },
+
+  // ------------------------------
   // BUTTONS
   // ------------------------------
 
@@ -452,6 +643,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 5,
+  },
+
+  liveDemoButton: {
+    flex: 1,
+    backgroundColor: "#4F7D4F",
+    paddingVertical: 12,
+    borderRadius: 9,
+  },
+
+  liveDemoButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
+  videoButton: {
+    flex: 1,
+    backgroundColor: "#E8EEF8",
+    paddingVertical: 12,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#C7D4E8",
+  },
+
+  videoButtonText: {
+    color: "#3B5270",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
   },
 
   reportButton: {
@@ -495,6 +716,24 @@ const styles = StyleSheet.create({
   },
 
   // ------------------------------
+  // DETAILS HINT
+  // ------------------------------
+
+  detailsHint: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5EBE3",
+  },
+
+  detailsHintText: {
+    textAlign: "center",
+    fontSize: 12,
+    color: "#718071",
+    fontWeight: "600",
+  },
+
+  // ------------------------------
   // EMPTY STATE
   // ------------------------------
 
@@ -525,6 +764,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#718071",
     textAlign: "center",
+  },
+
+  // ------------------------------
+  // GENERAL
+  // ------------------------------
+
+  notAvailable: {
+    fontSize: 13,
+    color: "#9AA49A",
   },
 
   // ------------------------------
