@@ -26,17 +26,33 @@ type Project = {
   description: string;
   domain: string;
   technologies: string;
+
   studentId: string;
   studentName: string;
   studentEmail: string;
+
+  liveDemoUrl?: string;
+
+  videoUrl?: string;
+  videoName?: string;
+
+  screenshotUrls?: string[];
+
   reportUrl?: string;
+  reportName?: string;
+
   githubUrl?: string;
+
   status?: string;
 };
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // =====================================================
+  // LOAD GUIDE PROJECTS
+  // =====================================================
 
   const loadProjects = async () => {
     try {
@@ -48,9 +64,9 @@ export default function Projects() {
         return;
       }
 
-      // ==========================================
-      // 1. Get students assigned to this guide
-      // ==========================================
+      // =================================================
+      // 1. GET STUDENTS ASSIGNED TO GUIDE
+      // =================================================
 
       const studentQuery = query(
         collection(db, "guideStudents"),
@@ -61,6 +77,7 @@ export default function Projects() {
 
       if (studentSnapshot.empty) {
         console.log("No students assigned to this guide.");
+
         setProjects([]);
         setLoading(false);
         return;
@@ -72,9 +89,9 @@ export default function Projects() {
 
       console.log("👨‍🎓 Guide's students:", studentIds);
 
-      // ==========================================
-      // 2. Get all projects
-      // ==========================================
+      // =================================================
+      // 2. GET PROJECTS
+      // =================================================
 
       const projectSnapshot = await getDocs(
         collection(db, "projects")
@@ -85,7 +102,7 @@ export default function Projects() {
       projectSnapshot.docs.forEach((projectDoc) => {
         const data = projectDoc.data();
 
-        // Only include projects from this guide's students
+        // Only show projects belonging to this guide's students
         if (studentIds.includes(data.studentId)) {
           projectList.push({
             id: projectDoc.id,
@@ -93,40 +110,92 @@ export default function Projects() {
             title: data.title || "Untitled Project",
 
             description:
-              data.description || "No description available.",
+              data.description ||
+              "No description available.",
 
             domain:
-              data.domain || "Not specified",
+              data.domain ||
+              "Not specified",
 
             technologies:
-              data.technologies || "Not specified",
+              data.technologies ||
+              "Not specified",
 
             studentId:
-              data.studentId || "",
+              data.studentId ||
+              "",
 
             studentName:
-              data.studentName || "Unknown Student",
+              data.studentName ||
+              "Unknown Student",
 
             studentEmail:
-              data.studentEmail || "",
+              data.studentEmail ||
+              "",
+
+            // ================================
+            // DEMO INFORMATION
+            // ================================
+
+            liveDemoUrl:
+              data.liveDemoUrl ||
+              "",
+
+            videoUrl:
+              data.videoUrl ||
+              "",
+
+            videoName:
+              data.videoName ||
+              "",
+
+            screenshotUrls:
+              data.screenshotUrls ||
+              [],
+
+            // ================================
+            // REPORT
+            // ================================
 
             reportUrl:
-              data.reportUrl || "",
+              data.reportUrl ||
+              "",
+
+            reportName:
+              data.reportName ||
+              "",
+
+            // ================================
+            // GITHUB
+            // ================================
 
             githubUrl:
-              data.githubUrl || "",
+              data.githubUrl ||
+              "",
+
+            // ================================
+            // STATUS
+            // ================================
 
             status:
-              data.status || "pending",
+              data.status ||
+              "pending",
           });
         }
       });
 
-      console.log("📚 Projects found:", projectList.length);
+      console.log(
+        "📚 Guide projects found:",
+        projectList.length
+      );
 
       setProjects(projectList);
+
     } catch (error) {
-      console.log("❌ Error loading guide projects:", error);
+      console.log(
+        "❌ Error loading guide projects:",
+        error
+      );
     } finally {
       setLoading(false);
     }
@@ -136,9 +205,50 @@ export default function Projects() {
     loadProjects();
   }, []);
 
-  // ==========================================
+  // =====================================================
+  // STATUS STYLE
+  // =====================================================
+
+  const getStatusStyle = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case "approved":
+        return styles.approved;
+
+      case "revision_required":
+      case "revision required":
+        return styles.revision;
+
+      case "rejected":
+        return styles.rejected;
+
+      default:
+        return styles.pending;
+    }
+  };
+
+  // =====================================================
+  // STATUS TEXT
+  // =====================================================
+
+  const getStatusText = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case "revision_required":
+        return "Revision Required";
+
+      case "approved":
+        return "Approved";
+
+      case "rejected":
+        return "Rejected";
+
+      default:
+        return "Pending";
+    }
+  };
+
+  // =====================================================
   // PROJECT CARD
-  // ==========================================
+  // =====================================================
 
   const renderProject = ({
     item,
@@ -157,8 +267,15 @@ export default function Projects() {
           })
         }
       >
+
+        {/* ============================================
+            HEADER
+        ============================================ */}
+
         <View style={styles.cardHeader}>
-          <View style={{ flex: 1 }}>
+
+          <View style={styles.titleContainer}>
+
             <Text style={styles.projectTitle}>
               {item.title}
             </Text>
@@ -166,23 +283,33 @@ export default function Projects() {
             <Text style={styles.studentName}>
               👨‍🎓 {item.studentName}
             </Text>
+
+            {item.studentEmail ? (
+              <Text style={styles.studentEmail}>
+                {item.studentEmail}
+              </Text>
+            ) : null}
+
           </View>
+
+          {/* STATUS */}
 
           <View
             style={[
               styles.statusBadge,
-              item.status === "approved"
-                ? styles.approved
-                : item.status === "revision_required"
-                ? styles.revision
-                : styles.pending,
+              getStatusStyle(item.status),
             ]}
           >
             <Text style={styles.statusText}>
-              {item.status || "pending"}
+              {getStatusText(item.status)}
             </Text>
           </View>
+
         </View>
+
+        {/* ============================================
+            DESCRIPTION
+        ============================================ */}
 
         <Text
           style={styles.description}
@@ -191,7 +318,12 @@ export default function Projects() {
           {item.description}
         </Text>
 
+        {/* ============================================
+            PROJECT INFORMATION
+        ============================================ */}
+
         <View style={styles.infoSection}>
+
           <Text style={styles.label}>
             Domain
           </Text>
@@ -199,9 +331,11 @@ export default function Projects() {
           <Text style={styles.value}>
             {item.domain}
           </Text>
+
         </View>
 
         <View style={styles.infoSection}>
+
           <Text style={styles.label}>
             Technologies
           </Text>
@@ -209,22 +343,97 @@ export default function Projects() {
           <Text style={styles.value}>
             {item.technologies}
           </Text>
+
         </View>
 
-        <Text style={styles.reviewText}>
-          Review Project →
-        </Text>
+        {/* ============================================
+            AVAILABLE RESOURCES
+        ============================================ */}
+
+        <View style={styles.resourcesSection}>
+
+          <Text style={styles.resourcesTitle}>
+            Project Resources
+          </Text>
+
+          <View style={styles.resourceRow}>
+
+            {item.liveDemoUrl ? (
+              <View style={styles.resourceBadge}>
+                <Text style={styles.resourceText}>
+                  🌐 Live Demo
+                </Text>
+              </View>
+            ) : null}
+
+            {item.videoUrl ? (
+              <View style={styles.resourceBadge}>
+                <Text style={styles.resourceText}>
+                  🎥 Video
+                </Text>
+              </View>
+            ) : null}
+
+            {item.screenshotUrls &&
+            item.screenshotUrls.length > 0 ? (
+              <View style={styles.resourceBadge}>
+                <Text style={styles.resourceText}>
+                  🖼 {item.screenshotUrls.length}{" "}
+                  {item.screenshotUrls.length === 1
+                    ? "Screenshot"
+                    : "Screenshots"}
+                </Text>
+              </View>
+            ) : null}
+
+            {item.reportUrl ? (
+              <View style={styles.resourceBadge}>
+                <Text style={styles.resourceText}>
+                  📄 Report
+                </Text>
+              </View>
+            ) : null}
+
+            {item.githubUrl ? (
+              <View style={styles.resourceBadge}>
+                <Text style={styles.resourceText}>
+                  💻 GitHub
+                </Text>
+              </View>
+            ) : null}
+
+          </View>
+
+        </View>
+
+        {/* ============================================
+            REVIEW BUTTON
+        ============================================ */}
+
+        <View style={styles.reviewRow}>
+
+          <Text style={styles.reviewText}>
+            Review Project
+          </Text>
+
+          <Text style={styles.arrow}>
+            →
+          </Text>
+
+        </View>
+
       </Pressable>
     );
   };
 
-  // ==========================================
+  // =====================================================
   // LOADING
-  // ==========================================
+  // =====================================================
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+
         <ActivityIndicator
           size="large"
           color="#2563EB"
@@ -233,16 +442,18 @@ export default function Projects() {
         <Text style={styles.loadingText}>
           Loading projects...
         </Text>
+
       </View>
     );
   }
 
-  // ==========================================
+  // =====================================================
   // MAIN SCREEN
-  // ==========================================
+  // =====================================================
 
   return (
     <View style={styles.container}>
+
       <Text style={styles.title}>
         Student Projects
       </Text>
@@ -252,7 +463,13 @@ export default function Projects() {
       </Text>
 
       {projects.length === 0 ? (
+
         <View style={styles.emptyContainer}>
+
+          <Text style={styles.emptyIcon}>
+            📂
+          </Text>
+
           <Text style={styles.emptyTitle}>
             No Projects Yet
           </Text>
@@ -261,8 +478,11 @@ export default function Projects() {
             Projects submitted by your students
             will appear here.
           </Text>
+
         </View>
+
       ) : (
+
         <FlatList
           data={projects}
           renderItem={renderProject}
@@ -270,12 +490,19 @@ export default function Projects() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
         />
+
       )}
+
     </View>
   );
 }
 
+// ======================================================
+// STYLES
+// ======================================================
+
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
@@ -300,11 +527,16 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
 
+  // ====================================================
+  // PROJECT CARD
+  // ====================================================
+
   projectCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 18,
-    marginBottom: 15,
+    marginBottom: 16,
+
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
@@ -313,6 +545,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 12,
+  },
+
+  titleContainer: {
+    flex: 1,
   },
 
   projectTitle: {
@@ -326,6 +562,16 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     marginTop: 5,
   },
+
+  studentEmail: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+
+  // ====================================================
+  // STATUS
+  // ====================================================
 
   statusBadge: {
     paddingHorizontal: 10,
@@ -346,6 +592,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#EA580C",
   },
 
+  rejected: {
+    backgroundColor: "#DC2626",
+  },
+
   statusText: {
     color: "#FFFFFF",
     fontSize: 11,
@@ -353,12 +603,20 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
 
+  // ====================================================
+  // DESCRIPTION
+  // ====================================================
+
   description: {
     fontSize: 14,
     color: "#6B7280",
     lineHeight: 21,
     marginBottom: 15,
   },
+
+  // ====================================================
+  // INFORMATION
+  // ====================================================
 
   infoSection: {
     marginBottom: 10,
@@ -376,12 +634,70 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
+  // ====================================================
+  // RESOURCES
+  // ====================================================
+
+  resourcesSection: {
+    marginTop: 5,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+
+  resourcesTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+
+  resourceRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+
+  resourceBadge: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+
+  resourceText: {
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: "600",
+  },
+
+  // ====================================================
+  // REVIEW
+  // ====================================================
+
+  reviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 15,
+  },
+
   reviewText: {
     color: "#2563EB",
     fontSize: 14,
     fontWeight: "bold",
-    marginTop: 10,
   },
+
+  arrow: {
+    color: "#2563EB",
+    fontSize: 18,
+    marginLeft: 5,
+    fontWeight: "bold",
+  },
+
+  // ====================================================
+  // LOADING
+  // ====================================================
 
   loadingContainer: {
     flex: 1,
@@ -395,10 +711,20 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
+  // ====================================================
+  // EMPTY
+  // ====================================================
+
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 30,
+  },
+
+  emptyIcon: {
+    fontSize: 42,
+    marginBottom: 10,
   },
 
   emptyTitle: {
@@ -412,5 +738,7 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginTop: 8,
     textAlign: "center",
+    lineHeight: 21,
   },
+
 });

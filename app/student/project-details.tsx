@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -19,10 +20,20 @@ type Project = {
   description?: string;
   domain?: string;
   technologies?: string;
+
   githubUrl?: string;
+
+  liveDemoUrl?: string;
+
   reportUrl?: string;
   reportName?: string;
   reportPath?: string;
+
+  videoUrl?: string;
+  videoName?: string;
+
+  screenshotUrls?: string[];
+
   status?: string;
   createdAt?: any;
 };
@@ -34,16 +45,13 @@ export default function ProjectDetails() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ==============================
+  // =====================================================
   // FETCH PROJECT
-  // ==============================
+  // =====================================================
 
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        console.log("📌 Project Details ID:", id);
-        console.log("📌 ID type:", typeof id);
-
         if (!id || typeof id !== "string") {
           console.log("❌ Project ID is missing");
           setLoading(false);
@@ -56,11 +64,11 @@ export default function ProjectDetails() {
         const projectSnap = await getDoc(projectRef);
 
         if (projectSnap.exists()) {
-          console.log("✅ Project found:", projectSnap.data());
+          console.log("✅ Project found");
 
           setProject(projectSnap.data() as Project);
         } else {
-          console.log("❌ Project does not exist:", id);
+          console.log("❌ Project not found");
         }
       } catch (error) {
         console.log("❌ Error fetching project:", error);
@@ -72,9 +80,9 @@ export default function ProjectDetails() {
     fetchProject();
   }, [id]);
 
-  // ==============================
+  // =====================================================
   // OPEN URL
-  // ==============================
+  // =====================================================
 
   const openUrl = async (url: string) => {
     try {
@@ -82,15 +90,17 @@ export default function ProjectDetails() {
 
       if (supported) {
         await Linking.openURL(url);
+      } else {
+        console.log("❌ Cannot open URL:", url);
       }
     } catch (error) {
-      console.log("Error opening URL:", error);
+      console.log("❌ Error opening URL:", error);
     }
   };
 
-  // ==============================
-  // STATUS COLOR
-  // ==============================
+  // =====================================================
+  // STATUS STYLE
+  // =====================================================
 
   const getStatusStyle = (status?: string) => {
     switch (status?.toLowerCase()) {
@@ -109,144 +119,349 @@ export default function ProjectDetails() {
     }
   };
 
-  // ==============================
+  // =====================================================
   // LOADING
-  // ==============================
+  // =====================================================
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F7D4F" />
 
-        <Text style={styles.loadingText}>Loading project...</Text>
+        <Text style={styles.loadingText}>
+          Loading project...
+        </Text>
       </View>
     );
   }
 
-  // ==============================
-  // PROJECT NOT FOUND
-  // ==============================
+  // =====================================================
+  // NOT FOUND
+  // =====================================================
 
   if (!project) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.notFoundTitle}>Project Not Found</Text>
+        <Text style={styles.notFoundTitle}>
+          Project Not Found
+        </Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backButtonText}>
+            Go Back
+          </Text>
         </Pressable>
       </View>
     );
   }
 
-  // ==============================
+  // =====================================================
   // MAIN SCREEN
-  // ==============================
+  // =====================================================
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* BACK BUTTON */}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
+
+      {/* =================================================
+          BACK
+      ================================================= */}
 
       <Pressable
         style={styles.backLink}
-        onPress={() => router.replace("/student/my-projects")}
+        onPress={() =>
+          router.replace("/student/my-projects")
+        }
       >
-        <Text style={styles.backLinkText}>← Back to My Projects</Text>
+        <Text style={styles.backLinkText}>
+          ← Back to My Projects
+        </Text>
       </Pressable>
 
-      {/* TITLE */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
       <View style={styles.header}>
-        <Text style={styles.title}>{project.title || "Untitled Project"}</Text>
 
-        <View style={[styles.statusBadge, getStatusStyle(project.status)]}>
-          <Text style={styles.statusText}>{project.status || "Pending"}</Text>
+        <Text style={styles.title}>
+          {project.title || "Untitled Project"}
+        </Text>
+
+        <View
+          style={[
+            styles.statusBadge,
+            getStatusStyle(project.status),
+          ]}
+        >
+          <Text style={styles.statusText}>
+            {project.status || "Pending"}
+          </Text>
         </View>
+
       </View>
 
-      {/* DESCRIPTION */}
+      {/* =================================================
+          DESCRIPTION
+      ================================================= */}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Project Description</Text>
+
+        <Text style={styles.sectionTitle}>
+          Project Description
+        </Text>
 
         <Text style={styles.description}>
-          {project.description || "No description available."}
+          {project.description ||
+            "No description available."}
         </Text>
+
       </View>
 
-      {/* PROJECT INFORMATION */}
+      {/* =================================================
+          PROJECT INFORMATION
+      ================================================= */}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Project Information</Text>
+
+        <Text style={styles.sectionTitle}>
+          Project Information
+        </Text>
 
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Domain</Text>
+          <Text style={styles.label}>
+            Domain
+          </Text>
 
-          <Text style={styles.value}>{project.domain || "Not specified"}</Text>
+          <Text style={styles.value}>
+            {project.domain || "Not specified"}
+          </Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Technologies</Text>
+          <Text style={styles.label}>
+            Technologies
+          </Text>
 
           <Text style={styles.value}>
-            {project.technologies || "Not specified"}
+            {project.technologies ||
+              "Not specified"}
           </Text>
         </View>
+
       </View>
 
-      {/* REPORT */}
+      {/* =================================================
+          PROJECT DEMONSTRATION
+      ================================================= */}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Project Report</Text>
+
+        <Text style={styles.sectionTitle}>
+          Project Demonstration
+        </Text>
+
+        <Text style={styles.sectionSubtitle}>
+          View the project using the demonstration
+          provided by the student.
+        </Text>
+
+        {/* LIVE DEMO */}
+
+        {project.liveDemoUrl ? (
+          <View style={styles.demoItem}>
+
+            <Text style={styles.demoLabel}>
+              🌐 Live Demo
+            </Text>
+
+            <Pressable
+              style={styles.liveDemoButton}
+              onPress={() =>
+                openUrl(project.liveDemoUrl!)
+              }
+            >
+              <Text style={styles.liveDemoButtonText}>
+                Open Live Demo ↗
+              </Text>
+            </Pressable>
+
+          </View>
+        ) : null}
+
+        {/* VIDEO */}
+
+        {project.videoUrl ? (
+          <View style={styles.demoItem}>
+
+            <Text style={styles.demoLabel}>
+              🎥 Demo Video
+            </Text>
+
+            <Pressable
+              style={styles.videoButton}
+              onPress={() =>
+                openUrl(project.videoUrl!)
+              }
+            >
+              <Text style={styles.videoButtonText}>
+                Watch Demo Video ▶
+              </Text>
+            </Pressable>
+
+            {project.videoName ? (
+              <Text style={styles.fileName}>
+                {project.videoName}
+              </Text>
+            ) : null}
+
+          </View>
+        ) : null}
+
+        {/* SCREENSHOTS */}
+
+        {project.screenshotUrls &&
+        project.screenshotUrls.length > 0 ? (
+          <View style={styles.demoItem}>
+
+            <Text style={styles.demoLabel}>
+              🖼 Screenshots
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.screenshotScroll}
+            >
+              {project.screenshotUrls.map(
+                (url, index) => (
+                  <Pressable
+                    key={index}
+                    onPress={() => openUrl(url)}
+                  >
+                    <Image
+                      source={{ uri: url }}
+                      style={styles.screenshot}
+                    />
+                  </Pressable>
+                )
+              )}
+            </ScrollView>
+
+            <Text style={styles.imageHint}>
+              Tap an image to open it
+            </Text>
+
+          </View>
+        ) : null}
+
+        {/* NOTHING PROVIDED */}
+
+        {!project.liveDemoUrl &&
+        !project.videoUrl &&
+        (!project.screenshotUrls ||
+          project.screenshotUrls.length === 0) ? (
+          <Text style={styles.notAvailable}>
+            No project demonstration available.
+          </Text>
+        ) : null}
+
+      </View>
+
+      {/* =================================================
+          PROJECT REPORT
+      ================================================= */}
+
+      <View style={styles.section}>
+
+        <Text style={styles.sectionTitle}>
+          Project Report
+        </Text>
 
         {project.reportUrl ? (
-          <Pressable
-            style={styles.reportButton}
-            onPress={() => openUrl(project.reportUrl!)}
-          >
-            <Text style={styles.reportButtonText}>📄 View Project Report</Text>
-          </Pressable>
+          <>
+            <Pressable
+              style={styles.reportButton}
+              onPress={() =>
+                openUrl(project.reportUrl!)
+              }
+            >
+              <Text style={styles.reportButtonText}>
+                📄 View Project Report
+              </Text>
+            </Pressable>
+
+            {project.reportName ? (
+              <Text style={styles.fileName}>
+                {project.reportName}
+              </Text>
+            ) : null}
+          </>
         ) : (
-          <Text style={styles.notAvailable}>No report available.</Text>
+          <Text style={styles.notAvailable}>
+            No report available.
+          </Text>
         )}
 
-        {project.reportName ? (
-          <Text style={styles.fileName}>{project.reportName}</Text>
-        ) : null}
       </View>
 
-      {/* GITHUB */}
+      {/* =================================================
+          GITHUB
+      ================================================= */}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Source Code</Text>
+
+        <Text style={styles.sectionTitle}>
+          Source Code
+        </Text>
 
         {project.githubUrl ? (
           <Pressable
             style={styles.githubButton}
-            onPress={() => openUrl(project.githubUrl!)}
+            onPress={() =>
+              openUrl(project.githubUrl!)
+            }
           >
-            <Text style={styles.githubButtonText}>GitHub ↗</Text>
+            <Text style={styles.githubButtonText}>
+              GitHub Repository ↗
+            </Text>
           </Pressable>
         ) : (
           <Text style={styles.notAvailable}>
             No GitHub repository available.
           </Text>
         )}
+
       </View>
 
-      {/* FUTURE GUIDE FEEDBACK */}
+      {/* =================================================
+          GUIDE FEEDBACK
+      ================================================= */}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Guide Feedback</Text>
+
+        <Text style={styles.sectionTitle}>
+          Guide Feedback
+        </Text>
 
         <View style={styles.feedbackBox}>
+
           <Text style={styles.feedbackText}>
-            Guide feedback will appear here after the project is reviewed.
+            Guide feedback will appear here after
+            the project is reviewed.
           </Text>
+
         </View>
+
       </View>
+
     </ScrollView>
   );
 }
@@ -256,6 +471,7 @@ export default function ProjectDetails() {
 // ======================================================
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F4F8F3",
@@ -265,6 +481,10 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+
+  // ====================================================
+  // LOADING
+  // ====================================================
 
   loadingContainer: {
     flex: 1,
@@ -286,6 +506,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  // ====================================================
+  // BACK
+  // ====================================================
+
   backLink: {
     marginBottom: 20,
   },
@@ -295,6 +519,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+
+  // ====================================================
+  // HEADER
+  // ====================================================
 
   header: {
     backgroundColor: "#FFFFFF",
@@ -342,6 +570,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#C94A4A",
   },
 
+  // ====================================================
+  // SECTION
+  // ====================================================
+
   section: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -358,11 +590,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  sectionSubtitle: {
+    fontSize: 13,
+    color: "#718071",
+    lineHeight: 19,
+    marginBottom: 15,
+  },
+
+  // ====================================================
+  // DESCRIPTION
+  // ====================================================
+
   description: {
     fontSize: 15,
     lineHeight: 23,
     color: "#536153",
   },
+
+  // ====================================================
+  // INFORMATION
+  // ====================================================
 
   infoRow: {
     paddingVertical: 5,
@@ -386,6 +633,71 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 
+  // ====================================================
+  // DEMONSTRATION
+  // ====================================================
+
+  demoItem: {
+    marginBottom: 20,
+  },
+
+  demoLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#263626",
+    marginBottom: 9,
+  },
+
+  liveDemoButton: {
+    backgroundColor: "#E7F1E5",
+    borderWidth: 1,
+    borderColor: "#B8D0B5",
+    borderRadius: 10,
+    paddingVertical: 13,
+  },
+
+  liveDemoButtonText: {
+    textAlign: "center",
+    color: "#315C31",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  videoButton: {
+    backgroundColor: "#263626",
+    borderRadius: 10,
+    paddingVertical: 13,
+  },
+
+  videoButtonText: {
+    textAlign: "center",
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  screenshotScroll: {
+    marginTop: 4,
+  },
+
+  screenshot: {
+    width: 220,
+    height: 140,
+    borderRadius: 10,
+    marginRight: 12,
+    backgroundColor: "#E5EBE3",
+  },
+
+  imageHint: {
+    fontSize: 11,
+    color: "#8A948A",
+    marginTop: 6,
+  },
+
+  // ====================================================
+  // REPORT
+  // ====================================================
+
   reportButton: {
     backgroundColor: "#E7F1E5",
     borderWidth: 1,
@@ -401,6 +713,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  // ====================================================
+  // GITHUB
+  // ====================================================
+
   githubButton: {
     backgroundColor: "#263626",
     borderRadius: 10,
@@ -414,6 +730,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  // ====================================================
+  // COMMON
+  // ====================================================
+
   notAvailable: {
     color: "#9AA49A",
     fontSize: 14,
@@ -424,6 +744,10 @@ const styles = StyleSheet.create({
     color: "#718071",
     fontSize: 12,
   },
+
+  // ====================================================
+  // FEEDBACK
+  // ====================================================
 
   feedbackBox: {
     backgroundColor: "#F4F8F3",
@@ -438,6 +762,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+
+  // ====================================================
+  // BACK BUTTON
+  // ====================================================
 
   backButton: {
     backgroundColor: "#4F7D4F",
