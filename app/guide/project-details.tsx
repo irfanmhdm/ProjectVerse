@@ -1,3 +1,5 @@
+import * as ImagePicker from "expo-image-picker";
+
 import {
   doc,
   getDoc,
@@ -30,6 +32,14 @@ import {
   db,
 } from "../../firebase/firebaseConfig";
 
+import {
+  supabase,
+} from "../../supabase/supabaseConfig";
+
+// ======================================================
+// TYPES
+// ======================================================
+
 type Project = {
   title?: string;
   description?: string;
@@ -55,13 +65,32 @@ type Project = {
   status?: string;
 
   guideFeedback?: string;
+
+  // Multiple guide feedback attachments
+  guideFeedbackAttachmentUrls?: string[];
+  guideFeedbackAttachmentNames?: string[];
+
   reviewedBy?: string;
   reviewedAt?: any;
 };
 
+type FeedbackAttachment =
+  ImagePicker.ImagePickerAsset;
+
+// ======================================================
+// COMPONENT
+// ======================================================
+
 export default function GuideProjectDetails() {
-  const { id } = useLocalSearchParams();
-  const router = useRouter();
+  const { id } =
+    useLocalSearchParams();
+
+  const router =
+    useRouter();
+
+  // ======================================================
+  // PROJECT
+  // ======================================================
 
   const [project, setProject] =
     useState<Project | null>(null);
@@ -72,8 +101,19 @@ export default function GuideProjectDetails() {
   const [updating, setUpdating] =
     useState(false);
 
+  // ======================================================
+  // FEEDBACK
+  // ======================================================
+
   const [feedback, setFeedback] =
     useState("");
+
+  // ======================================================
+  // FEEDBACK ATTACHMENTS
+  // ======================================================
+
+  const [feedbackAttachments, setFeedbackAttachments] =
+    useState<FeedbackAttachment[]>([]);
 
   // ======================================================
   // LOAD PROJECT
@@ -87,12 +127,20 @@ export default function GuideProjectDetails() {
           id
         );
 
-        if (!id || typeof id !== "string") {
+        // --------------------------------------------------
+        // CHECK PROJECT ID
+        // --------------------------------------------------
+
+        if (
+          !id ||
+          typeof id !== "string"
+        ) {
           console.log(
             "❌ Project ID is missing"
           );
 
           setLoading(false);
+
           return;
         }
 
@@ -101,21 +149,31 @@ export default function GuideProjectDetails() {
           id
         );
 
-        const projectRef = doc(
-          db,
-          "projects",
-          id
-        );
+        // --------------------------------------------------
+        // FIRESTORE PROJECT
+        // --------------------------------------------------
+
+        const projectRef =
+          doc(
+            db,
+            "projects",
+            id
+          );
 
         const projectSnap =
-          await getDoc(projectRef);
+          await getDoc(
+            projectRef
+          );
 
-        if (!projectSnap.exists()) {
+        if (
+          !projectSnap.exists()
+        ) {
           console.log(
             "❌ Project not found"
           );
 
           setLoading(false);
+
           return;
         }
 
@@ -126,6 +184,28 @@ export default function GuideProjectDetails() {
           "✅ Project found:",
           data
         );
+
+        // --------------------------------------------------
+        // LOAD ATTACHMENT ARRAYS
+        // --------------------------------------------------
+
+        const attachmentUrls =
+          Array.isArray(
+            data.guideFeedbackAttachmentUrls
+          )
+            ? data.guideFeedbackAttachmentUrls
+            : [];
+
+        const attachmentNames =
+          Array.isArray(
+            data.guideFeedbackAttachmentNames
+          )
+            ? data.guideFeedbackAttachmentNames
+            : [];
+
+        // --------------------------------------------------
+        // LOADED PROJECT
+        // --------------------------------------------------
 
         const loadedProject: Project = {
           title:
@@ -199,6 +279,12 @@ export default function GuideProjectDetails() {
             data.guideFeedback ||
             "",
 
+          guideFeedbackAttachmentUrls:
+            attachmentUrls,
+
+          guideFeedbackAttachmentNames:
+            attachmentNames,
+
           reviewedBy:
             data.reviewedBy ||
             "",
@@ -212,7 +298,10 @@ export default function GuideProjectDetails() {
           loadedProject
         );
 
-        // Load existing feedback
+        // --------------------------------------------------
+        // LOAD EXISTING FEEDBACK
+        // --------------------------------------------------
+
         setFeedback(
           loadedProject.guideFeedback ||
             ""
@@ -244,7 +333,9 @@ export default function GuideProjectDetails() {
   ) => {
     try {
       const supported =
-        await Linking.canOpenURL(url);
+        await Linking.canOpenURL(
+          url
+        );
 
       if (!supported) {
         Alert.alert(
@@ -255,7 +346,9 @@ export default function GuideProjectDetails() {
         return;
       }
 
-      await Linking.openURL(url);
+      await Linking.openURL(
+        url
+      );
     } catch (error) {
       console.log(
         "❌ Error opening URL:",
@@ -270,13 +363,324 @@ export default function GuideProjectDetails() {
   };
 
   // ======================================================
+  // PICK MULTIPLE FEEDBACK SCREENSHOTS
+  // ======================================================
+
+  const pickFeedbackAttachments =
+    async () => {
+      try {
+        // --------------------------------------------------
+        // REQUEST PERMISSION
+        // --------------------------------------------------
+
+        const permission =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (
+          !permission.granted
+        ) {
+          Alert.alert(
+            "Permission Required",
+            "Please allow photo library access to attach screenshots."
+          );
+
+          return;
+        }
+
+        // --------------------------------------------------
+        // OPEN IMAGE PICKER
+        // --------------------------------------------------
+
+        const result =
+          await ImagePicker.launchImageLibraryAsync(
+            {
+              mediaTypes: [
+                "images",
+              ],
+
+              allowsMultipleSelection:
+                true,
+
+              quality: 0.8,
+            }
+          );
+
+        if (
+          result.canceled
+        ) {
+          return;
+        }
+
+        const selectedImages =
+          result.assets || [];
+
+        if (
+          selectedImages.length ===
+          0
+        ) {
+          return;
+        }
+
+        // --------------------------------------------------
+        // MAXIMUM 8 ATTACHMENTS
+        // --------------------------------------------------
+
+        const images =
+          selectedImages.slice(
+            0,
+            8
+          );
+
+        if (
+          selectedImages.length >
+          8
+        ) {
+          Alert.alert(
+            "Maximum Attachments",
+            "You can attach a maximum of 8 screenshots."
+          );
+        }
+
+        // --------------------------------------------------
+        // MAXIMUM SIZE PER IMAGE
+        // --------------------------------------------------
+
+        const maxSize =
+          10 * 1024 * 1024;
+
+        // --------------------------------------------------
+        // VALIDATE IMAGES
+        // --------------------------------------------------
+
+        const validImages =
+          images.filter(
+            (image) => {
+              const fileName =
+                image.fileName ||
+                "feedback_screenshot.jpg";
+
+              // File type
+              const isImage =
+                image.mimeType?.startsWith(
+                  "image/"
+                ) ||
+                /\.(jpg|jpeg|png|webp)$/i.test(
+                  fileName
+                );
+
+              if (
+                !isImage
+              ) {
+                return false;
+              }
+
+              // File size
+              if (
+                image.fileSize &&
+                image.fileSize >
+                  maxSize
+              ) {
+                return false;
+              }
+
+              return true;
+            }
+          );
+
+        // --------------------------------------------------
+        // INVALID FILE WARNING
+        // --------------------------------------------------
+
+        if (
+          validImages.length !==
+          images.length
+        ) {
+          Alert.alert(
+            "Invalid Attachment",
+            "Only image files smaller than 10 MB are allowed."
+          );
+        }
+
+        // --------------------------------------------------
+        // SAVE SELECTED IMAGES
+        // --------------------------------------------------
+
+        setFeedbackAttachments(
+          validImages
+        );
+
+        console.log(
+          "📎 Selected feedback attachments:",
+          validImages.length
+        );
+      } catch (error) {
+        console.log(
+          "❌ Error selecting feedback screenshots:",
+          error
+        );
+
+        Alert.alert(
+          "Error",
+          "Could not select the feedback screenshots."
+        );
+      }
+    };
+
+  // ======================================================
+  // REMOVE ONE ATTACHMENT
+  // ======================================================
+
+  const removeFeedbackAttachment =
+    (
+      index: number
+    ) => {
+      setFeedbackAttachments(
+        (previous) =>
+          previous.filter(
+            (_, i) =>
+              i !== index
+          )
+      );
+    };
+
+  // ======================================================
+  // UPLOAD ONE FILE TO SUPABASE
+  // ======================================================
+
+  const uploadFeedbackAttachment =
+    async (
+      image: FeedbackAttachment,
+      projectId: string
+    ) => {
+      // --------------------------------------------------
+      // READ IMAGE
+      // --------------------------------------------------
+
+      const response =
+        await fetch(
+          image.uri
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          "Could not read the selected screenshot."
+        );
+      }
+
+      const arrayBuffer =
+        await response.arrayBuffer();
+
+      // --------------------------------------------------
+      // FILE NAME
+      // --------------------------------------------------
+
+      const originalName =
+        image.fileName ||
+        "feedback_screenshot.jpg";
+
+      const safeFileName =
+        originalName.replace(
+          /[^a-zA-Z0-9._-]/g,
+          "_"
+        );
+
+      const extension =
+        safeFileName
+          .split(".")
+          .pop() ||
+        "jpg";
+
+      // --------------------------------------------------
+      // UNIQUE STORAGE PATH
+      // --------------------------------------------------
+
+      const uniqueId =
+        Math.random()
+          .toString(36)
+          .substring(
+            2,
+            8
+          );
+
+      const filePath =
+        `guide-feedback/${projectId}/${Date.now()}_feedback_${uniqueId}.${extension}`;
+
+      console.log(
+        "📤 Uploading feedback attachment:",
+        filePath
+      );
+
+      // --------------------------------------------------
+      // SUPABASE UPLOAD
+      // --------------------------------------------------
+
+      const {
+        error,
+      } =
+        await supabase.storage
+          .from(
+            "project-demos"
+          )
+          .upload(
+            filePath,
+            arrayBuffer,
+            {
+              contentType:
+                image.mimeType ||
+                "image/jpeg",
+
+              upsert:
+                false,
+            }
+          );
+
+      if (
+        error
+      ) {
+        throw error;
+      }
+
+      // --------------------------------------------------
+      // GET PUBLIC URL
+      // --------------------------------------------------
+
+      const {
+        data,
+      } =
+        supabase.storage
+          .from(
+            "project-demos"
+          )
+          .getPublicUrl(
+            filePath
+          );
+
+      console.log(
+        "✅ Feedback attachment uploaded:",
+        data.publicUrl
+      );
+
+      return {
+        url:
+          data.publicUrl,
+
+        name:
+          originalName,
+      };
+    };
+
+  // ======================================================
   // FORMAT STATUS
   // ======================================================
 
   const formatStatus = (
     status?: string
   ) => {
-    if (!status) {
+    if (
+      !status
+    ) {
       return "Pending";
     }
 
@@ -288,7 +692,10 @@ export default function GuideProjectDetails() {
     }
 
     return status
-      .replace("_", " ")
+      .replace(
+        "_",
+        " "
+      )
       .replace(
         /\b\w/g,
         (letter) =>
@@ -321,270 +728,430 @@ export default function GuideProjectDetails() {
   };
 
   // ======================================================
-  // UPDATE STATUS + FEEDBACK
+  // UPDATE REVIEW
   // ======================================================
 
-  const updateReview = async (
-    newStatus: string
-  ) => {
-    if (
-      !id ||
-      typeof id !== "string"
-    ) {
-      Alert.alert(
-        "Error",
-        "Project ID is missing."
-      );
+  const updateReview =
+    async (
+      newStatus: string
+    ) => {
+      // --------------------------------------------------
+      // PROJECT ID
+      // --------------------------------------------------
 
-      return;
-    }
-
-    const guide =
-      auth.currentUser;
-
-    if (!guide) {
-      Alert.alert(
-        "Error",
-        "Guide session has expired. Please login again."
-      );
-
-      return;
-    }
-
-    // --------------------------------------------------
-    // FEEDBACK VALIDATION
-    // --------------------------------------------------
-
-    const trimmedFeedback =
-      feedback.trim();
-
-    // Revision MUST have feedback
-    if (
-      newStatus ===
-        "revision_required" &&
-      trimmedFeedback === ""
-    ) {
-      Alert.alert(
-        "Feedback Required",
-        "Please explain what the student needs to change or improve."
-      );
-
-      return;
-    }
-
-    // Rejection MUST have a reason
-    if (
-      newStatus === "rejected" &&
-      trimmedFeedback === ""
-    ) {
-      Alert.alert(
-        "Reason Required",
-        "Please provide a reason for rejecting this project."
-      );
-
-      return;
-    }
-
-    // --------------------------------------------------
-    // UPDATE
-    // --------------------------------------------------
-
-    try {
-      setUpdating(true);
-
-      console.log(
-        "🔄 Updating project review:",
-        {
-          status: newStatus,
-          feedback:
-            trimmedFeedback,
-          guideId: guide.uid,
-        }
-      );
-
-      const projectRef =
-        doc(
-          db,
-          "projects",
-          id
+      if (
+        !id ||
+        typeof id !== "string"
+      ) {
+        Alert.alert(
+          "Error",
+          "Project ID is missing."
         );
 
-      await updateDoc(
-        projectRef,
-        {
-          status: newStatus,
+        return;
+      }
 
-          guideFeedback:
-            trimmedFeedback,
+      // --------------------------------------------------
+      // CURRENT GUIDE
+      // --------------------------------------------------
 
-          reviewedBy:
-            guide.uid,
+      const guide =
+        auth.currentUser;
 
-          reviewedAt:
-            serverTimestamp(),
-        }
-      );
+      if (!guide) {
+        Alert.alert(
+          "Error",
+          "Guide session has expired. Please login again."
+        );
 
-      console.log(
-        "✅ Review updated successfully"
-      );
+        return;
+      }
 
-      // Update local UI immediately
-      setProject(
-        (previousProject) => {
-          if (!previousProject) {
-            return previousProject;
+      // --------------------------------------------------
+      // FEEDBACK VALIDATION
+      // --------------------------------------------------
+
+      const trimmedFeedback =
+        feedback.trim();
+
+      // Revision requires feedback
+      if (
+        newStatus ===
+          "revision_required" &&
+        trimmedFeedback === ""
+      ) {
+        Alert.alert(
+          "Feedback Required",
+          "Please explain what the student needs to change or improve."
+        );
+
+        return;
+      }
+
+      // Rejection requires reason
+      if (
+        newStatus ===
+          "rejected" &&
+        trimmedFeedback === ""
+      ) {
+        Alert.alert(
+          "Reason Required",
+          "Please provide a reason for rejecting this project."
+        );
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // UPDATE
+      // --------------------------------------------------
+
+      try {
+        setUpdating(
+          true
+        );
+
+        console.log(
+          "🔄 Updating project review:",
+          {
+            status:
+              newStatus,
+
+            feedback:
+              trimmedFeedback,
+
+            attachmentCount:
+              feedbackAttachments.length,
+
+            guideId:
+              guide.uid,
           }
+        );
 
-          return {
-            ...previousProject,
+        // ==================================================
+        // ATTACHMENT ARRAYS
+        // ==================================================
 
+        const attachmentUrls: string[] =
+          [];
+
+        const attachmentNames: string[] =
+          [];
+
+        // ==================================================
+        // UPLOAD ALL SELECTED ATTACHMENTS
+        // ==================================================
+
+        if (
+          feedbackAttachments.length >
+          0
+        ) {
+          console.log(
+            "📎 Uploading feedback screenshots:",
+            feedbackAttachments.length
+          );
+
+          for (
+            let i = 0;
+            i <
+            feedbackAttachments.length;
+            i++
+          ) {
+            console.log(
+              `📤 Uploading attachment ${i + 1}/${feedbackAttachments.length}`
+            );
+
+            const uploaded =
+              await uploadFeedbackAttachment(
+                feedbackAttachments[
+                  i
+                ],
+                id
+              );
+
+            attachmentUrls.push(
+              uploaded.url
+            );
+
+            attachmentNames.push(
+              uploaded.name
+            );
+          }
+        }
+
+        console.log(
+          "📎 Total uploaded attachments:",
+          attachmentUrls.length
+        );
+
+        // ==================================================
+        // FIRESTORE
+        // ==================================================
+
+        const projectRef =
+          doc(
+            db,
+            "projects",
+            id
+          );
+
+        await updateDoc(
+          projectRef,
+          {
             status:
               newStatus,
 
             guideFeedback:
               trimmedFeedback,
 
+            guideFeedbackAttachmentUrls:
+              attachmentUrls,
+
+            guideFeedbackAttachmentNames:
+              attachmentNames,
+
             reviewedBy:
               guide.uid,
-          };
-        }
-      );
 
-      Alert.alert(
-        "Review Submitted",
-        `Project has been ${formatStatus(
-          newStatus
-        ).toLowerCase()}.`
-      );
-    } catch (error: any) {
-      console.log(
-        "❌ Error updating review:",
-        error
-      );
+            reviewedAt:
+              serverTimestamp(),
+          }
+        );
 
-      console.log(
-        "Error code:",
-        error?.code
-      );
+        console.log(
+          "✅ Review updated successfully"
+        );
 
-      console.log(
-        "Error message:",
-        error?.message
-      );
+        // ==================================================
+        // UPDATE LOCAL UI
+        // ==================================================
 
-      Alert.alert(
-        "Update Failed",
-        error?.message ||
-          "Unable to update the project review."
-      );
-    } finally {
-      setUpdating(false);
-    }
-  };
+        setProject(
+          (
+            previousProject
+          ) => {
+            if (
+              !previousProject
+            ) {
+              return previousProject;
+            }
+
+            return {
+              ...previousProject,
+
+              status:
+                newStatus,
+
+              guideFeedback:
+                trimmedFeedback,
+
+              guideFeedbackAttachmentUrls:
+                attachmentUrls,
+
+              guideFeedbackAttachmentNames:
+                attachmentNames,
+
+              reviewedBy:
+                guide.uid,
+            };
+          }
+        );
+
+        // ==================================================
+        // CLEAR SELECTED ATTACHMENTS
+        // ==================================================
+
+        setFeedbackAttachments(
+          []
+        );
+
+        // ==================================================
+        // SUCCESS
+        // ==================================================
+
+        Alert.alert(
+          "Review Submitted",
+          `Project has been ${formatStatus(
+            newStatus
+          ).toLowerCase()}.`
+        );
+      } catch (
+        error: any
+      ) {
+        console.log(
+          "❌ Error updating review:",
+          error
+        );
+
+        console.log(
+          "Error code:",
+          error?.code
+        );
+
+        console.log(
+          "Error message:",
+          error?.message
+        );
+
+        Alert.alert(
+          "Update Failed",
+          error?.message ||
+            "Unable to update the project review."
+        );
+      } finally {
+        setUpdating(
+          false
+        );
+      }
+    };
 
   // ======================================================
   // CONFIRM REVIEW
   // ======================================================
 
-  const confirmReview = (
-    newStatus: string
-  ) => {
-    const trimmedFeedback =
-      feedback.trim();
+  const confirmReview =
+    (
+      newStatus: string
+    ) => {
+      const trimmedFeedback =
+        feedback.trim();
 
-    // Revision
-    if (
-      newStatus ===
-        "revision_required" &&
-      trimmedFeedback === ""
-    ) {
+      // --------------------------------------------------
+      // REVISION VALIDATION
+      // --------------------------------------------------
+
+      if (
+        newStatus ===
+          "revision_required" &&
+        trimmedFeedback === ""
+      ) {
+        Alert.alert(
+          "Feedback Required",
+          "Please enter the exact changes or improvements required from the student."
+        );
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // REJECTION VALIDATION
+      // --------------------------------------------------
+
+      if (
+        newStatus ===
+          "rejected" &&
+        trimmedFeedback === ""
+      ) {
+        Alert.alert(
+          "Reason Required",
+          "Please explain why this project is being rejected."
+        );
+
+        return;
+      }
+
+      let title =
+        "";
+
+      let message =
+        "";
+
+      // --------------------------------------------------
+      // APPROVE
+      // --------------------------------------------------
+
+      if (
+        newStatus ===
+        "approved"
+      ) {
+        title =
+          "Approve Project";
+
+        message =
+          trimmedFeedback
+            ? "Are you sure you want to approve this project with this feedback?"
+            : "Are you sure you want to approve this project without additional feedback?";
+      }
+
+      // --------------------------------------------------
+      // REVISION
+      // --------------------------------------------------
+
+      if (
+        newStatus ===
+        "revision_required"
+      ) {
+        title =
+          "Request Revision";
+
+        message =
+          feedbackAttachments.length >
+          0
+            ? `The student will see your feedback and ${feedbackAttachments.length} attached screenshot${feedbackAttachments.length !== 1 ? "s" : ""}. Continue?`
+            : "The student will see your feedback and will need to make the requested changes. Continue?";
+      }
+
+      // --------------------------------------------------
+      // REJECT
+      // --------------------------------------------------
+
+      if (
+        newStatus ===
+        "rejected"
+      ) {
+        title =
+          "Reject Project";
+
+        message =
+          feedbackAttachments.length >
+          0
+            ? `The student will see the rejection reason and ${feedbackAttachments.length} attached screenshot${feedbackAttachments.length !== 1 ? "s" : ""}. Continue?`
+            : "The student will see the rejection reason you provided. Continue?";
+      }
+
+      // --------------------------------------------------
+      // CONFIRMATION
+      // --------------------------------------------------
+
       Alert.alert(
-        "Feedback Required",
-        "Please enter the exact changes or improvements required from the student."
+        title,
+        message,
+        [
+          {
+            text:
+              "Cancel",
+
+            style:
+              "cancel",
+          },
+
+          {
+            text:
+              "Confirm",
+
+            style:
+              newStatus ===
+              "rejected"
+                ? "destructive"
+                : "default",
+
+            onPress:
+              () =>
+                updateReview(
+                  newStatus
+                ),
+          },
+        ]
       );
-
-      return;
-    }
-
-    // Reject
-    if (
-      newStatus === "rejected" &&
-      trimmedFeedback === ""
-    ) {
-      Alert.alert(
-        "Reason Required",
-        "Please explain why this project is being rejected."
-      );
-
-      return;
-    }
-
-    let title = "";
-    let message = "";
-
-    if (
-      newStatus === "approved"
-    ) {
-      title = "Approve Project";
-
-      message =
-        trimmedFeedback
-          ? "Are you sure you want to approve this project with this feedback?"
-          : "Are you sure you want to approve this project without additional feedback?";
-    }
-
-    if (
-      newStatus ===
-      "revision_required"
-    ) {
-      title =
-        "Request Revision";
-
-      message =
-        "The student will see your feedback and will need to make the requested changes. Continue?";
-    }
-
-    if (
-      newStatus === "rejected"
-    ) {
-      title =
-        "Reject Project";
-
-      message =
-        "The student will see the rejection reason you provided. Continue?";
-    }
-
-    Alert.alert(
-      title,
-      message,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Confirm",
-          style:
-            newStatus ===
-            "rejected"
-              ? "destructive"
-              : "default",
-
-          onPress: () =>
-            updateReview(
-              newStatus
-            ),
-        },
-      ]
-    );
-  };
+    };
 
   // ======================================================
   // LOADING
   // ======================================================
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <View
         style={
@@ -611,7 +1178,9 @@ export default function GuideProjectDetails() {
   // PROJECT NOT FOUND
   // ======================================================
 
-  if (!project) {
+  if (
+    !project
+  ) {
     return (
       <View
         style={
@@ -652,7 +1221,9 @@ export default function GuideProjectDetails() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={
+        styles.container
+      }
       contentContainerStyle={
         styles.content
       }
@@ -661,10 +1232,14 @@ export default function GuideProjectDetails() {
         false
       }
     >
-      {/* BACK */}
+      {/* ==================================================
+          BACK
+      ================================================== */}
 
       <Pressable
-        style={styles.backLink}
+        style={
+          styles.backLink
+        }
         onPress={() =>
           router.back()
         }
@@ -688,7 +1263,9 @@ export default function GuideProjectDetails() {
         }
       >
         <Text
-          style={styles.title}
+          style={
+            styles.title
+          }
         >
           {project.title ||
             "Untitled Project"}
@@ -720,7 +1297,9 @@ export default function GuideProjectDetails() {
             }
           >
             👨‍🎓{" "}
-            {project.studentName}
+            {
+              project.studentName
+            }
           </Text>
         ) : null}
 
@@ -730,7 +1309,9 @@ export default function GuideProjectDetails() {
               styles.studentEmail
             }
           >
-            {project.studentEmail}
+            {
+              project.studentEmail
+            }
           </Text>
         ) : null}
       </View>
@@ -740,7 +1321,9 @@ export default function GuideProjectDetails() {
       ================================================== */}
 
       <View
-        style={styles.section}
+        style={
+          styles.section
+        }
       >
         <Text
           style={
@@ -765,7 +1348,9 @@ export default function GuideProjectDetails() {
       ================================================== */}
 
       <View
-        style={styles.section}
+        style={
+          styles.section
+        }
       >
         <Text
           style={
@@ -776,16 +1361,22 @@ export default function GuideProjectDetails() {
         </Text>
 
         <View
-          style={styles.infoRow}
+          style={
+            styles.infoRow
+          }
         >
           <Text
-            style={styles.label}
+            style={
+              styles.label
+            }
           >
             Domain
           </Text>
 
           <Text
-            style={styles.value}
+            style={
+              styles.value
+            }
           >
             {project.domain ||
               "Not specified"}
@@ -793,20 +1384,28 @@ export default function GuideProjectDetails() {
         </View>
 
         <View
-          style={styles.divider}
+          style={
+            styles.divider
+          }
         />
 
         <View
-          style={styles.infoRow}
+          style={
+            styles.infoRow
+          }
         >
           <Text
-            style={styles.label}
+            style={
+              styles.label
+            }
           >
             Technologies
           </Text>
 
           <Text
-            style={styles.value}
+            style={
+              styles.value
+            }
           >
             {project.technologies ||
               "Not specified"}
@@ -819,7 +1418,9 @@ export default function GuideProjectDetails() {
       ================================================== */}
 
       <View
-        style={styles.section}
+        style={
+          styles.section
+        }
       >
         <Text
           style={
@@ -899,7 +1500,9 @@ export default function GuideProjectDetails() {
                   styles.fileName
                 }
               >
-                {project.videoName}
+                {
+                  project.videoName
+                }
               </Text>
             ) : null}
 
@@ -955,7 +1558,8 @@ export default function GuideProjectDetails() {
               screenshot
               {project
                 .screenshotUrls
-                .length !== 1
+                .length !==
+              1
                 ? "s"
                 : ""}
             </Text>
@@ -987,7 +1591,8 @@ export default function GuideProjectDetails() {
                   >
                     <Image
                       source={{
-                        uri: url,
+                        uri:
+                          url,
                       }}
                       style={
                         styles.screenshot
@@ -1001,7 +1606,8 @@ export default function GuideProjectDetails() {
                       }
                     >
                       Screenshot{" "}
-                      {index + 1}
+                      {index +
+                        1}
                     </Text>
                   </Pressable>
                 )
@@ -1017,7 +1623,8 @@ export default function GuideProjectDetails() {
         (!project.screenshotUrls ||
           project
             .screenshotUrls
-            .length === 0) ? (
+            .length ===
+            0) ? (
           <View
             style={
               styles.noDemoBox
@@ -1049,7 +1656,9 @@ export default function GuideProjectDetails() {
       ================================================== */}
 
       <View
-        style={styles.section}
+        style={
+          styles.section
+        }
       >
         <Text
           style={
@@ -1086,7 +1695,9 @@ export default function GuideProjectDetails() {
                   styles.fileName
                 }
               >
-                {project.reportName}
+                {
+                  project.reportName
+                }
               </Text>
             ) : null}
           </>
@@ -1106,7 +1717,9 @@ export default function GuideProjectDetails() {
       ================================================== */}
 
       <View
-        style={styles.section}
+        style={
+          styles.section
+        }
       >
         <Text
           style={
@@ -1148,10 +1761,15 @@ export default function GuideProjectDetails() {
       </View>
 
       {/* ==================================================
-          EXISTING FEEDBACK
+          EXISTING GUIDE FEEDBACK
       ================================================== */}
 
-      {project.guideFeedback ? (
+      {project.guideFeedback ||
+      (
+        project
+          .guideFeedbackAttachmentUrls
+          ?.length || 0
+      ) > 0 ? (
         <View
           style={
             styles.previousFeedbackBox
@@ -1165,13 +1783,113 @@ export default function GuideProjectDetails() {
             Previous Guide Feedback
           </Text>
 
-          <Text
-            style={
-              styles.previousFeedbackText
-            }
-          >
-            {project.guideFeedback}
-          </Text>
+          {project.guideFeedback ? (
+            <Text
+              style={
+                styles.previousFeedbackText
+              }
+            >
+              {
+                project.guideFeedback
+              }
+            </Text>
+          ) : null}
+
+          {/* ==================================================
+              EXISTING ATTACHMENTS
+          ================================================== */}
+
+          {project.guideFeedbackAttachmentUrls &&
+          project.guideFeedbackAttachmentUrls
+            .length > 0 ? (
+            <View
+              style={
+                styles.existingAttachment
+              }
+            >
+              <Text
+                style={
+                  styles.attachmentLabel
+                }
+              >
+                📎 Attached Screenshots
+              </Text>
+
+              <Text
+                style={
+                  styles.attachmentCount
+                }
+              >
+                {
+                  project
+                    .guideFeedbackAttachmentUrls
+                    .length
+                }{" "}
+                screenshot
+                {project
+                  .guideFeedbackAttachmentUrls
+                  .length !==
+                1
+                  ? "s"
+                  : ""}
+              </Text>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={
+                  false
+                }
+              >
+                {project.guideFeedbackAttachmentUrls.map(
+                  (
+                    url,
+                    index
+                  ) => (
+                    <Pressable
+                      key={`${url}-${index}`}
+                      style={
+                        styles.existingAttachmentCard
+                      }
+                      onPress={() =>
+                        openUrl(
+                          url
+                        )
+                      }
+                    >
+                      <Image
+                        source={{
+                          uri:
+                            url,
+                        }}
+                        style={
+                          styles.existingAttachmentImage
+                        }
+                        resizeMode="cover"
+                      />
+
+                      <Text
+                        style={
+                          styles.existingAttachmentNumber
+                        }
+                      >
+                        Screenshot{" "}
+                        {index +
+                          1}
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.viewAttachmentText
+                        }
+                      >
+                        View ↗
+                      </Text>
+                    </Pressable>
+                  )
+                )}
+              </ScrollView>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -1180,7 +1898,9 @@ export default function GuideProjectDetails() {
       ================================================== */}
 
       <View
-        style={styles.section}
+        style={
+          styles.section
+        }
       >
         <Text
           style={
@@ -1203,7 +1923,9 @@ export default function GuideProjectDetails() {
         {/* FEEDBACK INPUT */}
 
         <Text
-          style={styles.label}
+          style={
+            styles.label
+          }
         >
           Feedback / Review Comments
         </Text>
@@ -1216,13 +1938,17 @@ export default function GuideProjectDetails() {
             "Example: Improve login validation, add proper error handling, and update the project documentation."
           }
           placeholderTextColor="#9CA3AF"
-          value={feedback}
+          value={
+            feedback
+          }
           onChangeText={
             setFeedback
           }
           multiline
           textAlignVertical="top"
-          editable={!updating}
+          editable={
+            !updating
+          }
         />
 
         <Text
@@ -1235,7 +1961,151 @@ export default function GuideProjectDetails() {
           rejecting a project.
         </Text>
 
-        {/* APPROVE */}
+        {/* ==================================================
+            MULTIPLE ATTACHMENTS
+        ================================================== */}
+
+        <Text
+          style={
+            styles.label
+          }
+        >
+          Feedback Screenshots
+          <Text
+            style={
+              styles.optionalText
+            }
+          >
+            {" "}
+            (Optional)
+          </Text>
+        </Text>
+
+        <Text
+          style={
+            styles.attachmentHint
+          }
+        >
+          Attach screenshots to visually
+          show the student where problems
+          or required changes are located.
+          You can select up to 8 screenshots.
+        </Text>
+
+        {/* ATTACH BUTTON */}
+
+        <Pressable
+          style={
+            styles.attachButton
+          }
+          onPress={
+            pickFeedbackAttachments
+          }
+          disabled={
+            updating
+          }
+        >
+          <Text
+            style={
+              styles.attachButtonText
+            }
+          >
+            📎 Attach Screenshots
+          </Text>
+        </Pressable>
+
+        {/* SELECTED ATTACHMENTS */}
+
+        {feedbackAttachments.length >
+        0 ? (
+          <View
+            style={
+              styles.selectedAttachments
+            }
+          >
+            <Text
+              style={
+                styles.attachmentSelectedTitle
+              }
+            >
+              {
+                feedbackAttachments.length
+              }{" "}
+              screenshot
+              {feedbackAttachments.length !==
+              1
+                ? "s"
+                : ""}{" "}
+              selected
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={
+                false
+              }
+            >
+              {feedbackAttachments.map(
+                (
+                  image,
+                  index
+                ) => (
+                  <View
+                    key={`${image.uri}-${index}`}
+                    style={
+                      styles.selectedAttachmentItem
+                    }
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          image.uri,
+                      }}
+                      style={
+                        styles.attachmentPreview
+                      }
+                      resizeMode="cover"
+                    />
+
+                    <Text
+                      style={
+                        styles.selectedAttachmentNumber
+                      }
+                    >
+                      {
+                        index +
+                        1
+                      }
+                    </Text>
+
+                    <Pressable
+                      onPress={() =>
+                        removeFeedbackAttachment(
+                          index
+                        )
+                      }
+                      disabled={
+                        updating
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.removeAttachmentText
+                        }
+                      >
+                        Remove
+                      </Text>
+                    </Pressable>
+                  </View>
+                )
+              )}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* ==================================================
+            APPROVE
+        ================================================== */}
 
         <Pressable
           style={[
@@ -1244,7 +2114,9 @@ export default function GuideProjectDetails() {
             updating &&
               styles.disabledButton,
           ]}
-          disabled={updating}
+          disabled={
+            updating
+          }
           onPress={() =>
             confirmReview(
               "approved"
@@ -1260,7 +2132,9 @@ export default function GuideProjectDetails() {
           </Text>
         </Pressable>
 
-        {/* REVISION */}
+        {/* ==================================================
+            REVISION
+        ================================================== */}
 
         <Pressable
           style={[
@@ -1269,7 +2143,9 @@ export default function GuideProjectDetails() {
             updating &&
               styles.disabledButton,
           ]}
-          disabled={updating}
+          disabled={
+            updating
+          }
           onPress={() =>
             confirmReview(
               "revision_required"
@@ -1285,7 +2161,9 @@ export default function GuideProjectDetails() {
           </Text>
         </Pressable>
 
-        {/* REJECT */}
+        {/* ==================================================
+            REJECT
+        ================================================== */}
 
         <Pressable
           style={[
@@ -1294,7 +2172,9 @@ export default function GuideProjectDetails() {
             updating &&
               styles.disabledButton,
           ]}
-          disabled={updating}
+          disabled={
+            updating
+          }
           onPress={() =>
             confirmReview(
               "rejected"
@@ -1310,7 +2190,9 @@ export default function GuideProjectDetails() {
           </Text>
         </Pressable>
 
-        {/* UPDATING */}
+        {/* ==================================================
+            UPDATING
+        ================================================== */}
 
         {updating && (
           <View
@@ -1675,6 +2557,70 @@ const styles =
       fontSize: 14,
       color: "#7C2D12",
       lineHeight: 21,
+      marginBottom: 5,
+    },
+
+    existingAttachment: {
+      marginTop: 15,
+      paddingTop: 15,
+      borderTopWidth: 1,
+      borderTopColor:
+        "#FED7AA",
+    },
+
+    attachmentLabel: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#9A3412",
+      marginBottom: 7,
+    },
+
+    attachmentCount: {
+      fontSize: 12,
+      color: "#9A3412",
+      marginBottom: 10,
+    },
+
+    existingAttachmentCard: {
+      width: 130,
+      marginRight: 12,
+    },
+
+    existingAttachmentImage: {
+      width: 130,
+      height: 150,
+      borderRadius: 10,
+      backgroundColor:
+        "#E5E7EB",
+    },
+
+    existingAttachmentNumber: {
+      fontSize: 12,
+      color: "#7C2D12",
+      textAlign:
+        "center",
+      marginTop: 5,
+    },
+
+    viewAttachmentButton: {
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#FDBA74",
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems:
+        "center",
+    },
+
+    viewAttachmentText: {
+      color: "#C2410C",
+      fontWeight: "700",
+      fontSize: 12,
+      textAlign:
+        "center",
+      marginTop: 4,
     },
 
     reviewText: {
@@ -1703,6 +2649,81 @@ const styles =
       color: "#6B7280",
       lineHeight: 18,
       marginBottom: 18,
+    },
+
+    optionalText: {
+      color: "#9CA3AF",
+      fontWeight:
+        "400",
+    },
+
+    attachmentHint: {
+      fontSize: 12,
+      color: "#6B7280",
+      lineHeight: 18,
+      marginBottom: 12,
+    },
+
+    attachButton: {
+      borderWidth: 1,
+      borderColor:
+        "#2563EB",
+      borderStyle:
+        "dashed",
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems:
+        "center",
+      marginBottom: 18,
+      backgroundColor:
+        "#EFF6FF",
+    },
+
+    attachButtonText: {
+      color: "#2563EB",
+      fontSize: 14,
+      fontWeight: "700",
+    },
+
+    selectedAttachments: {
+      marginBottom: 18,
+    },
+
+    selectedAttachmentItem: {
+      width: 115,
+      marginRight: 12,
+    },
+
+    attachmentPreview: {
+      width: 115,
+      height: 130,
+      borderRadius: 8,
+      backgroundColor:
+        "#E5E7EB",
+    },
+
+    selectedAttachmentNumber: {
+      fontSize: 11,
+      color: "#6B7280",
+      textAlign:
+        "center",
+      marginTop: 4,
+    },
+
+    attachmentSelectedTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#1E3A8A",
+      marginBottom: 10,
+    },
+
+    removeAttachmentText: {
+      color: "#DC2626",
+      fontSize: 12,
+      fontWeight: "700",
+      textAlign:
+        "center",
+      marginTop: 5,
     },
 
     actionButton: {
