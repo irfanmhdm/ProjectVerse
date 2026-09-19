@@ -1753,7 +1753,7 @@ const styles =
     },
 
     approved: {
-      backgroundColor: "#238F89",
+      backgroundColor: "#669b88",
     },
 
     revision: {

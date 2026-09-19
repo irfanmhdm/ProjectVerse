@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
   },
 
   approvedStatus: {
-    backgroundColor: "#547e61",
+    backgroundColor: "#669b88",
   },
 
   revisionStatus: {
