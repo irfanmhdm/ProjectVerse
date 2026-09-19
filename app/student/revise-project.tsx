@@ -29,8 +29,9 @@ import {
   View,
 } from "react-native";
 
-import { auth, db } from "../../firebase/firebaseConfig";
+import { Ionicons } from "@expo/vector-icons";
 
+import { auth, db } from "../../firebase/firebaseConfig";
 import { supabase } from "../../supabase/supabaseConfig";
 
 // ======================================================
@@ -159,7 +160,7 @@ export default function ReviseProject() {
           }
 
           console.log(
-            "🔄 Loading project for revision:",
+            "Loading project for revision:",
             id
           );
 
@@ -220,10 +221,6 @@ export default function ReviseProject() {
             return;
           }
 
-          // ------------------------------------------------
-          // SET PROJECT
-          // ------------------------------------------------
-
           setProject(
             loadedProject
           );
@@ -257,11 +254,11 @@ export default function ReviseProject() {
           );
 
           console.log(
-            "✅ Project loaded for revision"
+            "Project loaded for revision"
           );
         } catch (error) {
           console.log(
-            "❌ Error loading revision project:",
+            "Error loading revision project:",
             error
           );
 
@@ -339,12 +336,12 @@ export default function ReviseProject() {
         });
 
         console.log(
-          "📄 New report selected:",
+          "New report selected:",
           file.name
         );
       } catch (error) {
         console.log(
-          "❌ Error selecting report:",
+          "Error selecting report:",
           error
         );
 
@@ -417,12 +414,12 @@ export default function ReviseProject() {
         });
 
         console.log(
-          "🎥 New video selected:",
+          "New video selected:",
           file.name
         );
       } catch (error) {
         console.log(
-          "❌ Error selecting video:",
+          "Error selecting video:",
           error
         );
 
@@ -537,7 +534,10 @@ export default function ReviseProject() {
 
         if (
           validFiles.length !==
-          selected.length
+          Math.min(
+            selected.length,
+            8
+          )
         ) {
           Alert.alert(
             "Invalid Screenshot",
@@ -550,12 +550,12 @@ export default function ReviseProject() {
         );
 
         console.log(
-          "🖼 New screenshots selected:",
+          "New screenshots selected:",
           validFiles.length
         );
       } catch (error) {
         console.log(
-          "❌ Error selecting screenshots:",
+          "Error selecting screenshots:",
           error
         );
 
@@ -567,7 +567,7 @@ export default function ReviseProject() {
     };
 
   // ======================================================
-  // REMOVE REPORT
+  // REMOVE FILES
   // ======================================================
 
   const removeReport =
@@ -577,20 +577,12 @@ export default function ReviseProject() {
       );
     };
 
-  // ======================================================
-  // REMOVE VIDEO
-  // ======================================================
-
   const removeVideo =
     () => {
       setNewVideo(
         null
       );
     };
-
-  // ======================================================
-  // REMOVE SCREENSHOT
-  // ======================================================
 
   const removeScreenshot =
     (
@@ -606,7 +598,7 @@ export default function ReviseProject() {
     };
 
   // ======================================================
-  // UPLOAD FILE TO SUPABASE
+  // UPLOAD FILE
   // ======================================================
 
   const uploadFile =
@@ -616,7 +608,7 @@ export default function ReviseProject() {
       folder: string
     ) => {
       console.log(
-        "📤 Uploading:",
+        "Uploading:",
         file.name
       );
 
@@ -641,12 +633,6 @@ export default function ReviseProject() {
           /[^a-zA-Z0-9._-]/g,
           "_"
         );
-
-      const extension =
-        safeName
-          .split(".")
-          .pop() ||
-        "file";
 
       const uniqueId =
         `${Date.now()}_${Math.random()
@@ -696,7 +682,7 @@ export default function ReviseProject() {
           );
 
       console.log(
-        "✅ Uploaded:",
+        "Uploaded:",
         data.publicUrl
       );
 
@@ -718,10 +704,6 @@ export default function ReviseProject() {
 
   const submitRevision =
     async () => {
-      // ------------------------------------------------
-      // VALIDATE ID
-      // ------------------------------------------------
-
       if (
         !id ||
         typeof id !== "string"
@@ -733,10 +715,6 @@ export default function ReviseProject() {
 
         return;
       }
-
-      // ------------------------------------------------
-      // VALIDATE USER
-      // ------------------------------------------------
 
       const student =
         auth.currentUser;
@@ -751,7 +729,7 @@ export default function ReviseProject() {
       }
 
       // ------------------------------------------------
-      // VALIDATION
+      // REQUIRED VALIDATION
       // ------------------------------------------------
 
       if (
@@ -815,7 +793,7 @@ export default function ReviseProject() {
         );
 
         console.log(
-          "🔄 Starting revision submission..."
+          "Starting revision submission..."
         );
 
         // ==================================================
@@ -894,14 +872,14 @@ export default function ReviseProject() {
             : [];
 
         // ==================================================
-        // UPLOAD NEW REPORT
+        // NEW REPORT
         // ==================================================
 
         if (
           newReport
         ) {
           console.log(
-            "📄 Uploading new report..."
+            "Uploading new report..."
           );
 
           const uploadedReport =
@@ -922,14 +900,14 @@ export default function ReviseProject() {
         }
 
         // ==================================================
-        // UPLOAD NEW VIDEO
+        // NEW VIDEO
         // ==================================================
 
         if (
           newVideo
         ) {
           console.log(
-            "🎥 Uploading new video..."
+            "Uploading new video..."
           );
 
           const uploadedVideo =
@@ -947,7 +925,7 @@ export default function ReviseProject() {
         }
 
         // ==================================================
-        // UPLOAD NEW SCREENSHOTS
+        // NEW SCREENSHOTS
         // ==================================================
 
         if (
@@ -955,7 +933,7 @@ export default function ReviseProject() {
           0
         ) {
           console.log(
-            "🖼 Uploading new screenshots:",
+            "Uploading new screenshots:",
             newScreenshots.length
           );
 
@@ -969,10 +947,6 @@ export default function ReviseProject() {
             newScreenshots.length;
             i++
           ) {
-            console.log(
-              `🖼 Uploading screenshot ${i + 1}/${newScreenshots.length}`
-            );
-
             const uploaded =
               await uploadFile(
                 newScreenshots[
@@ -987,10 +961,7 @@ export default function ReviseProject() {
             );
           }
 
-          // ------------------------------------------------
-          // REPLACE OLD SCREENSHOTS
-          // ------------------------------------------------
-
+          // Replace existing screenshots
           screenshotUrls =
             uploadedScreenshots;
         }
@@ -1000,7 +971,7 @@ export default function ReviseProject() {
         // ==================================================
 
         console.log(
-          "📝 Creating revision history..."
+          "Creating revision history..."
         );
 
         const revisionRef =
@@ -1075,17 +1046,13 @@ export default function ReviseProject() {
           );
 
         console.log(
-          "✅ Revision history created:",
+          "Revision history created:",
           revisionRef.id
         );
 
         // ==================================================
         // UPDATE MAIN PROJECT
         // ==================================================
-
-        console.log(
-          "🔄 Updating main project..."
-        );
 
         await updateDoc(
           projectRef,
@@ -1126,16 +1093,12 @@ export default function ReviseProject() {
             screenshotUrls:
               screenshotUrls,
 
-            // ----------------------------------------------
             // RESET REVIEW STATUS
-            // ----------------------------------------------
 
             status:
               "pending",
 
-            // ----------------------------------------------
-            // CLEAR OLD FEEDBACK FROM CURRENT VERSION
-            // ----------------------------------------------
+            // CLEAR OLD FEEDBACK
 
             guideFeedback:
               "",
@@ -1152,9 +1115,7 @@ export default function ReviseProject() {
             reviewedAt:
               null,
 
-            // ----------------------------------------------
             // REVISION INFO
-            // ----------------------------------------------
 
             lastRevisionId:
               revisionRef.id,
@@ -1168,11 +1129,11 @@ export default function ReviseProject() {
         );
 
         console.log(
-          "✅ Main project updated successfully"
+          "Main project updated successfully"
         );
 
         // ==================================================
-        // CLEAR FORM
+        // CLEAR NEW FILES
         // ==================================================
 
         setNewReport(
@@ -1216,18 +1177,8 @@ export default function ReviseProject() {
         error: any
       ) {
         console.log(
-          "❌ Revision submission failed:",
+          "Revision submission failed:",
           error
-        );
-
-        console.log(
-          "Error code:",
-          error?.code
-        );
-
-        console.log(
-          "Error message:",
-          error?.message
         );
 
         Alert.alert(
@@ -1286,7 +1237,7 @@ export default function ReviseProject() {
       >
         <ActivityIndicator
           size="large"
-          color="#4F7D4F"
+          color="#4338CA"
         />
 
         <Text
@@ -1313,6 +1264,18 @@ export default function ReviseProject() {
           styles.centerContainer
         }
       >
+        <View
+          style={
+            styles.notFoundIcon
+          }
+        >
+          <Ionicons
+            name="document-outline"
+            size={30}
+            color="#4338CA"
+          />
+        </View>
+
         <Text
           style={
             styles.notFoundTitle
@@ -1329,6 +1292,12 @@ export default function ReviseProject() {
             router.back()
           }
         >
+          <Ionicons
+            name="arrow-back"
+            size={17}
+            color="#FFFFFF"
+          />
+
           <Text
             style={
               styles.backButtonText
@@ -1359,7 +1328,7 @@ export default function ReviseProject() {
       keyboardShouldPersistTaps="handled"
     >
       {/* ==================================================
-          HEADER
+          BACK
       ================================================== */}
 
       <Pressable
@@ -1369,136 +1338,267 @@ export default function ReviseProject() {
         onPress={() =>
           router.back()
         }
+        disabled={
+          submitting
+        }
       >
+        <Ionicons
+          name="arrow-back"
+          size={17}
+          color="#4338CA"
+        />
+
         <Text
           style={
             styles.backLinkText
           }
         >
-          ← Back
+          Back to Project
         </Text>
       </Pressable>
+
+      {/* ==================================================
+          HEADER
+      ================================================== */}
 
       <View
         style={
           styles.header
         }
       >
-        <Text
+        <View
           style={
-            styles.title
+            styles.headerIcon
           }
         >
-          Revise Project
-        </Text>
+          <Ionicons
+            name="create-outline"
+            size={25}
+            color="#4338CA"
+          />
+        </View>
 
-        <Text
+        <View
           style={
-            styles.subtitle
+            styles.headerContent
           }
         >
-          Update your project based
-          on the guide's feedback.
-        </Text>
+          <Text
+            style={
+              styles.title
+            }
+          >
+            Revise Project
+          </Text>
+
+          <Text
+            style={
+              styles.subtitle
+            }
+          >
+            Update your project based
+            on the guide's feedback.
+          </Text>
+        </View>
       </View>
 
       {/* ==================================================
           GUIDE FEEDBACK
       ================================================== */}
 
-      {project.guideFeedback ? (
+      <View
+        style={
+          styles.feedbackSection
+        }
+      >
         <View
           style={
-            styles.feedbackBox
+            styles.feedbackHeader
           }
         >
-          <Text
+          <View
             style={
-              styles.feedbackTitle
+              styles.feedbackIcon
             }
           >
-            📝 Guide Feedback
-          </Text>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={20}
+              color="#C27A16"
+            />
+          </View>
 
-          <Text
+          <View
             style={
-              styles.feedbackText
+              styles.feedbackHeaderContent
             }
           >
-            {
-              project.guideFeedback
-            }
-          </Text>
-
-          {/* GUIDE SCREENSHOTS */}
-
-          {project.guideFeedbackAttachmentUrls &&
-          project.guideFeedbackAttachmentUrls
-            .length > 0 ? (
-            <View
+            <Text
               style={
-                styles.guideAttachments
+                styles.feedbackTitle
               }
             >
+              Guide Feedback
+            </Text>
+
+            <Text
+              style={
+                styles.feedbackSubtitle
+              }
+            >
+              Review these comments before
+              making your changes.
+            </Text>
+          </View>
+        </View>
+
+        {project.guideFeedback ? (
+          <View
+            style={
+              styles.feedbackMessage
+            }
+          >
+            <Text
+              style={
+                styles.feedbackMessageText
+              }
+            >
+              {
+                project.guideFeedback
+              }
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={
+              styles.noFeedback
+            }
+          >
+            <Ionicons
+              name="information-circle-outline"
+              size={19}
+              color="#9CA3AF"
+            />
+
+            <Text
+              style={
+                styles.noFeedbackText
+              }
+            >
+              No written feedback was
+              provided.
+            </Text>
+          </View>
+        )}
+
+        {/* GUIDE SCREENSHOTS */}
+
+        {project.guideFeedbackAttachmentUrls &&
+        project.guideFeedbackAttachmentUrls
+          .length > 0 ? (
+          <View
+            style={
+              styles.guideAttachments
+            }
+          >
+            <View
+              style={
+                styles.attachmentHeader
+              }
+            >
+              <Ionicons
+                name="images-outline"
+                size={18}
+                color="#4338CA"
+              />
+
               <Text
                 style={
                   styles.attachmentTitle
                 }
               >
-                📎 Screenshots from
-                Guide
+                Screenshots from Guide
               </Text>
+            </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={
-                  false
-                }
-              >
-                {project.guideFeedbackAttachmentUrls.map(
-                  (
-                    url,
-                    index
-                  ) => (
-                    <Pressable
-                      key={`${url}-${index}`}
-                      style={
-                        styles.guideImageCard
-                      }
-                      onPress={() => {
-                        // No external dependency needed.
-                        // Opening the URL is handled by
-                        // the image itself through the
-                        // system browser if required.
+            <Text
+              style={
+                styles.attachmentDescription
+              }
+            >
+              These images show areas that
+              need changes or improvement.
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={
+                false
+              }
+            >
+              {project.guideFeedbackAttachmentUrls.map(
+                (
+                  url,
+                  index
+                ) => (
+                  <View
+                    key={`${url}-${index}`}
+                    style={
+                      styles.guideImageCard
+                    }
+                  >
+                    <Image
+                      source={{
+                        uri: url,
                       }}
-                    >
-                      <Image
-                        source={{
-                          uri:
-                            url,
-                        }}
-                        style={
-                          styles.guideImage
-                        }
-                      />
+                      style={
+                        styles.guideImage
+                      }
+                      resizeMode="cover"
+                    />
 
+                    <View
+                      style={
+                        styles.guideImageInfo
+                      }
+                    >
                       <Text
                         style={
-                          styles.guideImageText
+                          styles.guideImageNumber
                         }
                       >
                         Screenshot{" "}
-                        {index +
-                          1}
+                        {index + 1}
                       </Text>
-                    </Pressable>
-                  )
-                )}
-              </ScrollView>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
+
+                      {project
+                        .guideFeedbackAttachmentNames?.[
+                        index
+                      ] ? (
+                        <Text
+                          style={
+                            styles.guideImageName
+                          }
+                          numberOfLines={
+                            2
+                          }
+                        >
+                          {
+                            project
+                              .guideFeedbackAttachmentNames[
+                              index
+                            ]
+                          }
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                )
+              )}
+            </ScrollView>
+          </View>
+        ) : null}
+      </View>
 
       {/* ==================================================
           PROJECT DETAILS
@@ -1509,13 +1609,42 @@ export default function ReviseProject() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Details
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Details
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Update the information requested
+              by your guide.
+            </Text>
+          </View>
+        </View>
 
         {/* TITLE */}
 
@@ -1525,6 +1654,13 @@ export default function ReviseProject() {
           }
         >
           Project Title
+          <Text
+            style={
+              styles.required
+            }
+          >
+            {" "}*
+          </Text>
         </Text>
 
         <TextInput
@@ -1552,6 +1688,13 @@ export default function ReviseProject() {
           }
         >
           Description
+          <Text
+            style={
+              styles.required
+            }
+          >
+            {" "}*
+          </Text>
         </Text>
 
         <TextInput
@@ -1582,6 +1725,13 @@ export default function ReviseProject() {
           }
         >
           Domain
+          <Text
+            style={
+              styles.required
+            }
+          >
+            {" "}*
+          </Text>
         </Text>
 
         <TextInput
@@ -1609,6 +1759,13 @@ export default function ReviseProject() {
           }
         >
           Technologies
+          <Text
+            style={
+              styles.required
+            }
+          >
+            {" "}*
+          </Text>
         </Text>
 
         <TextInput
@@ -1630,7 +1787,7 @@ export default function ReviseProject() {
       </View>
 
       {/* ==================================================
-          GITHUB
+          SOURCE CODE
       ================================================== */}
 
       <View
@@ -1638,13 +1795,42 @@ export default function ReviseProject() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Source Code
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="logo-github"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Source Code
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Update the repository if your code
+              has changed.
+            </Text>
+          </View>
+        </View>
 
         <Text
           style={
@@ -1652,26 +1838,45 @@ export default function ReviseProject() {
           }
         >
           GitHub Repository
+          <Text
+            style={
+              styles.required
+            }
+          >
+            {" "}*
+          </Text>
         </Text>
 
-        <TextInput
+        <View
           style={
-            styles.input
+            styles.inputWithIcon
           }
-          value={
-            githubUrl
-          }
-          onChangeText={
-            setGithubUrl
-          }
-          editable={
-            !submitting
-          }
-          autoCapitalize="none"
-          keyboardType="url"
-          placeholder="https://github.com/username/project"
-          placeholderTextColor="#9CA3AF"
-        />
+        >
+          <Ionicons
+            name="logo-github"
+            size={18}
+            color="#6B7280"
+          />
+
+          <TextInput
+            style={
+              styles.iconInput
+            }
+            value={
+              githubUrl
+            }
+            onChangeText={
+              setGithubUrl
+            }
+            editable={
+              !submitting
+            }
+            autoCapitalize="none"
+            keyboardType="url"
+            placeholder="https://github.com/username/project"
+            placeholderTextColor="#9CA3AF"
+          />
+        </View>
       </View>
 
       {/* ==================================================
@@ -1683,40 +1888,81 @@ export default function ReviseProject() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Live Demo
-        </Text>
+          <View
+            style={
+              styles.mintSectionIcon
+            }
+          >
+            <Ionicons
+              name="globe-outline"
+              size={19}
+              color="#238F89"
+            />
+          </View>
+
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Live Demo
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Optional project demonstration
+              link.
+            </Text>
+          </View>
+        </View>
 
         <Text
           style={
-            styles.optionalText
+            styles.label
           }
         >
-          Optional
+          Live Demo URL
         </Text>
 
-        <TextInput
+        <View
           style={
-            styles.input
+            styles.inputWithIcon
           }
-          value={
-            liveDemoUrl
-          }
-          onChangeText={
-            setLiveDemoUrl
-          }
-          editable={
-            !submitting
-          }
-          autoCapitalize="none"
-          keyboardType="url"
-          placeholder="https://your-demo-link.com"
-          placeholderTextColor="#9CA3AF"
-        />
+        >
+          <Ionicons
+            name="link-outline"
+            size={18}
+            color="#6B7280"
+          />
+
+          <TextInput
+            style={
+              styles.iconInput
+            }
+            value={
+              liveDemoUrl
+            }
+            onChangeText={
+              setLiveDemoUrl
+            }
+            editable={
+              !submitting
+            }
+            autoCapitalize="none"
+            keyboardType="url"
+            placeholder="https://your-demo-link.com"
+            placeholderTextColor="#9CA3AF"
+          />
+        </View>
       </View>
 
       {/* ==================================================
@@ -1728,24 +1974,86 @@ export default function ReviseProject() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Report
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="document-attach-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
 
-        <Text
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Report
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Keep the existing report or
+              upload an updated version.
+            </Text>
+          </View>
+        </View>
+
+        {/* CURRENT FILE */}
+
+        <View
           style={
-            styles.currentFile
+            styles.currentFileBox
           }
         >
-          Current report:
-          {" "}
-          {project.reportName ||
-            "No report"}
-        </Text>
+          <Ionicons
+            name="document-text-outline"
+            size={19}
+            color="#238F89"
+          />
+
+          <View
+            style={
+              styles.currentFileContent
+            }
+          >
+            <Text
+              style={
+                styles.currentFileLabel
+              }
+            >
+              Current report
+            </Text>
+
+            <Text
+              style={
+                styles.currentFileName
+              }
+              numberOfLines={2}
+            >
+              {project.reportName ||
+                "No report"}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="checkmark-circle"
+            size={19}
+            color="#238F89"
+          />
+        </View>
 
         <Pressable
           style={
@@ -1758,12 +2066,18 @@ export default function ReviseProject() {
             submitting
           }
         >
+          <Ionicons
+            name="cloud-upload-outline"
+            size={19}
+            color="#4338CA"
+          />
+
           <Text
             style={
               styles.fileButtonText
             }
           >
-            📄 Replace Report
+            Replace Report
           </Text>
         </Pressable>
 
@@ -1773,29 +2087,37 @@ export default function ReviseProject() {
               styles.selectedFile
             }
           >
-            <Text
+            <View
               style={
-                styles.selectedFileText
+                styles.selectedFileLeft
               }
             >
-              📄{" "}
-              {
-                newReport.name
-              }
-            </Text>
+              <Ionicons
+                name="document-text-outline"
+                size={19}
+                color="#238F89"
+              />
+
+              <Text
+                style={
+                  styles.selectedFileText
+                }
+                numberOfLines={2}
+              >
+                {newReport.name}
+              </Text>
+            </View>
 
             <Pressable
               onPress={
                 removeReport
               }
             >
-              <Text
-                style={
-                  styles.removeText
-                }
-              >
-                Remove
-              </Text>
+              <Ionicons
+                name="close-circle-outline"
+                size={21}
+                color="#C44747"
+              />
             </Pressable>
           </View>
         ) : null}
@@ -1810,24 +2132,84 @@ export default function ReviseProject() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Demo Video
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="videocam-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
 
-        <Text
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Demo Video
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Keep the existing video or
+              upload an updated version.
+            </Text>
+          </View>
+        </View>
+
+        <View
           style={
-            styles.currentFile
+            styles.currentFileBox
           }
         >
-          Current video:
-          {" "}
-          {project.videoName ||
-            "No video"}
-        </Text>
+          <Ionicons
+            name="videocam-outline"
+            size={19}
+            color="#238F89"
+          />
+
+          <View
+            style={
+              styles.currentFileContent
+            }
+          >
+            <Text
+              style={
+                styles.currentFileLabel
+              }
+            >
+              Current video
+            </Text>
+
+            <Text
+              style={
+                styles.currentFileName
+              }
+              numberOfLines={2}
+            >
+              {project.videoName ||
+                "No video"}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="checkmark-circle"
+            size={19}
+            color="#238F89"
+          />
+        </View>
 
         <Pressable
           style={
@@ -1840,12 +2222,18 @@ export default function ReviseProject() {
             submitting
           }
         >
+          <Ionicons
+            name="cloud-upload-outline"
+            size={19}
+            color="#4338CA"
+          />
+
           <Text
             style={
               styles.fileButtonText
             }
           >
-            🎥 Replace Demo Video
+            Replace Demo Video
           </Text>
         </Pressable>
 
@@ -1855,31 +2243,39 @@ export default function ReviseProject() {
               styles.selectedFile
             }
           >
-            <Text
+            <View
               style={
-                styles.selectedFileText
-            }
-          >
-            🎥{" "}
-            {
-              newVideo.name
-            }
-          </Text>
-
-          <Pressable
-            onPress={
-              removeVideo
-            }
-          >
-            <Text
-              style={
-                styles.removeText
+                styles.selectedFileLeft
               }
             >
-              Remove
-            </Text>
-          </Pressable>
-        </View>
+              <Ionicons
+                name="videocam-outline"
+                size={19}
+                color="#238F89"
+              />
+
+              <Text
+                style={
+                  styles.selectedFileText
+                }
+                numberOfLines={2}
+              >
+                {newVideo.name}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={
+                removeVideo
+              }
+            >
+              <Ionicons
+                name="close-circle-outline"
+                size={21}
+                color="#C44747"
+              />
+            </Pressable>
+          </View>
         ) : null}
       </View>
 
@@ -1892,33 +2288,96 @@ export default function ReviseProject() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Screenshots
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="images-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
 
-        <Text
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Screenshots
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Replace the current screenshots
+              if your UI has changed.
+            </Text>
+          </View>
+        </View>
+
+        <View
           style={
-            styles.currentFile
+            styles.currentFileBox
           }
         >
-          Current screenshots:
-          {" "}
-          {project.screenshotUrls?.length ||
-            0}
-        </Text>
+          <Ionicons
+            name="images-outline"
+            size={19}
+            color="#238F89"
+          />
+
+          <View
+            style={
+              styles.currentFileContent
+            }
+          >
+            <Text
+              style={
+                styles.currentFileLabel
+              }
+            >
+              Current screenshots
+            </Text>
+
+            <Text
+              style={
+                styles.currentFileName
+              }
+            >
+              {project.screenshotUrls?.length ||
+                0}{" "}
+              screenshot
+              {(project.screenshotUrls?.length ||
+                0) !== 1
+                ? "s"
+                : ""}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="checkmark-circle"
+            size={19}
+            color="#238F89"
+          />
+        </View>
 
         <Text
           style={
             styles.helpText
           }
         >
-          Select new screenshots
-          only if you want to replace
-          the existing ones.
+          Selecting new screenshots will
+          replace the existing screenshots.
         </Text>
 
         <Pressable
@@ -1932,12 +2391,18 @@ export default function ReviseProject() {
             submitting
           }
         >
+          <Ionicons
+            name="images-outline"
+            size={19}
+            color="#4338CA"
+          />
+
           <Text
             style={
               styles.fileButtonText
             }
           >
-            🖼 Replace Screenshots
+            Replace Screenshots
           </Text>
         </Pressable>
 
@@ -1948,21 +2413,33 @@ export default function ReviseProject() {
               styles.selectedScreenshots
             }
           >
-            <Text
+            <View
               style={
-                styles.selectedTitle
+                styles.selectedTitleRow
               }
             >
-              {
-                newScreenshots.length
-              }{" "}
-              new screenshot
-              {newScreenshots.length !==
-              1
-                ? "s"
-                : ""}{" "}
-              selected
-            </Text>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={17}
+                color="#238F89"
+              />
+
+              <Text
+                style={
+                  styles.selectedTitle
+                }
+              >
+                {
+                  newScreenshots.length
+                }{" "}
+                new screenshot
+                {newScreenshots.length !==
+                1
+                  ? "s"
+                  : ""}{" "}
+                selected
+              </Text>
+            </View>
 
             <ScrollView
               horizontal
@@ -1991,32 +2468,34 @@ export default function ReviseProject() {
                       }
                     />
 
-                    <Text
+                    <View
                       style={
-                        styles.previewNumber
-                      }
-                    >
-                      {
-                        index +
-                        1
-                      }
-                    </Text>
-
-                    <Pressable
-                      onPress={() =>
-                        removeScreenshot(
-                          index
-                        )
+                        styles.previewFooter
                       }
                     >
                       <Text
                         style={
-                          styles.removeText
+                          styles.previewNumber
                         }
                       >
-                        Remove
+                        Screenshot{" "}
+                        {index + 1}
                       </Text>
-                    </Pressable>
+
+                      <Pressable
+                        onPress={() =>
+                          removeScreenshot(
+                            index
+                          )
+                        }
+                      >
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={19}
+                          color="#C44747"
+                        />
+                      </Pressable>
+                    </View>
                   </View>
                 )
               )}
@@ -2034,24 +2513,57 @@ export default function ReviseProject() {
           styles.submitSection
         }
       >
-        <Text
+        <View
           style={
-            styles.submitTitle
+            styles.submitHeader
           }
         >
-          Ready to Resubmit?
-        </Text>
+          <View
+            style={
+              styles.submitIcon
+            }
+          >
+            <Ionicons
+              name="refresh-outline"
+              size={22}
+              color="#4338CA"
+            />
+          </View>
+
+          <View
+            style={
+              styles.submitHeaderContent
+            }
+          >
+            <Text
+              style={
+                styles.submitTitle
+              }
+            >
+              Ready to Resubmit?
+            </Text>
+
+            <Text
+              style={
+                styles.submitSubtitle
+              }
+            >
+              Your changes will be sent
+              back to the guide.
+            </Text>
+          </View>
+        </View>
 
         <Text
           style={
             styles.submitDescription
           }
         >
-          Your current project will
-          be updated and sent back
-          to the guide for another
-          review. A revision history
-          will also be preserved.
+          Your current project will be
+          updated and sent for another
+          review. The previous revision
+          will remain in the revision
+          history.
         </Text>
 
         <Pressable
@@ -2087,13 +2599,21 @@ export default function ReviseProject() {
               </Text>
             </View>
           ) : (
-            <Text
-              style={
-                styles.submitButtonText
-              }
-            >
-              🔄 Submit Revision
-            </Text>
+            <>
+              <Ionicons
+                name="paper-plane-outline"
+                size={19}
+                color="#FFFFFF"
+              />
+
+              <Text
+                style={
+                  styles.submitButtonText
+                }
+              >
+                Submit Revision
+              </Text>
+            </>
           )}
         </Pressable>
       </View>
@@ -2107,54 +2627,53 @@ export default function ReviseProject() {
 
 const styles =
   StyleSheet.create({
+    // ==================================================
+    // PAGE
+    // ==================================================
+
     container: {
       flex: 1,
-      backgroundColor:
-        "#F4F8F3",
+      backgroundColor: "#F5F7FB",
     },
 
     content: {
-      padding: 20,
-      paddingBottom: 50,
+      padding: 18,
+      paddingBottom: 45,
     },
+
+    // ==================================================
+    // CENTER
+    // ==================================================
 
     centerContainer: {
       flex: 1,
-      justifyContent:
-        "center",
-      alignItems:
-        "center",
-      backgroundColor:
-        "#F4F8F3",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#F5F7FB",
       padding: 20,
     },
 
     loadingText: {
-      marginTop: 10,
-      color: "#718071",
+      marginTop: 12,
+      color: "#6B7280",
       fontSize: 14,
+    },
+
+    notFoundIcon: {
+      width: 60,
+      height: 60,
+      borderRadius: 18,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
     },
 
     notFoundTitle: {
       fontSize: 22,
-      fontWeight:
-        "bold",
-      color: "#263626",
-      marginBottom: 20,
-    },
-
-    backButton: {
-      backgroundColor:
-        "#4F7D4F",
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 10,
-    },
-
-    backButtonText: {
-      color: "#FFFFFF",
-      fontWeight:
-        "600",
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 18,
     },
 
     // ==================================================
@@ -2162,14 +2681,17 @@ const styles =
     // ==================================================
 
     backLink: {
-      marginBottom: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 15,
+      paddingVertical: 5,
     },
 
     backLinkText: {
-      color: "#4F7D4F",
-      fontSize: 15,
-      fontWeight:
-        "600",
+      color: "#4338CA",
+      fontSize: 13,
+      fontWeight: "700",
+      marginLeft: 6,
     },
 
     // ==================================================
@@ -2177,87 +2699,185 @@ const styles =
     // ==================================================
 
     header: {
-      marginBottom: 18,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: "#E0E4EC",
+      padding: 17,
+      marginBottom: 14,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    headerIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+
+    headerContent: {
+      flex: 1,
     },
 
     title: {
-      fontSize: 28,
-      fontWeight:
-        "bold",
-      color: "#263626",
-      marginBottom: 7,
+      fontSize: 24,
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 5,
     },
 
     subtitle: {
-      fontSize: 14,
-      color: "#718071",
-      lineHeight: 21,
+      fontSize: 12,
+      lineHeight: 18,
+      color: "#6B7280",
     },
 
     // ==================================================
     // FEEDBACK
     // ==================================================
 
-    feedbackBox: {
-      backgroundColor:
-        "#FFF7ED",
+    feedbackSection: {
+      backgroundColor: "#FFF9ED",
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor:
-        "#FED7AA",
-      borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+      borderColor: "#F3D9A2",
+      padding: 17,
+      marginBottom: 14,
+    },
+
+    feedbackHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 13,
+    },
+
+    feedbackIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: "#FFF0D2",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    feedbackHeaderContent: {
+      flex: 1,
     },
 
     feedbackTitle: {
       fontSize: 16,
-      fontWeight:
-        "bold",
-      color: "#9A3412",
-      marginBottom: 10,
+      fontWeight: "700",
+      color: "#9A6700",
     },
 
-    feedbackText: {
-      fontSize: 14,
-      color: "#7C2D12",
-      lineHeight: 21,
+    feedbackSubtitle: {
+      fontSize: 11,
+      color: "#A17A27",
+      marginTop: 3,
+      lineHeight: 16,
     },
+
+    feedbackMessage: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 11,
+      borderWidth: 1,
+      borderColor: "#F3D9A2",
+      padding: 13,
+    },
+
+    feedbackMessageText: {
+      color: "#7C5A13",
+      fontSize: 13,
+      lineHeight: 20,
+    },
+
+    noFeedback: {
+      minHeight: 45,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 11,
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    noFeedbackText: {
+      color: "#9CA3AF",
+      fontSize: 12,
+      marginLeft: 8,
+    },
+
+    // ==================================================
+    // GUIDE ATTACHMENTS
+    // ==================================================
 
     guideAttachments: {
       marginTop: 16,
       paddingTop: 16,
       borderTopWidth: 1,
-      borderTopColor:
-        "#FED7AA",
+      borderTopColor: "#F3D9A2",
+    },
+
+    attachmentHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 6,
     },
 
     attachmentTitle: {
-      fontSize: 14,
-      fontWeight:
-        "700",
-      color: "#9A3412",
-      marginBottom: 10,
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#4338CA",
+      marginLeft: 7,
+    },
+
+    attachmentDescription: {
+      fontSize: 11,
+      color: "#7C5A13",
+      lineHeight: 17,
+      marginBottom: 11,
     },
 
     guideImageCard: {
-      width: 150,
-      marginRight: 12,
+      width: 170,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#E0E4EC",
+      padding: 7,
+      marginRight: 10,
     },
 
     guideImage: {
-      width: 150,
+      width: 154,
       height: 150,
-      borderRadius: 10,
-      backgroundColor:
-        "#E5E7EB",
+      borderRadius: 9,
+      backgroundColor: "#E5E7EB",
     },
 
-    guideImageText: {
-      fontSize: 12,
-      color: "#7C2D12",
-      textAlign:
-        "center",
-      marginTop: 5,
+    guideImageInfo: {
+      paddingTop: 7,
+      paddingHorizontal: 2,
+    },
+
+    guideImageNumber: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#374151",
+      textAlign: "center",
+    },
+
+    guideImageName: {
+      fontSize: 9,
+      color: "#9CA3AF",
+      textAlign: "center",
+      marginTop: 3,
     },
 
     // ==================================================
@@ -2265,118 +2885,198 @@ const styles =
     // ==================================================
 
     section: {
-      backgroundColor:
-        "#FFFFFF",
-      borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor:
-        "#DDE7DB",
-    },
-
-    sectionTitle: {
-      fontSize: 17,
-      fontWeight:
-        "bold",
-      color: "#263626",
+      borderColor: "#E0E4EC",
+      padding: 17,
       marginBottom: 14,
     },
 
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 18,
+    },
+
+    sectionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    mintSectionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "#D5F5F2",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#1F2937",
+    },
+
+    sectionSubtitle: {
+      fontSize: 11,
+      color: "#6B7280",
+      lineHeight: 17,
+      marginTop: 3,
+    },
+
+    // ==================================================
+    // FORM
+    // ==================================================
+
     label: {
-      fontSize: 13,
-      fontWeight:
-        "600",
-      color: "#536153",
-      marginBottom: 6,
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#374151",
+      marginBottom: 7,
+    },
+
+    required: {
+      color: "#C44747",
     },
 
     input: {
+      backgroundColor: "#FFFFFF",
       borderWidth: 1,
-      borderColor:
-        "#D1D5DB",
-      borderRadius: 10,
+      borderColor: "#DDE2EA",
+      borderRadius: 11,
       paddingHorizontal: 13,
       paddingVertical: 12,
       fontSize: 14,
-      color: "#263626",
-      backgroundColor:
-        "#FFFFFF",
-      marginBottom: 15,
+      color: "#1F2937",
+      marginBottom: 16,
     },
 
     textArea: {
-      minHeight: 120,
+      minHeight: 115,
+      paddingTop: 12,
     },
 
-    optionalText: {
-      fontSize: 12,
-      color: "#8A948A",
-      marginBottom: 8,
+    inputWithIcon: {
+      minHeight: 46,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#DDE2EA",
+      borderRadius: 11,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 2,
+    },
+
+    iconInput: {
+      flex: 1,
+      fontSize: 14,
+      color: "#1F2937",
+      marginLeft: 9,
+      paddingVertical: 0,
     },
 
     // ==================================================
-    // FILES
+    // CURRENT FILE
     // ==================================================
 
-    currentFile: {
-      fontSize: 13,
-      color: "#718071",
-      marginBottom: 12,
+    currentFileBox: {
+      minHeight: 52,
+      backgroundColor: "#F8FAFA",
+      borderWidth: 1,
+      borderColor: "#DDE8E6",
+      borderRadius: 11,
+      paddingHorizontal: 11,
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
     },
 
-    helpText: {
-      fontSize: 12,
-      color: "#8A948A",
-      lineHeight: 18,
-      marginBottom: 12,
+    currentFileContent: {
+      flex: 1,
+      marginLeft: 9,
     },
+
+    currentFileLabel: {
+      fontSize: 10,
+      color: "#9CA3AF",
+      marginBottom: 2,
+    },
+
+    currentFileName: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#374151",
+    },
+
+    // ==================================================
+    // FILE BUTTON
+    // ==================================================
 
     fileButton: {
-      backgroundColor:
-        "#E7F1E5",
+      minHeight: 46,
+      backgroundColor: "#EEF0FF",
       borderWidth: 1,
-      borderColor:
-        "#B8D0B5",
-      borderRadius: 10,
-      paddingVertical: 13,
-      alignItems:
-        "center",
+      borderColor: "#DCDFF5",
+      borderRadius: 11,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     fileButtonText: {
-      color: "#315C31",
-      fontSize: 14,
-      fontWeight:
-        "700",
+      color: "#4338CA",
+      fontSize: 13,
+      fontWeight: "700",
+      marginLeft: 7,
     },
 
     selectedFile: {
-      marginTop: 12,
-      backgroundColor:
-        "#F4F8F3",
-      borderRadius: 10,
-      padding: 12,
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
-      justifyContent:
-        "space-between",
+      marginTop: 10,
+      minHeight: 48,
+      backgroundColor: "#D5F5F2",
+      borderWidth: 1,
+      borderColor: "#B7E5E1",
+      borderRadius: 11,
+      paddingHorizontal: 11,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+
+    selectedFileLeft: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      marginRight: 10,
     },
 
     selectedFileText: {
       flex: 1,
-      color: "#536153",
-      fontSize: 13,
-      marginRight: 10,
+      color: "#374151",
+      fontSize: 12,
+      fontWeight: "600",
+      marginLeft: 8,
     },
 
-    removeText: {
-      color: "#DC2626",
-      fontSize: 12,
-      fontWeight:
-        "700",
+    // ==================================================
+    // HELP
+    // ==================================================
+
+    helpText: {
+      fontSize: 11,
+      color: "#6B7280",
+      lineHeight: 17,
+      marginBottom: 11,
     },
 
     // ==================================================
@@ -2384,36 +3084,46 @@ const styles =
     // ==================================================
 
     selectedScreenshots: {
-      marginTop: 15,
+      marginTop: 14,
     },
 
-    selectedTitle: {
-      fontSize: 13,
-      fontWeight:
-        "700",
-      color: "#315C31",
+    selectedTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
       marginBottom: 10,
     },
 
+    selectedTitle: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#238F89",
+      marginLeft: 6,
+    },
+
     selectedScreenshot: {
-      width: 125,
-      marginRight: 12,
+      width: 130,
+      marginRight: 10,
     },
 
     previewImage: {
-      width: 125,
+      width: 130,
       height: 125,
-      borderRadius: 9,
-      backgroundColor:
-        "#E5EBE3",
+      borderRadius: 10,
+      backgroundColor: "#E5E7EB",
+    },
+
+    previewFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 5,
+      paddingHorizontal: 2,
     },
 
     previewNumber: {
-      fontSize: 11,
-      color: "#718071",
-      textAlign:
-        "center",
-      marginVertical: 4,
+      flex: 1,
+      fontSize: 10,
+      color: "#6B7280",
     },
 
     // ==================================================
@@ -2421,55 +3131,76 @@ const styles =
     // ==================================================
 
     submitSection: {
-      backgroundColor:
-        "#FFFFFF",
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 20,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor:
-        "#B8D0B5",
+      borderColor: "#DCDFF5",
+      padding: 17,
+      marginBottom: 15,
+    },
+
+    submitHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 13,
+    },
+
+    submitIcon: {
+      width: 43,
+      height: 43,
+      borderRadius: 13,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    submitHeaderContent: {
+      flex: 1,
     },
 
     submitTitle: {
-      fontSize: 18,
-      fontWeight:
-        "bold",
-      color: "#263626",
-      marginBottom: 8,
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#1F2937",
+    },
+
+    submitSubtitle: {
+      fontSize: 11,
+      color: "#6B7280",
+      marginTop: 3,
     },
 
     submitDescription: {
-      fontSize: 13,
-      color: "#718071",
-      lineHeight: 20,
-      marginBottom: 16,
+      fontSize: 12,
+      color: "#6B7280",
+      lineHeight: 19,
+      marginBottom: 15,
     },
 
     submitButton: {
-      backgroundColor:
-        "#4F7D4F",
-      borderRadius: 10,
-      paddingVertical: 15,
-      alignItems:
-        "center",
+      minHeight: 49,
+      backgroundColor: "#4338CA",
+      borderRadius: 11,
+      paddingHorizontal: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     submitButtonText: {
       color: "#FFFFFF",
-      fontSize: 15,
-      fontWeight:
-        "700",
+      fontSize: 14,
+      fontWeight: "700",
+      marginLeft: 7,
     },
 
     disabledButton: {
-      opacity: 0.55,
+      opacity: 0.6,
     },
 
     loadingRow: {
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
+      flexDirection: "row",
+      alignItems: "center",
     },
   });
