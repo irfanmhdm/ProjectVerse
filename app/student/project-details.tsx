@@ -14,6 +14,8 @@ import {
   View,
 } from "react-native";
 
+import { Ionicons } from "@expo/vector-icons";
+
 import { db } from "../../firebase/firebaseConfig";
 
 // =====================================================
@@ -27,7 +29,6 @@ type Project = {
   technologies?: string;
 
   githubUrl?: string;
-
   liveDemoUrl?: string;
 
   reportUrl?: string;
@@ -47,7 +48,6 @@ type Project = {
 
   guideFeedback?: string;
 
-  // Multiple guide feedback screenshots
   guideFeedbackAttachmentUrls?: string[];
 
   guideFeedbackAttachmentNames?: string[];
@@ -66,11 +66,9 @@ type Project = {
 // =====================================================
 
 export default function ProjectDetails() {
-  const { id } =
-    useLocalSearchParams();
+  const { id } = useLocalSearchParams();
 
-  const router =
-    useRouter();
+  const router = useRouter();
 
   const [project, setProject] =
     useState<Project | null>(null);
@@ -83,75 +81,61 @@ export default function ProjectDetails() {
   // =====================================================
 
   useEffect(() => {
-    const fetchProject =
-      async () => {
-        try {
-          // ------------------------------------------------
-          // CHECK PROJECT ID
-          // ------------------------------------------------
-
-          if (
-            !id ||
-            typeof id !== "string"
-          ) {
-            console.log(
-              "❌ Project ID is missing"
-            );
-
-            setLoading(false);
-
-            return;
-          }
-
+    const fetchProject = async () => {
+      try {
+        if (
+          !id ||
+          typeof id !== "string"
+        ) {
           console.log(
-            "🔍 Fetching project with ID:",
-            id
+            "Project ID is missing"
           );
 
-          // ------------------------------------------------
-          // FIRESTORE PROJECT
-          // ------------------------------------------------
-
-          const projectRef =
-            doc(
-              db,
-              "projects",
-              id
-            );
-
-          const projectSnap =
-            await getDoc(
-              projectRef
-            );
-
-          if (
-            projectSnap.exists()
-          ) {
-            const data =
-              projectSnap.data();
-
-            console.log(
-              "✅ Project found:",
-              data
-            );
-
-            setProject(
-              data as Project
-            );
-          } else {
-            console.log(
-              "❌ Project not found"
-            );
-          }
-        } catch (error) {
-          console.log(
-            "❌ Error fetching project:",
-            error
-          );
-        } finally {
           setLoading(false);
+
+          return;
         }
-      };
+
+        console.log(
+          "Fetching project with ID:",
+          id
+        );
+
+        const projectRef = doc(
+          db,
+          "projects",
+          id
+        );
+
+        const projectSnap =
+          await getDoc(projectRef);
+
+        if (projectSnap.exists()) {
+          const data =
+            projectSnap.data();
+
+          console.log(
+            "Project found:",
+            data
+          );
+
+          setProject(
+            data as Project
+          );
+        } else {
+          console.log(
+            "Project not found"
+          );
+        }
+      } catch (error) {
+        console.log(
+          "Error fetching project:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchProject();
   }, [id]);
@@ -160,129 +144,141 @@ export default function ProjectDetails() {
   // OPEN URL
   // =====================================================
 
-  const openUrl =
-    async (
-      url: string
-    ) => {
-      try {
-        const supported =
-          await Linking.canOpenURL(
-            url
-          );
-
-        if (supported) {
-          await Linking.openURL(
-            url
-          );
-        } else {
-          console.log(
-            "❌ Cannot open URL:",
-            url
-          );
-
-          Alert.alert(
-            "Unable to Open",
-            "This link cannot be opened."
-          );
-        }
-      } catch (error) {
-        console.log(
-          "❌ Error opening URL:",
-          error
+  const openUrl = async (
+    url: string
+  ) => {
+    try {
+      const supported =
+        await Linking.canOpenURL(
+          url
         );
 
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
         Alert.alert(
-          "Error",
-          "Something went wrong while opening the link."
+          "Unable to Open",
+          "This link cannot be opened."
         );
       }
-    };
+    } catch (error) {
+      console.log(
+        "Error opening URL:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "Something went wrong while opening the link."
+      );
+    }
+  };
 
   // =====================================================
   // STATUS STYLE
   // =====================================================
 
-  const getStatusStyle =
-    (
-      status?: string
-    ) => {
-      switch (
-        status?.toLowerCase()
-      ) {
-        case "approved":
-          return styles.approved;
+  const getStatusStyle = (
+    status?: string
+  ) => {
+    switch (
+      status?.toLowerCase()
+    ) {
+      case "approved":
+        return styles.approved;
 
-        case "revision_required":
-        case "revision required":
-          return styles.revision;
+      case "revision_required":
+      case "revision required":
+        return styles.revision;
 
-        case "rejected":
-          return styles.rejected;
+      case "rejected":
+        return styles.rejected;
 
-        default:
-          return styles.pending;
-      }
-    };
+      default:
+        return styles.pending;
+    }
+  };
+
+  // =====================================================
+  // STATUS ICON
+  // =====================================================
+
+  const getStatusIcon = (
+    status?: string
+  ) => {
+    switch (
+      status?.toLowerCase()
+    ) {
+      case "approved":
+        return "checkmark-circle";
+
+      case "revision_required":
+      case "revision required":
+        return "alert-circle";
+
+      case "rejected":
+        return "close-circle";
+
+      default:
+        return "time";
+    }
+  };
 
   // =====================================================
   // STATUS TEXT
   // =====================================================
 
-  const getStatusText =
-    (
-      status?: string
-    ) => {
-      switch (
-        status?.toLowerCase()
-      ) {
-        case "approved":
-          return "Approved";
+  const getStatusText = (
+    status?: string
+  ) => {
+    switch (
+      status?.toLowerCase()
+    ) {
+      case "approved":
+        return "Approved";
 
-        case "revision_required":
-        case "revision required":
-          return "Revision Required";
+      case "revision_required":
+      case "revision required":
+        return "Revision Required";
 
-        case "rejected":
-          return "Rejected";
+      case "rejected":
+        return "Rejected";
 
-        default:
-          return "Pending";
-      }
-    };
+      default:
+        return "Pending";
+    }
+  };
 
   // =====================================================
   // STATUS MESSAGE
   // =====================================================
 
-  const getStatusMessage =
-    (
-      status?: string
-    ) => {
-      switch (
-        status?.toLowerCase()
-      ) {
-        case "approved":
-          return "Your project has been approved by the guide.";
+  const getStatusMessage = (
+    status?: string
+  ) => {
+    switch (
+      status?.toLowerCase()
+    ) {
+      case "approved":
+        return "Your project has been approved by the guide.";
 
-        case "revision_required":
-        case "revision required":
-          return "Your guide has requested changes to this project. Please review the feedback and attached screenshots below.";
+      case "revision_required":
+      case "revision required":
+        return "Your guide has requested changes to this project. Please review the feedback and attached screenshots below.";
 
-        case "rejected":
-          return "Your project has been rejected by the guide. Please review the feedback below.";
+      case "rejected":
+        return "Your project has been rejected by the guide. Please review the feedback below.";
 
-        default:
-          return "Your project is waiting for guide review.";
-      }
-    };
+      default:
+        return "Your project is waiting for guide review.";
+    }
+  };
 
   // =====================================================
   // LOADING
   // =====================================================
 
-  if (
-    loading
-  ) {
+  if (loading) {
     return (
       <View
         style={
@@ -291,7 +287,7 @@ export default function ProjectDetails() {
       >
         <ActivityIndicator
           size="large"
-          color="#4F7D4F"
+          color="#4338CA"
         />
 
         <Text
@@ -309,21 +305,40 @@ export default function ProjectDetails() {
   // NOT FOUND
   // =====================================================
 
-  if (
-    !project
-  ) {
+  if (!project) {
     return (
       <View
         style={
           styles.loadingContainer
         }
       >
+        <View
+          style={
+            styles.notFoundIcon
+          }
+        >
+          <Ionicons
+            name="document-outline"
+            size={30}
+            color="#4338CA"
+          />
+        </View>
+
         <Text
           style={
             styles.notFoundTitle
           }
         >
           Project Not Found
+        </Text>
+
+        <Text
+          style={
+            styles.notFoundText
+          }
+        >
+          The project could not be
+          found.
         </Text>
 
         <Pressable
@@ -334,6 +349,12 @@ export default function ProjectDetails() {
             router.back()
           }
         >
+          <Ionicons
+            name="arrow-back"
+            size={17}
+            color="#FFFFFF"
+          />
+
           <Text
             style={
               styles.backButtonText
@@ -380,7 +401,6 @@ export default function ProjectDetails() {
         false
       }
     >
-
       {/* =================================================
           BACK
       ================================================= */}
@@ -395,12 +415,18 @@ export default function ProjectDetails() {
           )
         }
       >
+        <Ionicons
+          name="arrow-back"
+          size={17}
+          color="#4338CA"
+        />
+
         <Text
           style={
             styles.backLinkText
           }
         >
-          ← Back to My Projects
+          Back to My Projects
         </Text>
       </Pressable>
 
@@ -413,32 +439,60 @@ export default function ProjectDetails() {
           styles.header
         }
       >
-        <Text
+        <View
           style={
-            styles.title
+            styles.headerIcon
           }
         >
-          {project.title ||
-            "Untitled Project"}
-        </Text>
+          <Ionicons
+            name="folder-open-outline"
+            size={25}
+            color="#4338CA"
+          />
+        </View>
 
         <View
-          style={[
-            styles.statusBadge,
-            getStatusStyle(
-              project.status
-            ),
-          ]}
+          style={
+            styles.headerContent
+          }
         >
           <Text
             style={
-              styles.statusText
+              styles.title
             }
           >
-            {getStatusText(
-              project.status
-            )}
+            {project.title ||
+              "Untitled Project"}
           </Text>
+
+          <View
+            style={[
+              styles.statusBadge,
+              getStatusStyle(
+                project.status
+              ),
+            ]}
+          >
+            <Ionicons
+              name={
+                getStatusIcon(
+                  project.status
+                ) as any
+              }
+              size={14}
+              color="#FFFFFF"
+            />
+
+            <Text
+              style={
+                styles.statusText
+              }
+            >
+              {getStatusText(
+                project.status
+              )}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -447,27 +501,69 @@ export default function ProjectDetails() {
       ================================================= */}
 
       <View
-        style={
-          styles.reviewStatusSection
-        }
+        style={[
+          styles.reviewStatusSection,
+          project.status ===
+            "approved" &&
+            styles.reviewApproved,
+          project.status ===
+            "revision_required" &&
+            styles.reviewRevision,
+          project.status ===
+            "rejected" &&
+            styles.reviewRejected,
+        ]}
       >
-        <Text
+        <View
           style={
-            styles.reviewStatusTitle
+            styles.reviewIcon
           }
         >
-          Project Review Status
-        </Text>
+          <Ionicons
+            name={
+              getStatusIcon(
+                project.status
+              ) as any
+            }
+            size={22}
+            color={
+              project.status ===
+              "approved"
+                ? "#238F89"
+                : project.status ===
+                  "revision_required"
+                ? "#C27A16"
+                : project.status ===
+                  "rejected"
+                ? "#C44747"
+                : "#4338CA"
+            }
+          />
+        </View>
 
-        <Text
+        <View
           style={
-            styles.reviewStatusMessage
+            styles.reviewContent
           }
         >
-          {getStatusMessage(
-            project.status
-          )}
-        </Text>
+          <Text
+            style={
+              styles.reviewStatusTitle
+            }
+          >
+            Project Review Status
+          </Text>
+
+          <Text
+            style={
+              styles.reviewStatusMessage
+            }
+          >
+            {getStatusMessage(
+              project.status
+            )}
+          </Text>
+        </View>
       </View>
 
       {/* =================================================
@@ -479,13 +575,31 @@ export default function ProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Description
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Project Description
+          </Text>
+        </View>
 
         <Text
           style={
@@ -506,35 +620,71 @@ export default function ProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Information
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="information-circle-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Project Information
+          </Text>
+        </View>
 
         <View
           style={
             styles.infoRow
           }
         >
-          <Text
+          <View
             style={
-              styles.label
+              styles.infoIcon
             }
           >
-            Domain
-          </Text>
+            <Ionicons
+              name="layers-outline"
+              size={17}
+              color="#38B2AC"
+            />
+          </View>
 
-          <Text
+          <View
             style={
-              styles.value
+              styles.infoContent
             }
           >
-            {project.domain ||
-              "Not specified"}
-          </Text>
+            <Text
+              style={
+                styles.label
+              }
+            >
+              Domain
+            </Text>
+
+            <Text
+              style={
+                styles.value
+              }
+            >
+              {project.domain ||
+                "Not specified"}
+            </Text>
+          </View>
         </View>
 
         <View
@@ -548,22 +698,40 @@ export default function ProjectDetails() {
             styles.infoRow
           }
         >
-          <Text
+          <View
             style={
-              styles.label
+              styles.infoIcon
             }
           >
-            Technologies
-          </Text>
+            <Ionicons
+              name="code-slash-outline"
+              size={17}
+              color="#38B2AC"
+            />
+          </View>
 
-          <Text
+          <View
             style={
-              styles.value
+              styles.infoContent
             }
           >
-            {project.technologies ||
-              "Not specified"}
-          </Text>
+            <Text
+              style={
+                styles.label
+              }
+            >
+              Technologies
+            </Text>
+
+            <Text
+              style={
+                styles.value
+              }
+            >
+              {project.technologies ||
+                "Not specified"}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -576,23 +744,43 @@ export default function ProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Demonstration
-        </Text>
+          <View
+            style={[
+              styles.sectionIcon,
+              styles.mintIcon,
+            ]}
+          >
+            <Ionicons
+              name="eye-outline"
+              size={19}
+              color="#238F89"
+            />
+          </View>
 
-        <Text
-          style={
-            styles.sectionSubtitle
-          }
-        >
-          View the project using the
-          demonstration provided by
-          the student.
-        </Text>
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Demonstration
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              View the demonstration
+              provided for this project.
+            </Text>
+          </View>
+        </View>
 
         {/* LIVE DEMO */}
 
@@ -602,13 +790,25 @@ export default function ProjectDetails() {
               styles.demoItem
             }
           >
-            <Text
+            <View
               style={
-                styles.demoLabel
+                styles.demoLabelRow
               }
             >
-              🌐 Live Demo
-            </Text>
+              <Ionicons
+                name="globe-outline"
+                size={18}
+                color="#38B2AC"
+              />
+
+              <Text
+                style={
+                  styles.demoLabel
+                }
+              >
+                Live Demo
+              </Text>
+            </View>
 
             <Pressable
               style={
@@ -625,8 +825,14 @@ export default function ProjectDetails() {
                   styles.liveDemoButtonText
                 }
               >
-                Open Live Demo ↗
+                Open Live Demo
               </Text>
+
+              <Ionicons
+                name="open-outline"
+                size={17}
+                color="#238F89"
+              />
             </Pressable>
           </View>
         ) : null}
@@ -639,13 +845,25 @@ export default function ProjectDetails() {
               styles.demoItem
             }
           >
-            <Text
+            <View
               style={
-                styles.demoLabel
+                styles.demoLabelRow
               }
             >
-              🎥 Demo Video
-            </Text>
+              <Ionicons
+                name="videocam-outline"
+                size={18}
+                color="#4338CA"
+              />
+
+              <Text
+                style={
+                  styles.demoLabel
+                }
+              >
+                Demo Video
+              </Text>
+            </View>
 
             <Pressable
               style={
@@ -657,12 +875,18 @@ export default function ProjectDetails() {
                 )
               }
             >
+              <Ionicons
+                name="play-circle-outline"
+                size={19}
+                color="#FFFFFF"
+              />
+
               <Text
                 style={
                   styles.videoButtonText
                 }
               >
-                Watch Demo Video ▶
+                Watch Demo Video
               </Text>
             </Pressable>
 
@@ -671,10 +895,9 @@ export default function ProjectDetails() {
                 style={
                   styles.fileName
                 }
+                numberOfLines={2}
               >
-                {
-                  project.videoName
-                }
+                {project.videoName}
               </Text>
             ) : null}
           </View>
@@ -690,13 +913,25 @@ export default function ProjectDetails() {
               styles.demoItem
             }
           >
-            <Text
+            <View
               style={
-                styles.demoLabel
+                styles.demoLabelRow
               }
             >
-              🖼 Screenshots
-            </Text>
+              <Ionicons
+                name="images-outline"
+                size={18}
+                color="#4338CA"
+              />
+
+              <Text
+                style={
+                  styles.demoLabel
+                }
+              >
+                Screenshots
+              </Text>
+            </View>
 
             <ScrollView
               horizontal
@@ -722,13 +957,26 @@ export default function ProjectDetails() {
                   >
                     <Image
                       source={{
-                        uri:
-                          url,
+                        uri: url,
                       }}
                       style={
                         styles.screenshot
                       }
                     />
+
+                    <View
+                      style={
+                        styles.imageNumber
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.imageNumberText
+                        }
+                      >
+                        {index + 1}
+                      </Text>
+                    </View>
                   </Pressable>
                 )
               )}
@@ -739,8 +987,7 @@ export default function ProjectDetails() {
                 styles.imageHint
               }
             >
-              Tap an image to
-              open it
+              Tap an image to open it
             </Text>
           </View>
         ) : null}
@@ -750,19 +997,28 @@ export default function ProjectDetails() {
         {!project.liveDemoUrl &&
         !project.videoUrl &&
         (!project.screenshotUrls ||
-          project
-            .screenshotUrls
-            .length ===
-            0) ? (
-          <Text
+          project.screenshotUrls
+            .length === 0) ? (
+          <View
             style={
-              styles.notAvailable
+              styles.emptyDemo
             }
           >
-            No project
-            demonstration
-            available.
-          </Text>
+            <Ionicons
+              name="eye-off-outline"
+              size={22}
+              color="#9CA3AF"
+            />
+
+            <Text
+              style={
+                styles.notAvailable
+              }
+            >
+              No project demonstration
+              available.
+            </Text>
+          </View>
         ) : null}
       </View>
 
@@ -775,13 +1031,31 @@ export default function ProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Report
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="document-attach-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Project Report
+          </Text>
+        </View>
 
         {project.reportUrl ? (
           <>
@@ -795,13 +1069,25 @@ export default function ProjectDetails() {
                 )
               }
             >
+              <Ionicons
+                name="document-text-outline"
+                size={19}
+                color="#4338CA"
+              />
+
               <Text
                 style={
                   styles.reportButtonText
                 }
               >
-                📄 View Project Report
+                View Project Report
               </Text>
+
+              <Ionicons
+                name="open-outline"
+                size={16}
+                color="#4338CA"
+              />
             </Pressable>
 
             {project.reportName ? (
@@ -809,21 +1095,32 @@ export default function ProjectDetails() {
                 style={
                   styles.fileName
                 }
+                numberOfLines={2}
               >
-                {
-                  project.reportName
-                }
+                {project.reportName}
               </Text>
             ) : null}
           </>
         ) : (
-          <Text
+          <View
             style={
-              styles.notAvailable
+              styles.emptyDemo
             }
           >
-            No report available.
-          </Text>
+            <Ionicons
+              name="document-outline"
+              size={21}
+              color="#9CA3AF"
+            />
+
+            <Text
+              style={
+                styles.notAvailable
+              }
+            >
+              No report available.
+            </Text>
+          </View>
         )}
       </View>
 
@@ -836,13 +1133,31 @@ export default function ProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Source Code
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="logo-github"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Source Code
+          </Text>
+        </View>
 
         {project.githubUrl ? (
           <Pressable
@@ -855,23 +1170,47 @@ export default function ProjectDetails() {
               )
             }
           >
+            <Ionicons
+              name="logo-github"
+              size={20}
+              color="#FFFFFF"
+            />
+
             <Text
               style={
                 styles.githubButtonText
               }
             >
-              GitHub Repository ↗
+              GitHub Repository
             </Text>
+
+            <Ionicons
+              name="open-outline"
+              size={16}
+              color="#FFFFFF"
+            />
           </Pressable>
         ) : (
-          <Text
+          <View
             style={
-              styles.notAvailable
+              styles.emptyDemo
             }
           >
-            No GitHub repository
-            available.
-          </Text>
+            <Ionicons
+              name="logo-github"
+              size={21}
+              color="#9CA3AF"
+            />
+
+            <Text
+              style={
+                styles.notAvailable
+              }
+            >
+              No GitHub repository
+              available.
+            </Text>
+          </View>
         )}
       </View>
 
@@ -884,17 +1223,45 @@ export default function ProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          📝 Guide Feedback
-        </Text>
+          <View
+            style={[
+              styles.sectionIcon,
+              styles.feedbackIcon,
+            ]}
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={19}
+              color="#238F89"
+            />
+          </View>
 
-        {/* -------------------------------------------------
-            TEXT FEEDBACK
-        ------------------------------------------------- */}
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Guide Feedback
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Feedback and screenshots
+              provided by your guide.
+            </Text>
+          </View>
+        </View>
+
+        {/* TEXT FEEDBACK */}
 
         {project.guideFeedback ? (
           <View
@@ -902,23 +1269,32 @@ export default function ProjectDetails() {
               styles.feedbackBox
             }
           >
-            <Text
+            <View
               style={
-                styles.feedbackLabel
+                styles.feedbackHeader
               }
             >
-              Feedback from your
-              guide
-            </Text>
+              <Ionicons
+                name="person-outline"
+                size={16}
+                color="#238F89"
+              />
+
+              <Text
+                style={
+                  styles.feedbackLabel
+                }
+              >
+                Feedback from your guide
+              </Text>
+            </View>
 
             <Text
               style={
                 styles.feedbackText
               }
             >
-              {
-                project.guideFeedback
-              }
+              {project.guideFeedback}
             </Text>
           </View>
         ) : (
@@ -927,21 +1303,24 @@ export default function ProjectDetails() {
               styles.feedbackBox
             }
           >
+            <Ionicons
+              name="chatbubble-outline"
+              size={20}
+              color="#9CA3AF"
+            />
+
             <Text
               style={
                 styles.feedbackText
               }
             >
               No feedback has been
-              provided by the guide
-              yet.
+              provided by the guide yet.
             </Text>
           </View>
         )}
 
-        {/* -------------------------------------------------
-            GUIDE ATTACHMENTS
-        ------------------------------------------------- */}
+        {/* GUIDE ATTACHMENTS */}
 
         {guideAttachmentUrls.length >
         0 ? (
@@ -950,40 +1329,63 @@ export default function ProjectDetails() {
               styles.guideAttachmentsSection
             }
           >
-            <Text
+            <View
               style={
-                styles.attachmentsTitle
+                styles.attachmentsHeader
               }
             >
-              📎 Screenshots from
-              Guide
-            </Text>
+              <Ionicons
+                name="images-outline"
+                size={18}
+                color="#4338CA"
+              />
+
+              <Text
+                style={
+                  styles.attachmentsTitle
+                }
+              >
+                Screenshots from Guide
+              </Text>
+            </View>
 
             <Text
               style={
                 styles.attachmentsDescription
               }
             >
-              These screenshots show
-              the areas that require
-              changes or improvement.
+              These screenshots show the
+              areas that require changes
+              or improvement.
             </Text>
 
-            <Text
+            <View
               style={
-                styles.attachmentCount
+                styles.attachmentCountRow
               }
             >
-              {
-                guideAttachmentUrls.length
-              }{" "}
-              screenshot
-              {guideAttachmentUrls.length !==
-              1
-                ? "s"
-                : ""}{" "}
-              attached
-            </Text>
+              <Ionicons
+                name="attach-outline"
+                size={15}
+                color="#4338CA"
+              />
+
+              <Text
+                style={
+                  styles.attachmentCount
+                }
+              >
+                {
+                  guideAttachmentUrls.length
+                }{" "}
+                screenshot
+                {guideAttachmentUrls.length !==
+                1
+                  ? "s"
+                  : ""}{" "}
+                attached
+              </Text>
+            </View>
 
             <ScrollView
               horizontal
@@ -1016,8 +1418,7 @@ export default function ProjectDetails() {
                     >
                       <Image
                         source={{
-                          uri:
-                            url,
+                          uri: url,
                         }}
                         style={
                           styles.guideAttachmentImage
@@ -1028,36 +1429,39 @@ export default function ProjectDetails() {
 
                     {/* NUMBER */}
 
-                    <Text
+                    <View
                       style={
-                        styles.guideAttachmentNumber
+                        styles.guideAttachmentInfo
                       }
                     >
-                      Screenshot{" "}
-                      {index +
-                        1}
-                    </Text>
-
-                    {/* FILE NAME */}
-
-                    {guideAttachmentNames[
-                      index
-                    ] ? (
                       <Text
                         style={
-                          styles.guideAttachmentName
-                        }
-                        numberOfLines={
-                          2
+                          styles.guideAttachmentNumber
                         }
                       >
-                        {
-                          guideAttachmentNames[
-                            index
-                          ]
-                        }
+                        Screenshot{" "}
+                        {index + 1}
                       </Text>
-                    ) : null}
+
+                      {guideAttachmentNames[
+                        index
+                      ] ? (
+                        <Text
+                          style={
+                            styles.guideAttachmentName
+                          }
+                          numberOfLines={
+                            2
+                          }
+                        >
+                          {
+                            guideAttachmentNames[
+                              index
+                            ]
+                          }
+                        </Text>
+                      ) : null}
+                    </View>
 
                     {/* OPEN */}
 
@@ -1076,8 +1480,14 @@ export default function ProjectDetails() {
                           styles.viewGuideAttachmentText
                         }
                       >
-                        View Full Image ↗
+                        View Full Image
                       </Text>
+
+                      <Ionicons
+                        name="open-outline"
+                        size={14}
+                        color="#4338CA"
+                      />
                     </Pressable>
                   </View>
                 )
@@ -1089,8 +1499,8 @@ export default function ProjectDetails() {
                 styles.imageHint
               }
             >
-              Tap an image to view
-              it in full size.
+              Tap an image to view it in
+              full size.
             </Text>
           </View>
         ) : null}
@@ -1107,23 +1517,56 @@ export default function ProjectDetails() {
             styles.revisionSection
           }
         >
-          <Text
+          <View
             style={
-              styles.revisionTitle
+              styles.revisionHeader
             }
           >
-            🔄 Changes Required
-          </Text>
+            <View
+              style={
+                styles.revisionIcon
+              }
+            >
+              <Ionicons
+                name="create-outline"
+                size={22}
+                color="#C27A16"
+              />
+            </View>
+
+            <View
+              style={
+                styles.revisionHeaderText
+              }
+            >
+              <Text
+                style={
+                  styles.revisionTitle
+                }
+              >
+                Changes Required
+              </Text>
+
+              <Text
+                style={
+                  styles.revisionSubtitle
+                }
+              >
+                Your guide has requested
+                changes to this project.
+              </Text>
+            </View>
+          </View>
 
           <Text
             style={
               styles.revisionMessage
             }
           >
-            Review the guide's
-            feedback and screenshots,
-            make the required changes,
-            and submit a new revision.
+            Review the guide's feedback
+            and screenshots, make the
+            required changes, and submit
+            a new revision.
           </Text>
 
           <Pressable
@@ -1135,22 +1578,41 @@ export default function ProjectDetails() {
                 pathname:
                   "/student/revise-project",
                 params: {
-                  id:
-                    id,
+                  id: id,
                 },
               });
             }}
           >
+            <Ionicons
+              name="refresh-outline"
+              size={19}
+              color="#FFFFFF"
+            />
+
             <Text
               style={
                 styles.reviseButtonText
               }
             >
-              🔄 Revise Project
+              Revise Project
             </Text>
+
+            <Ionicons
+              name="arrow-forward"
+              size={17}
+              color="#FFFFFF"
+            />
           </Pressable>
         </View>
       ) : null}
+
+      {/* BOTTOM SPACE */}
+
+      <View
+        style={
+          styles.bottomSpace
+        }
+      />
     </ScrollView>
   );
 }
@@ -1161,15 +1623,18 @@ export default function ProjectDetails() {
 
 const styles =
   StyleSheet.create({
+    // ==================================================
+    // PAGE
+    // ==================================================
+
     container: {
       flex: 1,
-      backgroundColor:
-        "#F4F8F3",
+      backgroundColor: "#F5F7FB",
     },
 
     content: {
-      padding: 20,
-      paddingBottom: 40,
+      padding: 18,
+      paddingBottom: 35,
     },
 
     // ==================================================
@@ -1178,25 +1643,38 @@ const styles =
 
     loadingContainer: {
       flex: 1,
-      justifyContent:
-        "center",
-      alignItems:
-        "center",
-      backgroundColor:
-        "#F4F8F3",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#F5F7FB",
+      padding: 20,
     },
 
     loadingText: {
       marginTop: 12,
-      color: "#718071",
+      color: "#6B7280",
       fontSize: 14,
+    },
+
+    notFoundIcon: {
+      width: 60,
+      height: 60,
+      borderRadius: 18,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 15,
     },
 
     notFoundTitle: {
       fontSize: 22,
-      fontWeight:
-        "bold",
-      color: "#263626",
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 6,
+    },
+
+    notFoundText: {
+      color: "#6B7280",
+      fontSize: 13,
       marginBottom: 20,
     },
 
@@ -1205,14 +1683,17 @@ const styles =
     // ==================================================
 
     backLink: {
-      marginBottom: 20,
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 15,
+      paddingVertical: 5,
     },
 
     backLinkText: {
-      color: "#4F7D4F",
-      fontSize: 15,
-      fontWeight:
-        "600",
+      color: "#4338CA",
+      fontSize: 13,
+      fontWeight: "700",
+      marginLeft: 6,
     },
 
     // ==================================================
@@ -1220,59 +1701,67 @@ const styles =
     // ==================================================
 
     header: {
-      backgroundColor:
-        "#FFFFFF",
-      borderRadius: 16,
-      padding: 20,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 18,
+      padding: 17,
       borderWidth: 1,
-      borderColor:
-        "#DDE7DB",
-      marginBottom: 16,
+      borderColor: "#E0E4EC",
+      marginBottom: 14,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    headerIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+
+    headerContent: {
+      flex: 1,
     },
 
     title: {
-      fontSize: 28,
-      fontWeight:
-        "bold",
-      color: "#263626",
-      marginBottom: 12,
+      fontSize: 23,
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 9,
     },
 
     statusBadge: {
-      alignSelf:
-        "flex-start",
-      paddingHorizontal: 12,
+      alignSelf: "flex-start",
+      paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 20,
+      flexDirection: "row",
+      alignItems: "center",
     },
 
     statusText: {
       color: "#FFFFFF",
-      fontSize: 12,
-      fontWeight:
-        "bold",
-      textTransform:
-        "capitalize",
+      fontSize: 11,
+      fontWeight: "700",
+      marginLeft: 5,
     },
 
     pending: {
-      backgroundColor:
-        "#D99A28",
+      backgroundColor: "#D99A28",
     },
 
     approved: {
-      backgroundColor:
-        "#4F8A4F",
+      backgroundColor: "#238F89",
     },
 
     revision: {
-      backgroundColor:
-        "#D46A32",
+      backgroundColor: "#D97706",
     },
 
     rejected: {
-      backgroundColor:
-        "#C94A4A",
+      backgroundColor: "#C44747",
     },
 
     // ==================================================
@@ -1280,28 +1769,56 @@ const styles =
     // ==================================================
 
     reviewStatusSection: {
-      backgroundColor:
-        "#FFFFFF",
+      backgroundColor: "#FFFFFF",
       borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+      padding: 15,
+      marginBottom: 14,
       borderWidth: 1,
-      borderColor:
-        "#DDE7DB",
+      borderColor: "#E0E4EC",
+      flexDirection: "row",
+      alignItems: "flex-start",
+    },
+
+    reviewApproved: {
+      backgroundColor: "#F1FBFA",
+      borderColor: "#C7E9E6",
+    },
+
+    reviewRevision: {
+      backgroundColor: "#FFF9ED",
+      borderColor: "#F3D9A2",
+    },
+
+    reviewRejected: {
+      backgroundColor: "#FFF5F5",
+      borderColor: "#F0CCCC",
+    },
+
+    reviewIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 11,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 11,
+    },
+
+    reviewContent: {
+      flex: 1,
     },
 
     reviewStatusTitle: {
-      fontSize: 16,
-      fontWeight:
-        "bold",
-      color: "#263626",
-      marginBottom: 7,
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 5,
     },
 
     reviewStatusMessage: {
-      fontSize: 14,
-      color: "#536153",
-      lineHeight: 21,
+      fontSize: 12,
+      color: "#6B7280",
+      lineHeight: 18,
     },
 
     // ==================================================
@@ -1309,29 +1826,50 @@ const styles =
     // ==================================================
 
     section: {
-      backgroundColor:
-        "#FFFFFF",
-      borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 18,
+      padding: 17,
+      marginBottom: 14,
       borderWidth: 1,
-      borderColor:
-        "#DDE7DB",
+      borderColor: "#E0E4EC",
+    },
+
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+
+    sectionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    mintIcon: {
+      backgroundColor: "#D5F5F2",
+    },
+
+    feedbackIcon: {
+      backgroundColor: "#D5F5F2",
     },
 
     sectionTitle: {
-      fontSize: 17,
-      fontWeight:
-        "bold",
-      color: "#263626",
-      marginBottom: 12,
+      flex: 1,
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#1F2937",
     },
 
     sectionSubtitle: {
-      fontSize: 13,
-      color: "#718071",
-      lineHeight: 19,
-      marginBottom: 15,
+      fontSize: 11,
+      color: "#6B7280",
+      lineHeight: 17,
+      marginTop: 3,
     },
 
     // ==================================================
@@ -1339,9 +1877,9 @@ const styles =
     // ==================================================
 
     description: {
-      fontSize: 15,
-      lineHeight: 23,
-      color: "#536153",
+      fontSize: 14,
+      lineHeight: 22,
+      color: "#4B5563",
     },
 
     // ==================================================
@@ -1349,27 +1887,42 @@ const styles =
     // ==================================================
 
     infoRow: {
-      paddingVertical: 5,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      paddingVertical: 3,
+    },
+
+    infoIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: "#D5F5F2",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    infoContent: {
+      flex: 1,
     },
 
     label: {
-      fontSize: 12,
-      fontWeight:
-        "600",
-      color: "#7A877A",
-      marginBottom: 4,
+      fontSize: 11,
+      fontWeight: "600",
+      color: "#9CA3AF",
+      marginBottom: 3,
     },
 
     value: {
-      fontSize: 15,
-      color: "#263626",
+      fontSize: 14,
+      color: "#1F2937",
+      lineHeight: 20,
     },
 
     divider: {
       height: 1,
-      backgroundColor:
-        "#E5EBE3",
-      marginVertical: 12,
+      backgroundColor: "#EDF0F4",
+      marginVertical: 11,
     },
 
     // ==================================================
@@ -1377,69 +1930,120 @@ const styles =
     // ==================================================
 
     demoItem: {
-      marginBottom: 20,
+      marginBottom: 18,
     },
 
-    demoLabel: {
-      fontSize: 14,
-      fontWeight:
-        "700",
-      color: "#263626",
+    demoLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
       marginBottom: 9,
     },
 
+    demoLabel: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#374151",
+      marginLeft: 7,
+    },
+
     liveDemoButton: {
-      backgroundColor:
-        "#E7F1E5",
+      backgroundColor: "#D5F5F2",
       borderWidth: 1,
-      borderColor:
-        "#B8D0B5",
-      borderRadius: 10,
-      paddingVertical: 13,
+      borderColor: "#B7E5E1",
+      borderRadius: 11,
+      minHeight: 45,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     liveDemoButtonText: {
-      textAlign:
-        "center",
-      color: "#315C31",
-      fontSize: 14,
-      fontWeight:
-        "600",
+      color: "#238F89",
+      fontSize: 13,
+      fontWeight: "700",
+      marginRight: 7,
     },
 
     videoButton: {
-      backgroundColor:
-        "#263626",
-      borderRadius: 10,
-      paddingVertical: 13,
+      backgroundColor: "#4338CA",
+      borderRadius: 11,
+      minHeight: 45,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     videoButtonText: {
-      textAlign:
-        "center",
       color: "#FFFFFF",
-      fontSize: 14,
-      fontWeight:
-        "600",
+      fontSize: 13,
+      fontWeight: "700",
+      marginLeft: 7,
     },
 
     screenshotScroll: {
-      marginTop: 4,
+      marginTop: 2,
     },
 
     screenshot: {
-      width: 220,
-      height: 140,
-      borderRadius: 10,
-      marginRight: 12,
-      backgroundColor:
-        "#E5EBE3",
+      width: 210,
+      height: 135,
+      borderRadius: 11,
+      marginRight: 10,
+      backgroundColor: "#E5E7EB",
+    },
+
+    imageNumber: {
+      position: "absolute",
+      left: 8,
+      bottom: 8,
+      width: 25,
+      height: 25,
+      borderRadius: 8,
+      backgroundColor: "#4338CA",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    imageNumberText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontWeight: "700",
     },
 
     imageHint: {
-      fontSize: 11,
-      color: "#8A948A",
-      marginTop: 6,
+      fontSize: 10,
+      color: "#9CA3AF",
+      marginTop: 7,
+    },
+
+    emptyDemo: {
+      minHeight: 45,
+      backgroundColor: "#F8F9FB",
+      borderRadius: 11,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+    },
+
+    notAvailable: {
+      color: "#9CA3AF",
+      fontSize: 12,
+      marginLeft: 8,
+    },
+
+    // ==================================================
+    // FILES
+    // ==================================================
+
+    fileName: {
+      marginTop: 7,
+      color: "#9CA3AF",
+      fontSize: 10,
+      lineHeight: 15,
     },
 
     // ==================================================
@@ -1447,22 +2051,22 @@ const styles =
     // ==================================================
 
     reportButton: {
-      backgroundColor:
-        "#E7F1E5",
+      minHeight: 46,
+      backgroundColor: "#EEF0FF",
       borderWidth: 1,
-      borderColor:
-        "#B8D0B5",
-      borderRadius: 10,
-      paddingVertical: 13,
+      borderColor: "#DCDFF5",
+      borderRadius: 11,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     reportButtonText: {
-      textAlign:
-        "center",
-      color: "#315C31",
-      fontSize: 14,
-      fontWeight:
-        "600",
+      color: "#4338CA",
+      fontSize: 13,
+      fontWeight: "700",
+      marginHorizontal: 8,
     },
 
     // ==================================================
@@ -1470,34 +2074,20 @@ const styles =
     // ==================================================
 
     githubButton: {
-      backgroundColor:
-        "#263626",
-      borderRadius: 10,
-      paddingVertical: 13,
+      minHeight: 46,
+      backgroundColor: "#1F2937",
+      borderRadius: 11,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     githubButtonText: {
-      textAlign:
-        "center",
       color: "#FFFFFF",
-      fontSize: 14,
-      fontWeight:
-        "600",
-    },
-
-    // ==================================================
-    // COMMON
-    // ==================================================
-
-    notAvailable: {
-      color: "#9AA49A",
-      fontSize: 14,
-    },
-
-    fileName: {
-      marginTop: 8,
-      color: "#718071",
-      fontSize: 12,
+      fontSize: 13,
+      fontWeight: "700",
+      marginHorizontal: 8,
     },
 
     // ==================================================
@@ -1505,27 +2095,30 @@ const styles =
     // ==================================================
 
     feedbackBox: {
-      backgroundColor:
-        "#F4F8F3",
-      borderRadius: 10,
-      padding: 15,
+      backgroundColor: "#F1FBFA",
+      borderRadius: 12,
+      padding: 14,
       borderWidth: 1,
-      borderColor:
-        "#DDE7DB",
+      borderColor: "#C7E9E6",
+    },
+
+    feedbackHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
     },
 
     feedbackLabel: {
       fontSize: 12,
-      fontWeight:
-        "700",
-      color: "#4F7D4F",
-      marginBottom: 8,
+      fontWeight: "700",
+      color: "#238F89",
+      marginLeft: 6,
     },
 
     feedbackText: {
-      color: "#536153",
-      fontSize: 14,
-      lineHeight: 21,
+      color: "#4B5563",
+      fontSize: 13,
+      lineHeight: 20,
     },
 
     // ==================================================
@@ -1534,33 +2127,42 @@ const styles =
 
     guideAttachmentsSection: {
       marginTop: 18,
-      paddingTop: 18,
+      paddingTop: 17,
       borderTopWidth: 1,
-      borderTopColor:
-        "#DDE7DB",
+      borderTopColor: "#E5E7EB",
     },
 
-    attachmentsTitle: {
-      fontSize: 15,
-      fontWeight:
-        "700",
-      color: "#263626",
+    attachmentsHeader: {
+      flexDirection: "row",
+      alignItems: "center",
       marginBottom: 6,
     },
 
+    attachmentsTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#1F2937",
+      marginLeft: 7,
+    },
+
     attachmentsDescription: {
-      fontSize: 13,
-      color: "#718071",
-      lineHeight: 19,
+      fontSize: 11,
+      color: "#6B7280",
+      lineHeight: 17,
       marginBottom: 8,
     },
 
-    attachmentCount: {
-      fontSize: 12,
-      fontWeight:
-        "600",
-      color: "#4F7D4F",
+    attachmentCountRow: {
+      flexDirection: "row",
+      alignItems: "center",
       marginBottom: 10,
+    },
+
+    attachmentCount: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: "#4338CA",
+      marginLeft: 4,
     },
 
     guideAttachmentScroll: {
@@ -1569,60 +2171,57 @@ const styles =
 
     guideAttachmentCard: {
       width: 190,
-      marginRight: 12,
-      backgroundColor:
-        "#F8FAF7",
-      borderRadius: 12,
+      marginRight: 11,
+      backgroundColor: "#F8F9FB",
+      borderRadius: 13,
       padding: 8,
       borderWidth: 1,
-      borderColor:
-        "#DDE7DB",
+      borderColor: "#E0E4EC",
     },
 
     guideAttachmentImage: {
       width: 174,
-      height: 180,
-      borderRadius: 8,
-      backgroundColor:
-        "#E5EBE3",
+      height: 170,
+      borderRadius: 9,
+      backgroundColor: "#E5E7EB",
+    },
+
+    guideAttachmentInfo: {
+      paddingHorizontal: 2,
+      paddingTop: 7,
     },
 
     guideAttachmentNumber: {
-      fontSize: 12,
-      fontWeight:
-        "600",
-      color: "#263626",
-      textAlign:
-        "center",
-      marginTop: 7,
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#374151",
+      textAlign: "center",
     },
 
     guideAttachmentName: {
-      fontSize: 11,
-      color: "#718071",
-      textAlign:
-        "center",
-      marginTop: 4,
+      fontSize: 10,
+      color: "#9CA3AF",
+      textAlign: "center",
+      marginTop: 3,
     },
 
     viewGuideAttachmentButton: {
-      backgroundColor:
-        "#E7F1E5",
+      backgroundColor: "#EEF0FF",
       borderWidth: 1,
-      borderColor:
-        "#B8D0B5",
+      borderColor: "#DCDFF5",
       borderRadius: 8,
       paddingVertical: 9,
       marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     viewGuideAttachmentText: {
-      color: "#315C31",
-      fontSize: 12,
-      fontWeight:
-        "700",
-      textAlign:
-        "center",
+      color: "#4338CA",
+      fontSize: 11,
+      fontWeight: "700",
+      marginRight: 5,
     },
 
     // ==================================================
@@ -1630,45 +2229,68 @@ const styles =
     // ==================================================
 
     revisionSection: {
-      backgroundColor:
-        "#FFF7ED",
+      backgroundColor: "#FFF9ED",
       borderWidth: 1,
-      borderColor:
-        "#FED7AA",
-      borderRadius: 16,
-      padding: 18,
-      marginBottom: 20,
-    },
-
-    revisionTitle: {
-      fontSize: 17,
-      fontWeight:
-        "bold",
-      color: "#9A3412",
-      marginBottom: 8,
-    },
-
-    revisionMessage: {
-      fontSize: 14,
-      color: "#7C2D12",
-      lineHeight: 21,
+      borderColor: "#F3D9A2",
+      borderRadius: 18,
+      padding: 17,
       marginBottom: 15,
     },
 
+    revisionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 13,
+    },
+
+    revisionIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: "#FFF0D2",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+
+    revisionHeaderText: {
+      flex: 1,
+    },
+
+    revisionTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#9A6700",
+    },
+
+    revisionSubtitle: {
+      fontSize: 11,
+      color: "#A17A27",
+      marginTop: 3,
+    },
+
+    revisionMessage: {
+      fontSize: 12,
+      color: "#7C5A13",
+      lineHeight: 18,
+      marginBottom: 14,
+    },
+
     reviseButton: {
-      backgroundColor:
-        "#D46A32",
-      borderRadius: 10,
-      paddingVertical: 14,
-      alignItems:
-        "center",
+      minHeight: 47,
+      backgroundColor: "#D97706",
+      borderRadius: 11,
+      paddingHorizontal: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     reviseButtonText: {
       color: "#FFFFFF",
-      fontSize: 15,
-      fontWeight:
-        "700",
+      fontSize: 13,
+      fontWeight: "700",
+      marginHorizontal: 8,
     },
 
     // ==================================================
@@ -1676,16 +2298,22 @@ const styles =
     // ==================================================
 
     backButton: {
-      backgroundColor:
-        "#4F7D4F",
+      backgroundColor: "#4338CA",
       paddingHorizontal: 20,
       paddingVertical: 12,
-      borderRadius: 10,
+      borderRadius: 11,
+      flexDirection: "row",
+      alignItems: "center",
     },
 
     backButtonText: {
       color: "#FFFFFF",
-      fontWeight:
-        "600",
+      fontWeight: "700",
+      fontSize: 13,
+      marginLeft: 7,
+    },
+
+    bottomSpace: {
+      height: 15,
     },
   });

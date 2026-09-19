@@ -4,6 +4,7 @@ import {
   orderBy,
   query,
 } from "firebase/firestore";
+
 import { useEffect, useState } from "react";
 
 import {
@@ -18,6 +19,8 @@ import {
   View,
 } from "react-native";
 
+import { Ionicons } from "@expo/vector-icons";
+
 import { db } from "../../firebase/firebaseConfig";
 
 type Project = {
@@ -27,9 +30,13 @@ type Project = {
   domain: string;
   technologies: string;
   studentId: string;
-  githubUrl: string;
-  reportUrl: string;
-  reportName: string;
+
+  // GitHub
+  githubUrl?: string;
+
+  // Report
+  reportUrl?: string;
+  reportName?: string;
 };
 
 export default function ExploreProjects() {
@@ -37,173 +44,341 @@ export default function ExploreProjects() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // =====================================================
+  // LOAD PROJECTS
+  // =====================================================
+
   const loadProjects = async () => {
     try {
+      setLoading(true);
+
       const projectsQuery = query(
         collection(db, "projects"),
         orderBy("createdAt", "desc")
       );
 
-      const snapshot = await getDocs(projectsQuery);
+      const snapshot = await getDocs(
+        projectsQuery
+      );
 
-      const projectList: Project[] = snapshot.docs.map((projectDoc) => {
-        const data = projectDoc.data();
+      const projectList: Project[] =
+        snapshot.docs.map((projectDoc) => {
+          const data = projectDoc.data();
 
-        return {
-          id: projectDoc.id,
-          title: data.title || "",
-          description: data.description || "",
-          domain: data.domain || "",
-          technologies: data.technologies || "",
-          studentId: data.studentId || "",
-          githubUrl: data.githubUrl || "",
-          reportUrl: data.reportUrl || "",
-          reportName: data.reportName || "",
-        };
-      });
+          return {
+            id: projectDoc.id,
+
+            title: data.title || "",
+            description: data.description || "",
+            domain: data.domain || "",
+            technologies:
+              data.technologies || "",
+            studentId:
+              data.studentId || "",
+
+            githubUrl:
+              data.githubUrl || "",
+
+            reportUrl:
+              data.reportUrl || "",
+
+            reportName:
+              data.reportName || "",
+          };
+        });
 
       setProjects(projectList);
     } catch (error) {
-      console.log("Error loading projects:", error);
+      console.log(
+        "Error loading projects:",
+        error
+      );
+
+      Alert.alert(
+        "Unable to Load",
+        "Unable to load projects. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // =====================================================
+  // LOAD WHEN SCREEN OPENS
+  // =====================================================
+
   useEffect(() => {
     loadProjects();
   }, []);
 
-  const filteredProjects = projects.filter((project) => {
-    const searchText = search.toLowerCase();
+  // =====================================================
+  // SEARCH
+  // =====================================================
 
-    return (
-      project.title.toLowerCase().includes(searchText) ||
-      project.description.toLowerCase().includes(searchText) ||
-      project.domain.toLowerCase().includes(searchText) ||
-      project.technologies.toLowerCase().includes(searchText)
-    );
-  });
+  const filteredProjects =
+    projects.filter((project) => {
+      const searchText = search
+        .trim()
+        .toLowerCase();
 
-  const openReport = async (reportUrl: string) => {
-    if (!reportUrl) {
-      Alert.alert("Report Not Available", "This project has no report.");
+      if (!searchText) {
+        return true;
+      }
+
+      return (
+        project.title
+          .toLowerCase()
+          .includes(searchText) ||
+
+        project.description
+          .toLowerCase()
+          .includes(searchText) ||
+
+        project.domain
+          .toLowerCase()
+          .includes(searchText) ||
+
+        project.technologies
+          .toLowerCase()
+          .includes(searchText)
+      );
+    });
+
+  // =====================================================
+  // OPEN URL
+  // =====================================================
+
+  const openUrl = async (
+    url: string,
+    errorMessage: string
+  ) => {
+    if (!url) {
+      Alert.alert(
+        "Not Available",
+        errorMessage
+      );
+
       return;
     }
 
     try {
-      const supported = await Linking.canOpenURL(reportUrl);
+      const supported =
+        await Linking.canOpenURL(url);
 
       if (supported) {
-        await Linking.openURL(reportUrl);
+        await Linking.openURL(url);
       } else {
-        Alert.alert("Error", "Cannot open the project report.");
+        Alert.alert(
+          "Error",
+          errorMessage
+        );
       }
     } catch (error) {
-      console.log("Error opening report:", error);
-
-      Alert.alert("Error", "Could not open the project report.");
-    }
-  };
-
-  const openGithub = async (githubUrl: string) => {
-    if (!githubUrl) {
-      Alert.alert(
-        "GitHub Not Available",
-        "This project has no GitHub repository."
+      console.log(
+        "Error opening URL:",
+        error
       );
-      return;
-    }
 
-    try {
-      await Linking.openURL(githubUrl);
-    } catch (error) {
-      console.log("Error opening GitHub:", error);
-
-      Alert.alert("Error", "Could not open the GitHub repository.");
+      Alert.alert(
+        "Error",
+        errorMessage
+      );
     }
   };
 
-  const renderProject = ({ item }: { item: Project }) => {
+  // =====================================================
+  // RENDER PROJECT
+  // =====================================================
+
+  const renderProject = ({
+    item,
+  }: {
+    item: Project;
+  }) => {
     return (
       <View style={styles.projectCard}>
 
-        {/* Project Title */}
-        <Text style={styles.projectTitle}>
-          {item.title}
-        </Text>
+        {/* =================================================
+            CARD HEADER
+        ================================================= */}
 
-        {/* Description */}
-        <Text style={styles.description}>
-          {item.description}
-        </Text>
+        <View style={styles.cardHeader}>
 
-        {/* Domain */}
-        <View style={styles.infoSection}>
-          <Text style={styles.label}>
-            Domain
-          </Text>
+          <View style={styles.titleContainer}>
 
-          <Text style={styles.value}>
-            {item.domain || "Not specified"}
-          </Text>
+            <Text
+              style={styles.projectTitle}
+              numberOfLines={2}
+            >
+              {item.title}
+            </Text>
+
+            <View style={styles.domainBadge}>
+
+              <Text style={styles.domainText}>
+                {item.domain ||
+                  "Domain not specified"}
+              </Text>
+
+            </View>
+
+          </View>
+
+          <View style={styles.projectIcon}>
+
+            <Ionicons
+              name="folder-open-outline"
+              size={21}
+              color="#4338CA"
+            />
+
+          </View>
+
         </View>
 
-        {/* Technologies */}
+        {/* =================================================
+            DESCRIPTION
+        ================================================= */}
+
+        {item.description ? (
+          <Text
+            style={styles.description}
+            numberOfLines={3}
+          >
+            {item.description}
+          </Text>
+        ) : null}
+
+        {/* =================================================
+            TECHNOLOGIES
+        ================================================= */}
+
         <View style={styles.infoSection}>
+
           <Text style={styles.label}>
             Technologies
           </Text>
 
-          <Text style={styles.value}>
-            {item.technologies || "Not specified"}
-          </Text>
+          <View style={styles.technologyBox}>
+
+            <Ionicons
+              name="code-slash-outline"
+              size={16}
+              color="#4338CA"
+            />
+
+            <Text
+              style={styles.value}
+              numberOfLines={2}
+            >
+              {item.technologies ||
+                "Not specified"}
+            </Text>
+
+          </View>
+
         </View>
 
-        {/* GitHub */}
-        <View style={styles.infoSection}>
-          <Text style={styles.label}>
-            GitHub Repository
-          </Text>
+        {/* =================================================
+            REPORT + GITHUB
+        ================================================= */}
+
+        <View style={styles.buttonRow}>
+
+          {/* REPORT */}
+
+          {item.reportUrl ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() =>
+                openUrl(
+                  item.reportUrl!,
+                  "Unable to open the project report."
+                )
+              }
+            >
+
+              <Ionicons
+                name="document-text-outline"
+                size={17}
+                color="#4338CA"
+              />
+
+              <Text
+                style={
+                  styles.secondaryButtonText
+                }
+              >
+                View Report
+              </Text>
+
+            </Pressable>
+          ) : (
+            <View
+              style={styles.unavailableButton}
+            >
+
+              <Ionicons
+                name="document-outline"
+                size={17}
+                color="#9CA3AF"
+              />
+
+              <Text
+                style={styles.unavailableText}
+              >
+                No Report
+              </Text>
+
+            </View>
+          )}
+
+          {/* GITHUB */}
 
           {item.githubUrl ? (
             <Pressable
-              onPress={() => openGithub(item.githubUrl)}
+              style={styles.githubButton}
+              onPress={() =>
+                openUrl(
+                  item.githubUrl!,
+                  "Unable to open the GitHub repository."
+                )
+              }
             >
-              <Text style={styles.link}>
-                Open GitHub Repository →
+
+              <Ionicons
+                name="logo-github"
+                size={17}
+                color="#FFFFFF"
+              />
+
+              <Text
+                style={
+                  styles.githubButtonText
+                }
+              >
+                GitHub
               </Text>
+
             </Pressable>
           ) : (
-            <Text style={styles.value}>
-              Not available
-            </Text>
-          )}
-        </View>
-
-        {/* Report */}
-        <View style={styles.reportSection}>
-
-          <Text style={styles.reportTitle}>
-            📄 Project Report
-          </Text>
-
-          <Text
-            style={styles.reportName}
-            numberOfLines={1}
-          >
-            {item.reportName || "Report not available"}
-          </Text>
-
-          {item.reportUrl && (
-            <Pressable
-              style={styles.reportButton}
-              onPress={() => openReport(item.reportUrl)}
+            <View
+              style={styles.unavailableButton}
             >
-              <Text style={styles.reportButtonText}>
-                Open Report
+
+              <Ionicons
+                name="logo-github"
+                size={17}
+                color="#9CA3AF"
+              />
+
+              <Text
+                style={styles.unavailableText}
+              >
+                No GitHub
               </Text>
-            </Pressable>
+
+            </View>
           )}
 
         </View>
@@ -212,193 +387,404 @@ export default function ExploreProjects() {
     );
   };
 
+  // =====================================================
+  // SCREEN
+  // =====================================================
+
   return (
     <View style={styles.container}>
 
-      <Text style={styles.title}>
-        Explore Projects
-      </Text>
+      {/* =================================================
+          SEARCH
+      ================================================= */}
 
-      <Text style={styles.subtitle}>
-        Discover academic projects from other students
-      </Text>
+      <View style={styles.searchContainer}>
 
-      {/* Search */}
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search projects..."
-        placeholderTextColor="#777"
-        value={search}
-        onChangeText={setSearch}
-      />
+        <Ionicons
+          name="search-outline"
+          size={20}
+          color="#6B7280"
+        />
 
-      {/* Project Count */}
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search projects..."
+          placeholderTextColor="#9CA3AF"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        {search.length > 0 && (
+          <Pressable
+            onPress={() => setSearch("")}
+          >
+            <Ionicons
+              name="close-circle"
+              size={19}
+              color="#9CA3AF"
+            />
+          </Pressable>
+        )}
+
+      </View>
+
+      {/* =================================================
+          PROJECT COUNT
+      ================================================= */}
+
       {!loading && (
-        <Text style={styles.count}>
-          {filteredProjects.length}{" "}
-          {filteredProjects.length === 1
-            ? "Project"
-            : "Projects"}
-        </Text>
+        <View style={styles.countRow}>
+
+          <Text style={styles.count}>
+            {filteredProjects.length}{" "}
+            {filteredProjects.length === 1
+              ? "Project"
+              : "Projects"}
+          </Text>
+
+          {search.length > 0 && (
+            <Text
+              style={styles.searchResultText}
+            >
+              Results for "{search}"
+            </Text>
+          )}
+
+        </View>
       )}
 
-      {/* Loading */}
+      {/* =================================================
+          LOADING
+      ================================================= */}
+
       {loading ? (
         <View style={styles.loadingContainer}>
+
           <ActivityIndicator
             size="large"
-            color="#2563EB"
+            color="#4338CA"
           />
 
           <Text style={styles.loadingText}>
             Loading projects...
           </Text>
+
         </View>
+
       ) : filteredProjects.length === 0 ? (
+
+        /* =================================================
+            EMPTY STATE
+        ================================================= */
+
         <View style={styles.emptyContainer}>
+
+          <View style={styles.emptyIcon}>
+
+            <Ionicons
+              name="search-outline"
+              size={31}
+              color="#4338CA"
+            />
+
+          </View>
+
           <Text style={styles.emptyTitle}>
             No Projects Found
           </Text>
 
           <Text style={styles.emptyText}>
-            Try searching with a different keyword.
+            {search
+              ? "Try searching with a different keyword."
+              : "There are no projects available to explore yet."}
           </Text>
+
+          {search && (
+            <Pressable
+              style={styles.clearButton}
+              onPress={() => setSearch("")}
+            >
+              <Text
+                style={styles.clearButtonText}
+              >
+                Clear Search
+              </Text>
+            </Pressable>
+          )}
+
         </View>
+
       ) : (
+
+        /* =================================================
+            PROJECT LIST
+        ================================================= */
+
         <FlatList
           data={filteredProjects}
           renderItem={renderProject}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={
+            styles.list
+          }
         />
+
       )}
 
     </View>
   );
 }
 
+// =======================================================
+// STYLES
+// =======================================================
+
 const styles = StyleSheet.create({
+
+  // =====================================================
+  // PAGE
+  // =====================================================
+
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-    padding: 20,
+    backgroundColor: "#F5F7FB",
+    paddingHorizontal: 18,
   },
 
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    marginTop: 10,
-  },
+  // =====================================================
+  // SEARCH
+  // =====================================================
 
-  subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    marginTop: 6,
-    marginBottom: 20,
+  searchContainer: {
+    height: 48,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: "#DDE2EA",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 13,
+    marginTop: 18,
+    marginBottom: 13,
   },
 
   searchInput: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#111827",
+    flex: 1,
+    fontSize: 14,
+    color: "#1F2937",
+    marginLeft: 9,
+    paddingVertical: 0,
+  },
+
+  // =====================================================
+  // COUNT
+  // =====================================================
+
+  countRow: {
+    marginBottom: 12,
   },
 
   count: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginTop: 18,
-    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#4338CA",
   },
 
-  list: {
-    paddingBottom: 30,
+  searchResultText: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 3,
   },
+
+  // =====================================================
+  // LIST
+  // =====================================================
+
+  list: {
+    paddingBottom: 35,
+  },
+
+  // =====================================================
+  // PROJECT CARD
+  // =====================================================
 
   projectCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 18,
+    padding: 17,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E0E4EC",
+
+    shadowColor: "#4338CA",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 7,
+
+    elevation: 2,
+  },
+
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 13,
+  },
+
+  titleContainer: {
+    flex: 1,
+    marginRight: 10,
   },
 
   projectTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 8,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 7,
   },
 
-  description: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 21,
-    marginBottom: 18,
+  domainBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D5F5F2",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
+
+  domainText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#238F89",
+  },
+
+  projectIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // =====================================================
+  // DESCRIPTION
+  // =====================================================
+
+  description: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#6B7280",
+    marginBottom: 15,
+  },
+
+  // =====================================================
+  // INFORMATION
+  // =====================================================
 
   infoSection: {
     marginBottom: 14,
   },
 
   label: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
     color: "#6B7280",
-    marginBottom: 4,
+    marginBottom: 6,
   },
 
-  value: {
-    fontSize: 14,
-    color: "#111827",
-  },
-
-  link: {
-    color: "#2563EB",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  reportSection: {
-    marginTop: 5,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
-
-  reportTitle: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 5,
-  },
-
-  reportName: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 12,
-  },
-
-  reportButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 12,
-    borderRadius: 9,
+  technologyBox: {
+    minHeight: 39,
+    backgroundColor: "#F5F6FF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E0E2F5",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
     alignItems: "center",
   },
 
-  reportButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "bold",
+  value: {
+    flex: 1,
+    fontSize: 12,
+    color: "#374151",
+    marginLeft: 8,
+    lineHeight: 17,
   },
+
+  // =====================================================
+  // BUTTONS
+  // =====================================================
+
+  buttonRow: {
+    flexDirection: "row",
+    gap: 9,
+  },
+
+  secondaryButton: {
+    flex: 1,
+    minHeight: 42,
+    backgroundColor: "#EEF0FF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#DCDFF5",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  secondaryButtonText: {
+    color: "#4338CA",
+    fontSize: 12,
+    fontWeight: "700",
+    marginLeft: 6,
+  },
+
+  githubButton: {
+    flex: 1,
+    minHeight: 42,
+    backgroundColor: "#1F2937",
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  githubButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+    marginLeft: 6,
+  },
+
+  unavailableButton: {
+    flex: 1,
+    minHeight: 42,
+    backgroundColor: "#F5F6F8",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  unavailableText: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   loadingContainer: {
     flex: 1,
@@ -407,26 +793,57 @@ const styles = StyleSheet.create({
   },
 
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
+    fontSize: 13,
     color: "#6B7280",
   },
+
+  // =====================================================
+  // EMPTY
+  // =====================================================
 
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 25,
+  },
+
+  emptyIcon: {
+    width: 66,
+    height: 66,
+    borderRadius: 20,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
   },
 
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
+    fontWeight: "700",
+    color: "#1F2937",
   },
 
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 19,
     color: "#6B7280",
-    marginTop: 8,
+    marginTop: 7,
     textAlign: "center",
+  },
+
+  clearButton: {
+    marginTop: 18,
+    backgroundColor: "#4338CA",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+
+  clearButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

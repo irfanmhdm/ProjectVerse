@@ -23,6 +23,8 @@ import {
   View,
 } from "react-native";
 
+import { Ionicons } from "@expo/vector-icons";
+
 import { auth, db } from "../../firebase/firebaseConfig";
 import { supabase } from "../../supabase/supabaseConfig";
 
@@ -55,7 +57,8 @@ export default function AddProject() {
   const [demoVideo, setDemoVideo] =
     useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
-  const [screenshots, setScreenshots] = useState<SelectedImage[]>([]);
+  const [screenshots, setScreenshots] =
+    useState<SelectedImage[]>([]);
 
   // =========================================================
   // LOADING
@@ -69,10 +72,11 @@ export default function AddProject() {
 
   const pickReport = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
-        copyToCacheDirectory: true,
-      });
+      const result =
+        await DocumentPicker.getDocumentAsync({
+          type: "application/pdf",
+          copyToCacheDirectory: true,
+        });
 
       if (result.canceled) {
         return;
@@ -81,36 +85,48 @@ export default function AddProject() {
       const selectedFile = result.assets[0];
 
       const isPdf =
-        selectedFile.mimeType === "application/pdf" ||
-        selectedFile.name.toLowerCase().endsWith(".pdf");
+        selectedFile.mimeType ===
+          "application/pdf" ||
+        selectedFile.name
+          .toLowerCase()
+          .endsWith(".pdf");
 
       if (!isPdf) {
         Alert.alert(
           "Invalid File",
-          "Only PDF project reports are allowed.",
+          "Only PDF project reports are allowed."
         );
         return;
       }
 
       const maxSize = 10 * 1024 * 1024;
 
-      if (selectedFile.size && selectedFile.size > maxSize) {
+      if (
+        selectedFile.size &&
+        selectedFile.size > maxSize
+      ) {
         Alert.alert(
           "File Too Large",
-          "The project report must be smaller than 10 MB.",
+          "The project report must be smaller than 10 MB."
         );
         return;
       }
 
       setReport(selectedFile);
 
-      console.log("Selected report:", selectedFile.name);
+      console.log(
+        "Selected report:",
+        selectedFile.name
+      );
     } catch (error) {
-      console.log("Error selecting PDF:", error);
+      console.log(
+        "Error selecting PDF:",
+        error
+      );
 
       Alert.alert(
         "Error",
-        "Could not select the project report.",
+        "Could not select the project report."
       );
     }
   };
@@ -121,10 +137,11 @@ export default function AddProject() {
 
   const pickDemoVideo = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "video/*",
-        copyToCacheDirectory: true,
-      });
+      const result =
+        await DocumentPicker.getDocumentAsync({
+          type: "video/*",
+          copyToCacheDirectory: true,
+        });
 
       if (result.canceled) {
         return;
@@ -133,37 +150,50 @@ export default function AddProject() {
       const selectedFile = result.assets[0];
 
       const isVideo =
-        selectedFile.mimeType?.startsWith("video/") ||
-        /\.(mp4|mov|avi|mkv|webm)$/i.test(selectedFile.name);
+        selectedFile.mimeType?.startsWith(
+          "video/"
+        ) ||
+        /\.(mp4|mov|avi|mkv|webm)$/i.test(
+          selectedFile.name
+        );
 
       if (!isVideo) {
         Alert.alert(
           "Invalid File",
-          "Please select a valid video file.",
+          "Please select a valid video file."
         );
         return;
       }
 
-      // Maximum video size: 100 MB
-      const maxSize = 100 * 1024 * 1024;
+      const maxSize =
+        100 * 1024 * 1024;
 
-      if (selectedFile.size && selectedFile.size > maxSize) {
+      if (
+        selectedFile.size &&
+        selectedFile.size > maxSize
+      ) {
         Alert.alert(
           "Video Too Large",
-          "The demo video must be smaller than 100 MB.",
+          "The demo video must be smaller than 100 MB."
         );
         return;
       }
 
       setDemoVideo(selectedFile);
 
-      console.log("Selected demo video:", selectedFile.name);
+      console.log(
+        "Selected demo video:",
+        selectedFile.name
+      );
     } catch (error) {
-      console.log("Error selecting video:", error);
+      console.log(
+        "Error selecting video:",
+        error
+      );
 
       Alert.alert(
         "Error",
-        "Could not select the demo video.",
+        "Could not select the demo video."
       );
     }
   };
@@ -180,7 +210,7 @@ export default function AddProject() {
       if (!permission.granted) {
         Alert.alert(
           "Permission Required",
-          "Please allow photo library access to select screenshots.",
+          "Please allow photo library access to select screenshots."
         );
         return;
       }
@@ -196,13 +226,13 @@ export default function AddProject() {
         return;
       }
 
-      // Maximum 8 screenshots
-      const newImages = result.assets.slice(0, 8);
+      const newImages =
+        result.assets.slice(0, 8);
 
       if (result.assets.length > 8) {
         Alert.alert(
           "Maximum Screenshots",
-          "You can upload a maximum of 8 screenshots.",
+          "You can upload a maximum of 8 screenshots."
         );
       }
 
@@ -210,14 +240,17 @@ export default function AddProject() {
 
       console.log(
         "Selected screenshots:",
-        newImages.length,
+        newImages.length
       );
     } catch (error) {
-      console.log("Error selecting screenshots:", error);
+      console.log(
+        "Error selecting screenshots:",
+        error
+      );
 
       Alert.alert(
         "Error",
-        "Could not select screenshots.",
+        "Could not select screenshots."
       );
     }
   };
@@ -229,30 +262,39 @@ export default function AddProject() {
   const uploadFile = async (
     uri: string,
     filePath: string,
-    contentType: string,
+    contentType: string
   ) => {
     const response = await fetch(uri);
 
     if (!response.ok) {
-      throw new Error("Could not read selected file.");
+      throw new Error(
+        "Could not read selected file."
+      );
     }
 
-    const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer =
+      await response.arrayBuffer();
 
-    const { error } = await supabase.storage
-      .from("project-demos")
-      .upload(filePath, arrayBuffer, {
-        contentType,
-        upsert: false,
-      });
+    const { error } =
+      await supabase.storage
+        .from("project-demos")
+        .upload(
+          filePath,
+          arrayBuffer,
+          {
+            contentType,
+            upsert: false,
+          }
+        );
 
     if (error) {
       throw error;
     }
 
-    const { data } = supabase.storage
-      .from("project-demos")
-      .getPublicUrl(filePath);
+    const { data } =
+      supabase.storage
+        .from("project-demos")
+        .getPublicUrl(filePath);
 
     return data.publicUrl;
   };
@@ -262,10 +304,6 @@ export default function AddProject() {
   // =========================================================
 
   const handleSubmit = async () => {
-    // -------------------------------------------------------
-    // REQUIRED TEXT FIELDS
-    // -------------------------------------------------------
-
     if (
       title.trim() === "" ||
       description.trim() === "" ||
@@ -275,7 +313,7 @@ export default function AddProject() {
     ) {
       Alert.alert(
         "Error",
-        "Please fill in all required fields.",
+        "Please fill in all required fields."
       );
       return;
     }
@@ -287,7 +325,7 @@ export default function AddProject() {
     if (!report) {
       Alert.alert(
         "Error",
-        "Please select your project report PDF.",
+        "Please select your project report PDF."
       );
       return;
     }
@@ -312,7 +350,7 @@ export default function AddProject() {
     ) {
       Alert.alert(
         "Project Demonstration Required",
-        "Please provide at least one demonstration:\n\n• Live Demo Link\n• Demo Video\n• Screenshots",
+        "Please provide at least one demonstration:\n\n• Live Demo Link\n• Demo Video\n• Screenshots"
       );
       return;
     }
@@ -324,10 +362,14 @@ export default function AddProject() {
     const githubPattern =
       /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/?$/i;
 
-    if (!githubPattern.test(githubUrl.trim())) {
+    if (
+      !githubPattern.test(
+        githubUrl.trim()
+      )
+    ) {
       Alert.alert(
         "Invalid GitHub URL",
-        "Enter a valid GitHub repository URL.\n\nExample:\nhttps://github.com/username/project",
+        "Enter a valid GitHub repository URL.\n\nExample:\nhttps://github.com/username/project"
       );
       return;
     }
@@ -338,18 +380,23 @@ export default function AddProject() {
 
     if (hasLiveDemo) {
       try {
-        const url = new URL(liveDemoUrl.trim());
+        const url =
+          new URL(
+            liveDemoUrl.trim()
+          );
 
         if (
-          url.protocol !== "http:" &&
-          url.protocol !== "https:"
+          url.protocol !==
+            "http:" &&
+          url.protocol !==
+            "https:"
         ) {
           throw new Error();
         }
       } catch {
         Alert.alert(
           "Invalid Live Demo URL",
-          "Please enter a valid URL beginning with https://",
+          "Please enter a valid URL beginning with https://"
         );
         return;
       }
@@ -359,12 +406,13 @@ export default function AddProject() {
     // CURRENT USER
     // -------------------------------------------------------
 
-    const user = auth.currentUser;
+    const user =
+      auth.currentUser;
 
     if (!user) {
       Alert.alert(
         "Error",
-        "You must be logged in to add a project.",
+        "You must be logged in to add a project."
       );
       return;
     }
@@ -373,65 +421,75 @@ export default function AddProject() {
       setLoading(true);
 
       // =====================================================
-      // 1. CREATE PROJECT DOCUMENT FIRST
+      // 1. CREATE PROJECT
       // =====================================================
 
-      console.log("Creating project...");
-
-      const projectRef = await addDoc(
-        collection(db, "projects"),
-        {
-          title: title.trim(),
-          description: description.trim(),
-          domain: domain.trim(),
-          technologies: technologies.trim(),
-
-          githubUrl: githubUrl.trim(),
-
-          // Report will be added below
-          reportUrl: "",
-          reportName: "",
-          reportPath: "",
-
-          // Demonstration
-          liveDemoUrl: hasLiveDemo
-            ? liveDemoUrl.trim()
-            : "",
-
-          videoUrl: "",
-          videoName: "",
-
-          screenshotUrls: [],
-
-          // Student
-          studentId: user.uid,
-
-          // Workflow
-          status: "pending",
-
-          createdAt: serverTimestamp(),
-        },
+      console.log(
+        "Creating project..."
       );
 
-      const projectId = projectRef.id;
+      const projectRef =
+        await addDoc(
+          collection(
+            db,
+            "projects"
+          ),
+          {
+            title: title.trim(),
+            description:
+              description.trim(),
+            domain: domain.trim(),
+            technologies:
+              technologies.trim(),
+
+            githubUrl:
+              githubUrl.trim(),
+
+            reportUrl: "",
+            reportName: "",
+            reportPath: "",
+
+            liveDemoUrl:
+              hasLiveDemo
+                ? liveDemoUrl.trim()
+                : "",
+
+            videoUrl: "",
+            videoName: "",
+
+            screenshotUrls: [],
+
+            studentId: user.uid,
+
+            status: "pending",
+
+            createdAt:
+              serverTimestamp(),
+          }
+        );
+
+      const projectId =
+        projectRef.id;
 
       console.log(
         "Project created:",
-        projectId,
+        projectId
       );
 
       // =====================================================
-      // 2. UPLOAD PROJECT REPORT
+      // 2. UPLOAD REPORT
       // =====================================================
 
-      console.log("Uploading report...");
+      console.log(
+        "Uploading report..."
+      );
 
       const reportResponse =
         await fetch(report.uri);
 
       if (!reportResponse.ok) {
         throw new Error(
-          "Could not read the selected PDF.",
+          "Could not read the selected PDF."
         );
       }
 
@@ -441,15 +499,20 @@ export default function AddProject() {
       const safeReportName =
         report.name.replace(
           /[^a-zA-Z0-9._-]/g,
-          "_",
+          "_"
         );
 
       const reportPath =
         `${user.uid}/${Date.now()}_${safeReportName}`;
 
-      const { error: reportUploadError } =
+      const {
+        error:
+          reportUploadError,
+      } =
         await supabase.storage
-          .from("project-reports")
+          .from(
+            "project-reports"
+          )
           .upload(
             reportPath,
             reportArrayBuffer,
@@ -457,49 +520,61 @@ export default function AddProject() {
               contentType:
                 "application/pdf",
               upsert: false,
-            },
+            }
           );
 
-      if (reportUploadError) {
+      if (
+        reportUploadError
+      ) {
         throw reportUploadError;
       }
 
-      const { data: reportPublicData } =
+      const {
+        data:
+          reportPublicData,
+      } =
         supabase.storage
-          .from("project-reports")
-          .getPublicUrl(reportPath);
+          .from(
+            "project-reports"
+          )
+          .getPublicUrl(
+            reportPath
+          );
 
       const reportUrl =
         reportPublicData.publicUrl;
 
       // =====================================================
-      // 3. UPLOAD DEMO VIDEO
+      // 3. UPLOAD VIDEO
       // =====================================================
 
       let videoUrl = "";
 
       if (demoVideo) {
-        console.log("Uploading demo video...");
+        console.log(
+          "Uploading demo video..."
+        );
 
         const safeVideoName =
           demoVideo.name.replace(
             /[^a-zA-Z0-9._-]/g,
-            "_",
+            "_"
           );
 
         const videoPath =
           `${user.uid}/${projectId}/video_${Date.now()}_${safeVideoName}`;
 
-        videoUrl = await uploadFile(
-          demoVideo.uri,
-          videoPath,
-          demoVideo.mimeType ||
-            "video/mp4",
-        );
+        videoUrl =
+          await uploadFile(
+            demoVideo.uri,
+            videoPath,
+            demoVideo.mimeType ||
+              "video/mp4"
+          );
 
         console.log(
           "Video uploaded:",
-          videoUrl,
+          videoUrl
         );
       }
 
@@ -507,23 +582,30 @@ export default function AddProject() {
       // 4. UPLOAD SCREENSHOTS
       // =====================================================
 
-      const screenshotUrls: string[] = [];
+      const screenshotUrls: string[] =
+        [];
 
-      if (screenshots.length > 0) {
+      if (
+        screenshots.length >
+        0
+      ) {
         console.log(
-          "Uploading screenshots...",
+          "Uploading screenshots..."
         );
 
         for (
           let i = 0;
-          i < screenshots.length;
+          i <
+          screenshots.length;
           i++
         ) {
           const image =
             screenshots[i];
 
           const extension =
-            image.fileName?.split(".").pop() ||
+            image.fileName
+              ?.split(".")
+              .pop() ||
             "jpg";
 
           const imagePath =
@@ -534,45 +616,47 @@ export default function AddProject() {
               image.uri,
               imagePath,
               image.mimeType ||
-                "image/jpeg",
+                "image/jpeg"
             );
 
           screenshotUrls.push(
-            imageUrl,
+            imageUrl
           );
         }
       }
 
       // =====================================================
-      // 5. UPDATE PROJECT DOCUMENT
+      // 5. UPDATE PROJECT
       // =====================================================
 
       await updateDoc(
-        doc(db, "projects", projectId),
+        doc(
+          db,
+          "projects",
+          projectId
+        ),
         {
           reportUrl,
-          reportName: report.name,
+          reportName:
+            report.name,
           reportPath,
 
           videoUrl,
           videoName:
-            demoVideo?.name || "",
+            demoVideo?.name ||
+            "",
 
           screenshotUrls,
-        },
+        }
       );
 
       console.log(
-        "Project submitted successfully.",
+        "Project submitted successfully."
       );
-
-      // =====================================================
-      // SUCCESS
-      // =====================================================
 
       Alert.alert(
         "Success",
-        "Your project has been submitted successfully!",
+        "Your project has been submitted successfully!"
       );
 
       // =====================================================
@@ -590,16 +674,17 @@ export default function AddProject() {
       setLiveDemoUrl("");
       setDemoVideo(null);
       setScreenshots([]);
+
     } catch (error: any) {
       console.log(
         "Error submitting project:",
-        error,
+        error
       );
 
       Alert.alert(
         "Submission Error",
         error?.message ||
-          "Something went wrong while submitting the project.",
+          "Something went wrong while submitting the project."
       );
     } finally {
       setLoading(false);
@@ -613,254 +698,600 @@ export default function AddProject() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={
+        styles.content
+      }
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={
+        false
+      }
     >
-      <Text style={styles.title}>
-        Add Project
-      </Text>
+      {/* {/* =====================================================
+          HEADER
+      ====================================================== 
 
-      <Text style={styles.subtitle}>
-        Submit your academic project for guide review
-      </Text>
+      <View style={styles.headerRow}>
 
-      {/* =====================================================
-          PROJECT DETAILS
-      ====================================================== */}
+        <View
+          style={
+            styles.headerTextContainer
+          }
+        >
+          
 
-      <Text style={styles.label}>
-        Project Title *
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Enter project title"
-        placeholderTextColor="#777"
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      <Text style={styles.label}>
-        Description *
-      </Text>
-
-      <TextInput
-        style={[
-          styles.input,
-          styles.textArea,
-        ]}
-        placeholder="Briefly describe your project"
-        placeholderTextColor="#777"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        textAlignVertical="top"
-      />
-
-      <Text style={styles.label}>
-        Domain *
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Example: Artificial Intelligence"
-        placeholderTextColor="#777"
-        value={domain}
-        onChangeText={setDomain}
-      />
-
-      <Text style={styles.label}>
-        Technologies Used *
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Example: React Native, Firebase"
-        placeholderTextColor="#777"
-        value={technologies}
-        onChangeText={setTechnologies}
-      />
-
-      {/* =====================================================
-          GITHUB
-      ====================================================== */}
-
-      <Text style={styles.label}>
-        GitHub Repository *
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="https://github.com/username/project"
-        placeholderTextColor="#777"
-        value={githubUrl}
-        onChangeText={setGithubUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-      />
-
-      {/* =====================================================
-          PROJECT REPORT
-      ====================================================== */}
-
-      <Text style={styles.sectionTitle}>
-        Project Report
-      </Text>
-
-      <Text style={styles.label}>
-        Project Report (PDF) *
-      </Text>
-
-      <Pressable
-        style={styles.secondaryButton}
-        onPress={pickReport}
-        disabled={loading}
-      >
-        <Text style={styles.secondaryButtonText}>
-          {report
-            ? "Change Report"
-            : "Select PDF Report"}
-        </Text>
-      </Pressable>
-
-      {report && (
-        <>
-          <Text style={styles.selectedFile}>
-            📄 {report.name}
+          <Text
+            style={styles.subtitle}
+          >
+            Submit your academic project
+            for guide review
           </Text>
+        </View>
 
-          {report.size && (
-            <Text style={styles.fileSize}>
-              {(report.size /
-                (1024 * 1024)
-              ).toFixed(2)}{" "}
-              MB
-            </Text>
-          )}
-        </>
-      )}
+      </View> */}
 
       {/* =====================================================
-          PROJECT DEMONSTRATION
+          PROJECT DETAILS CARD
       ====================================================== */}
 
-      <View style={styles.demoHeader}>
-        <Text style={styles.sectionTitle}>
-          Project Demonstration
+      <View
+        style={styles.sectionCard}
+      >
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Details
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Basic information about your project
+            </Text>
+          </View>
+        </View>
+
+        {/* TITLE */}
+
+        <Text style={styles.label}>
+          Project Title
+          <Text style={styles.required}>
+            {" "}*
+          </Text>
         </Text>
 
-        <Text style={styles.requiredHint}>
-          * Provide at least one
+        <TextInput
+          style={styles.input}
+          placeholder="Enter project title"
+          placeholderTextColor="#9CA3AF"
+          value={title}
+          onChangeText={setTitle}
+        />
+
+        {/* DESCRIPTION */}
+
+        <Text style={styles.label}>
+          Description
+          <Text style={styles.required}>
+            {" "}*
+          </Text>
         </Text>
+
+        <TextInput
+          style={[
+            styles.input,
+            styles.textArea,
+          ]}
+          placeholder="Briefly describe your project"
+          placeholderTextColor="#9CA3AF"
+          value={description}
+          onChangeText={
+            setDescription
+          }
+          multiline
+          textAlignVertical="top"
+        />
+
+        {/* DOMAIN */}
+
+        <Text style={styles.label}>
+          Domain
+          <Text style={styles.required}>
+            {" "}*
+          </Text>
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Example: Artificial Intelligence"
+          placeholderTextColor="#9CA3AF"
+          value={domain}
+          onChangeText={setDomain}
+        />
+
+        {/* TECHNOLOGIES */}
+
+        <Text style={styles.label}>
+          Technologies Used
+          <Text style={styles.required}>
+            {" "}*
+          </Text>
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Example: React Native, Firebase"
+          placeholderTextColor="#9CA3AF"
+          value={technologies}
+          onChangeText={
+            setTechnologies
+          }
+        />
+
+        {/* GITHUB */}
+
+        <Text style={styles.label}>
+          GitHub Repository
+          <Text style={styles.required}>
+            {" "}*
+          </Text>
+        </Text>
+
+        <View
+          style={styles.inputWithIcon}
+        >
+          <Ionicons
+            name="logo-github"
+            size={18}
+            color="#6B7280"
+          />
+
+          <TextInput
+            style={
+              styles.iconInput
+            }
+            placeholder="https://github.com/username/project"
+            placeholderTextColor="#9CA3AF"
+            value={githubUrl}
+            onChangeText={
+              setGithubUrl
+            }
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+        </View>
       </View>
 
-      <Text style={styles.demoDescription}>
-        Choose how you want to demonstrate
-        your project to your guide. You can
-        provide a live link, video, screenshots,
-        or any combination of them.
-      </Text>
+      {/* =====================================================
+          REPORT CARD
+      ====================================================== */}
 
-      {/* LIVE DEMO */}
-
-      <Text style={styles.label}>
-         Live Demo Link
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="https://your-project.com"
-        placeholderTextColor="#777"
-        value={liveDemoUrl}
-        onChangeText={setLiveDemoUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-      />
-
-      {/* VIDEO */}
-
-      <Text style={styles.label}>
-         Demo Video
-      </Text>
-
-      <Pressable
-        style={styles.secondaryButton}
-        onPress={pickDemoVideo}
-        disabled={loading}
+      <View
+        style={styles.sectionCard}
       >
-        <Text style={styles.secondaryButtonText}>
-          {demoVideo
-            ? "Change Demo Video"
-            : "Select Demo Video"}
-        </Text>
-      </Pressable>
-
-      {demoVideo && (
-        <Text style={styles.selectedFile}>
-          🎥 {demoVideo.name}
-        </Text>
-      )}
-
-      {/* SCREENSHOTS */}
-
-      <Text style={styles.label}>
-        Screenshots
-      </Text>
-
-      <Pressable
-        style={styles.secondaryButton}
-        onPress={pickScreenshots}
-        disabled={loading}
-      >
-        <Text style={styles.secondaryButtonText}>
-          {screenshots.length > 0
-            ? "Change Screenshots"
-            : "Select Screenshots"}
-        </Text>
-      </Pressable>
-
-      {screenshots.length > 0 && (
-        <>
-          <Text style={styles.screenshotCount}>
-            {screenshots.length} screenshot
-            {screenshots.length > 1
-              ? "s"
-              : ""}{" "}
-            selected
-          </Text>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={
-              false
-            }
-            style={styles.previewContainer}
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
+          <View
+            style={[
+              styles.sectionIcon,
+              styles.mintSectionIcon,
+            ]}
           >
-            {screenshots.map(
-              (image, index) => (
-                <Image
-                  key={`${image.uri}-${index}`}
-                  source={{
-                    uri: image.uri,
-                  }}
-                  style={
-                    styles.previewImage
-                  }
-                />
-              ),
-            )}
-          </ScrollView>
-        </>
-      )}
+            <Ionicons
+              name="document-attach-outline"
+              size={19}
+              color="#238F89"
+            />
+          </View>
 
-      <View style={styles.infoBox}>
-        <Text style={styles.infoText}>
-          ℹ️ At least one of Live Demo,
-          Demo Video, or Screenshots is
-          required.
+          <View>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Report
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Upload your project report
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.label}>
+          Project Report (PDF)
+          <Text style={styles.required}>
+            {" "}*
+          </Text>
         </Text>
+
+        <Pressable
+          style={[
+            styles.uploadButton,
+            report &&
+              styles.uploadButtonSelected,
+          ]}
+          onPress={
+            pickReport
+          }
+          disabled={loading}
+        >
+          <Ionicons
+            name={
+              report
+                ? "checkmark-circle-outline"
+                : "cloud-upload-outline"
+            }
+            size={20}
+            color={
+              report
+                ? "#238F89"
+                : "#4338CA"
+            }
+          />
+
+          <Text
+            style={
+              styles.uploadButtonText
+            }
+          >
+            {report
+              ? "Change Report"
+              : "Select PDF Report"}
+          </Text>
+        </Pressable>
+
+        {report && (
+          <View
+            style={
+              styles.selectedFileBox
+            }
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={20}
+              color="#238F89"
+            />
+
+            <View
+              style={
+                styles.selectedFileInfo
+              }
+            >
+              <Text
+                style={
+                  styles.selectedFile
+                }
+                numberOfLines={1}
+              >
+                {report.name}
+              </Text>
+
+              {report.size && (
+                <Text
+                  style={
+                    styles.fileSize
+                  }
+                >
+                  {(
+                    report.size /
+                    (1024 * 1024)
+                  ).toFixed(2)}{" "}
+                  MB
+                </Text>
+              )}
+            </View>
+
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color="#238F89"
+            />
+          </View>
+        )}
+      </View>
+
+      {/* =====================================================
+          DEMONSTRATION CARD
+      ====================================================== */}
+
+      <View
+        style={styles.sectionCard}
+      >
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="eye-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <View
+            style={
+              styles.sectionHeaderFlex
+            }
+          >
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Project Demonstration
+            </Text>
+
+            <Text
+              style={
+                styles.requiredHint
+              }
+            >
+              At least one option required
+            </Text>
+          </View>
+        </View>
+
+        <Text
+          style={
+            styles.demoDescription
+          }
+        >
+          Choose how you want to present
+          your project to your guide.
+          You can provide one or more
+          options.
+        </Text>
+
+        {/* LIVE DEMO */}
+
+        <Text style={styles.label}>
+          Live Demo Link
+        </Text>
+
+        <View
+          style={styles.inputWithIcon}
+        >
+          <Ionicons
+            name="globe-outline"
+            size={18}
+            color="#6B7280"
+          />
+
+          <TextInput
+            style={
+              styles.iconInput
+            }
+            placeholder="https://your-project.com"
+            placeholderTextColor="#9CA3AF"
+            value={liveDemoUrl}
+            onChangeText={
+              setLiveDemoUrl
+            }
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+        </View>
+
+        {/* VIDEO */}
+
+        <Text style={styles.label}>
+          Demo Video
+        </Text>
+
+        <Pressable
+          style={[
+            styles.uploadButton,
+            demoVideo &&
+              styles.uploadButtonSelected,
+          ]}
+          onPress={
+            pickDemoVideo
+          }
+          disabled={loading}
+        >
+          <Ionicons
+            name={
+              demoVideo
+                ? "checkmark-circle-outline"
+                : "videocam-outline"
+            }
+            size={20}
+            color={
+              demoVideo
+                ? "#238F89"
+                : "#4338CA"
+            }
+          />
+
+          <Text
+            style={
+              styles.uploadButtonText
+            }
+          >
+            {demoVideo
+              ? "Change Demo Video"
+              : "Select Demo Video"}
+          </Text>
+        </Pressable>
+
+        {demoVideo && (
+          <View
+            style={
+              styles.selectedFileBox
+            }
+          >
+            <Ionicons
+              name="videocam-outline"
+              size={20}
+              color="#238F89"
+            />
+
+            <Text
+              style={
+                styles.selectedFile
+              }
+              numberOfLines={1}
+            >
+              {demoVideo.name}
+            </Text>
+
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color="#238F89"
+            />
+          </View>
+        )}
+
+        {/* SCREENSHOTS */}
+
+        <Text style={styles.label}>
+          Screenshots
+        </Text>
+
+        <Pressable
+          style={[
+            styles.uploadButton,
+            screenshots.length >
+              0 &&
+              styles.uploadButtonSelected,
+          ]}
+          onPress={
+            pickScreenshots
+          }
+          disabled={loading}
+        >
+          <Ionicons
+            name={
+              screenshots.length >
+              0
+                ? "checkmark-circle-outline"
+                : "images-outline"
+            }
+            size={20}
+            color={
+              screenshots.length >
+              0
+                ? "#238F89"
+                : "#4338CA"
+            }
+          />
+
+          <Text
+            style={
+              styles.uploadButtonText
+            }
+          >
+            {screenshots.length >
+            0
+              ? "Change Screenshots"
+              : "Select Screenshots"}
+          </Text>
+        </Pressable>
+
+        {screenshots.length >
+          0 && (
+          <>
+            <Text
+              style={
+                styles.screenshotCount
+              }
+            >
+              {screenshots.length}{" "}
+              screenshot
+              {screenshots.length >
+              1
+                ? "s"
+                : ""}{" "}
+              selected
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={
+                false
+              }
+              style={
+                styles.previewContainer
+              }
+            >
+              {screenshots.map(
+                (
+                  image,
+                  index
+                ) => (
+                  <Image
+                    key={`${image.uri}-${index}`}
+                    source={{
+                      uri: image.uri,
+                    }}
+                    style={
+                      styles.previewImage
+                    }
+                  />
+                )
+              )}
+            </ScrollView>
+          </>
+        )}
+
+        {/* INFO */}
+
+        <View
+          style={styles.infoBox}
+        >
+          <Ionicons
+            name="information-circle-outline"
+            size={18}
+            color="#4338CA"
+          />
+
+          <Text
+            style={styles.infoText}
+          >
+            At least one of Live Demo,
+            Demo Video, or Screenshots
+            is required.
+          </Text>
+        </View>
       </View>
 
       {/* =====================================================
@@ -873,7 +1304,9 @@ export default function AddProject() {
           loading &&
             styles.disabledButton,
         ]}
-        onPress={handleSubmit}
+        onPress={
+          handleSubmit
+        }
         disabled={loading}
       >
         {loading ? (
@@ -887,20 +1320,29 @@ export default function AddProject() {
             />
 
             <Text
-              style={[
-                styles.buttonText,
-                {
-                  marginLeft: 10,
-                },
-              ]}
+              style={
+                styles.buttonText
+              }
             >
               Uploading...
             </Text>
           </View>
         ) : (
-          <Text style={styles.buttonText}>
-            Submit Project
-          </Text>
+          <>
+            <Ionicons
+              name="paper-plane-outline"
+              size={19}
+              color="#FFFFFF"
+            />
+
+            <Text
+              style={
+                styles.buttonText
+              }
+            >
+              Submit Project
+            </Text>
+          </>
         )}
       </Pressable>
     </ScrollView>
@@ -912,112 +1354,248 @@ export default function AddProject() {
 // ===========================================================
 
 const styles = StyleSheet.create({
+  // =====================================================
+  // PAGE
+  // =====================================================
+
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#F5F7FB",
   },
 
   content: {
-    padding: 25,
-    paddingBottom: 60,
+    padding: 18,
+    paddingBottom: 50,
   },
 
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111",
+  // // =====================================================
+  // // HEADER
+  // // =====================================================
+
+  // headerRow: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   marginBottom: 22,
+  // },
+
+  // headerIcon: {
+  //   width: 48,
+  //   height: 48,
+  //   borderRadius: 14,
+  //   backgroundColor: "#EEF0FF",
+  //   alignItems: "center",
+  //   justifyContent: "center",
+  //   marginRight: 12,
+  // },
+
+  // headerTextContainer: {
+  //   flex: 1,
+  // },
+
+  // title: {
+  //   fontSize: 26,
+  //   fontWeight: "700",
+  //   color: "#1F2937",
+  // },
+
+  // subtitle: {
+  //   fontSize: 16,
+  //   lineHeight: 18,
+  //   color: "#070707",
+  //   marginTop: 3,
+  //   marginLeft: 20,
+  // },
+
+  // =====================================================
+  // SECTION CARD
+  // =====================================================
+
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E0E4EC",
+    padding: 17,
+    marginBottom: 15,
   },
 
-  subtitle: {
-    fontSize: 15,
-    color: "#666",
-    marginTop: 6,
-    marginBottom: 25,
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
   },
+
+  sectionHeaderFlex: {
+    flex: 1,
+  },
+
+  sectionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 11,
+  },
+
+  mintSectionIcon: {
+    backgroundColor: "#D5F5F2",
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+
+  sectionSubtitle: {
+    fontSize: 11,
+    color: "#6B7280",
+    marginTop: 3,
+  },
+
+  // =====================================================
+  // LABELS
+  // =====================================================
 
   label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#222",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
     marginBottom: 7,
   },
 
+  required: {
+    color: "#C44747",
+  },
+
+  requiredHint: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#C27A16",
+    marginTop: 3,
+  },
+
+  // =====================================================
+  // INPUT
+  // =====================================================
+
   input: {
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#CCC",
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 13,
-    fontSize: 16,
-    color: "#111",
-    marginBottom: 18,
+    borderColor: "#DDE2EA",
+    borderRadius: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: "#1F2937",
+    marginBottom: 17,
   },
 
   textArea: {
     height: 110,
+    paddingTop: 12,
   },
 
-  sectionTitle: {
-    fontSize: 21,
-    fontWeight: "bold",
-    color: "#111",
-    marginTop: 10,
-    marginBottom: 15,
-  },
-
-  demoHeader: {
-    marginTop: 10,
-  },
-
-  requiredHint: {
-    color: "#DC2626",
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-
-  demoDescription: {
-    color: "#666",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-
-  secondaryButton: {
+  inputWithIcon: {
+    minHeight: 46,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#2563EB",
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
+    borderColor: "#DDE2EA",
+    borderRadius: 11,
+    paddingHorizontal: 13,
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 17,
   },
 
-  secondaryButtonText: {
-    color: "#2563EB",
-    fontSize: 16,
-    fontWeight: "600",
+  iconInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1F2937",
+    marginLeft: 9,
+    paddingVertical: 0,
+  },
+
+  // =====================================================
+  // UPLOAD
+  // =====================================================
+
+  uploadButton: {
+    minHeight: 46,
+    backgroundColor: "#EEF0FF",
+    borderWidth: 1,
+    borderColor: "#DCDFF5",
+    borderRadius: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    marginBottom: 9,
+  },
+
+  uploadButtonSelected: {
+    backgroundColor: "#D5F5F2",
+    borderColor: "#B7E5E1",
+  },
+
+  uploadButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#661198",
+    marginLeft: 7,
+  },
+
+  selectedFileBox: {
+    minHeight: 48,
+    backgroundColor: "#F8FAFA",
+    borderWidth: 1,
+    borderColor: "#DDE8E6",
+    borderRadius: 11,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 17,
+  },
+
+  selectedFileInfo: {
+    flex: 1,
+    marginLeft: 8,
   },
 
   selectedFile: {
-    fontSize: 14,
-    color: "#444",
-    marginTop: 5,
-    marginBottom: 18,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#374151",
+    marginLeft: 8,
   },
 
   fileSize: {
-    fontSize: 13,
-    color: "#777",
-    marginTop: -14,
+    fontSize: 10,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+
+  // =====================================================
+  // DEMONSTRATION
+  // =====================================================
+
+  demoDescription: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#6B7280",
+    marginTop: -7,
     marginBottom: 18,
   },
 
   screenshotCount: {
-    fontSize: 14,
-    color: "#555",
-    marginTop: 5,
-    marginBottom: 10,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#238F89",
+    marginTop: 2,
+    marginBottom: 9,
   },
 
   previewContainer: {
@@ -1025,34 +1603,45 @@ const styles = StyleSheet.create({
   },
 
   previewImage: {
-    width: 100,
-    height: 100,
+    width: 92,
+    height: 92,
     borderRadius: 10,
-    marginRight: 10,
+    marginRight: 9,
     backgroundColor: "#E5E7EB",
   },
 
   infoBox: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#F5F6FF",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 10,
-    padding: 13,
-    marginTop: 5,
-    marginBottom: 15,
+    borderColor: "#E0E2F5",
+    borderRadius: 11,
+    padding: 11,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 3,
   },
 
   infoText: {
-    color: "#1E40AF",
-    fontSize: 13,
-    lineHeight: 19,
+    flex: 1,
+    color: "#4B5563",
+    fontSize: 11,
+    lineHeight: 17,
+    marginLeft: 8,
   },
 
+  // =====================================================
+  // SUBMIT
+  // =====================================================
+
   submitButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 15,
-    borderRadius: 10,
-    marginTop: 12,
+    minHeight: 50,
+    backgroundColor: "#4338CA",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 3,
+    marginBottom: 15,
   },
 
   disabledButton: {
@@ -1060,10 +1649,10 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    marginLeft: 8,
   },
 
   loadingContent: {
