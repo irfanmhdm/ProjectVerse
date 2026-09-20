@@ -328,7 +328,7 @@ export default function MyProjects() {
               onPress={() =>
                 router.push({
                   pathname:
-                    "/student/project-details",
+                    "/student/project/project-details",
                   params: {
                     id: project.id,
                   },

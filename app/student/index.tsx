@@ -298,7 +298,7 @@ export default function StudentDashboard() {
           </View>
 
           <Text style={styles.cardTitle}>
-            Add New Project
+            Upload Project
           </Text>
 
           <Text style={styles.cardDescription}>

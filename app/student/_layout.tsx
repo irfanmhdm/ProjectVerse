@@ -98,8 +98,8 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="add-project"
         options={{
-          drawerLabel: "Add Project",
-          title: "Add Project",
+          drawerLabel: "Upload Project",
+          title: "Upload Project",
         }}
       />
 
@@ -124,6 +124,14 @@ export default function StudentLayout() {
         options={{
           drawerLabel: "Explore",
           title: "Explore",
+        }}
+      />
+
+      <Drawer.Screen
+        name="revise-project"
+        options={{
+          drawerLabel: "Revise Project",
+          title: "Revise Project",
         }}
       />
 
