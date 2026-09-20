@@ -24,7 +24,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 
-import { auth, db } from "../../firebase/firebaseConfig";
+import { auth, db } from "../../../firebase/firebaseConfig";
 
 type Project = {
   id: string;
