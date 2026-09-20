@@ -1,10 +1,18 @@
 import { doc, getDoc } from "firebase/firestore";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
+
+import { useCallback, useEffect, useState } from "react";
 
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   Linking,
   Pressable,
@@ -70,9 +78,51 @@ export default function ProjectDetails() {
 
   const router = useRouter();
 
+  const navigation = useNavigation();
+
+  // =====================================================
+  // GO TO MY PROJECTS
+  // =====================================================
+
+  const goToMyProjects = useCallback(() => {
+    const parentNavigation = navigation.getParent();
+
+    if (parentNavigation?.canGoBack()) {
+      parentNavigation.goBack();
+    }
+  }, [navigation]);
+
   const [project, setProject] = useState<Project | null>(null);
 
   const [loading, setLoading] = useState(true);
+
+  // =====================================================
+  // BACK NAVIGATION
+  // =====================================================
+
+  useFocusEffect(
+    useCallback(() => {
+      const handleBackPress = () => {
+        const parentNavigation = navigation.getParent();
+
+        if (parentNavigation?.canGoBack()) {
+          parentNavigation.goBack();
+          return true;
+        }
+
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        handleBackPress,
+      );
+
+      return () => {
+        subscription.remove();
+      };
+    }, [navigation]),
+  );
 
   // =====================================================
   // FETCH PROJECT
@@ -245,9 +295,14 @@ export default function ProjectDetails() {
 
         <Text style={styles.notFoundTitle}>Project Not Found</Text>
 
-        <Text style={styles.notFoundText}>The project could not be found.</Text>
+        <Text style={styles.notFoundText}>
+          The project could not be found.
+        </Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={goToMyProjects}
+        >
           <Ionicons name="arrow-back" size={17} color="#FFFFFF" />
 
           <Text style={styles.backButtonText}>Go Back</Text>
@@ -260,7 +315,9 @@ export default function ProjectDetails() {
   // GUIDE ATTACHMENTS
   // =====================================================
 
-  const guideAttachmentUrls = Array.isArray(project.guideFeedbackAttachmentUrls)
+  const guideAttachmentUrls = Array.isArray(
+    project.guideFeedbackAttachmentUrls,
+  )
     ? project.guideFeedbackAttachmentUrls
     : [];
 
@@ -284,10 +341,15 @@ export default function ProjectDetails() {
           BACK
       ================================================= */}
 
-      <Pressable style={styles.backLink} onPress={() => router.back()}>
+      <Pressable
+        style={styles.backLink}
+        onPress={goToMyProjects}
+      >
         <Ionicons name="arrow-back" size={17} color="#4338CA" />
 
-        <Text style={styles.backLinkText}>Back to My Projects</Text>
+        <Text style={styles.backLinkText}>
+          Back to My Projects
+        </Text>
       </Pressable>
 
       {/* =================================================
@@ -296,7 +358,11 @@ export default function ProjectDetails() {
 
       <View style={styles.header}>
         <View style={styles.headerIcon}>
-          <Ionicons name="folder-open-outline" size={25} color="#4338CA" />
+          <Ionicons
+            name="folder-open-outline"
+            size={25}
+            color="#4338CA"
+          />
         </View>
 
         <View style={styles.headerContent}>
@@ -304,7 +370,12 @@ export default function ProjectDetails() {
             {project.title || "Untitled Project"}
           </Text>
 
-          <View style={[styles.statusBadge, getStatusStyle(project.status)]}>
+          <View
+            style={[
+              styles.statusBadge,
+              getStatusStyle(project.status),
+            ]}
+          >
             <Ionicons
               name={getStatusIcon(project.status) as any}
               size={14}
@@ -325,9 +396,12 @@ export default function ProjectDetails() {
       <View
         style={[
           styles.reviewStatusSection,
-          project.status === "approved" && styles.reviewApproved,
-          project.status === "revision_required" && styles.reviewRevision,
-          project.status === "rejected" && styles.reviewRejected,
+          project.status === "approved" &&
+            styles.reviewApproved,
+          project.status === "revision_required" &&
+            styles.reviewRevision,
+          project.status === "rejected" &&
+            styles.reviewRejected,
         ]}
       >
         <View style={styles.reviewIcon}>
@@ -347,7 +421,9 @@ export default function ProjectDetails() {
         </View>
 
         <View style={styles.reviewContent}>
-          <Text style={styles.reviewStatusTitle}>Project Review Status</Text>
+          <Text style={styles.reviewStatusTitle}>
+            Project Review Status
+          </Text>
 
           <Text style={styles.reviewStatusMessage}>
             {getStatusMessage(project.status)}
@@ -362,10 +438,16 @@ export default function ProjectDetails() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionIcon}>
-            <Ionicons name="document-text-outline" size={19} color="#4338CA" />
+            <Ionicons
+              name="document-text-outline"
+              size={19}
+              color="#4338CA"
+            />
           </View>
 
-          <Text style={styles.sectionTitle}>Project Description</Text>
+          <Text style={styles.sectionTitle}>
+            Project Description
+          </Text>
         </View>
 
         <Text style={styles.description}>
@@ -387,12 +469,18 @@ export default function ProjectDetails() {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Project Information</Text>
+          <Text style={styles.sectionTitle}>
+            Project Information
+          </Text>
         </View>
 
         <View style={styles.infoRow}>
           <View style={styles.infoIcon}>
-            <Ionicons name="layers-outline" size={17} color="#38B2AC" />
+            <Ionicons
+              name="layers-outline"
+              size={17}
+              color="#38B2AC"
+            />
           </View>
 
           <View style={styles.infoContent}>
@@ -408,7 +496,11 @@ export default function ProjectDetails() {
 
         <View style={styles.infoRow}>
           <View style={styles.infoIcon}>
-            <Ionicons name="code-slash-outline" size={17} color="#38B2AC" />
+            <Ionicons
+              name="code-slash-outline"
+              size={17}
+              color="#38B2AC"
+            />
           </View>
 
           <View style={styles.infoContent}>
@@ -427,12 +519,23 @@ export default function ProjectDetails() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={[styles.sectionIcon, styles.mintIcon]}>
-            <Ionicons name="eye-outline" size={19} color="#238F89" />
+          <View
+            style={[
+              styles.sectionIcon,
+              styles.mintIcon,
+            ]}
+          >
+            <Ionicons
+              name="eye-outline"
+              size={19}
+              color="#238F89"
+            />
           </View>
 
           <View>
-            <Text style={styles.sectionTitle}>Project Demonstration</Text>
+            <Text style={styles.sectionTitle}>
+              Project Demonstration
+            </Text>
 
             <Text style={styles.sectionSubtitle}>
               View the demonstration provided for this project.
@@ -445,18 +548,32 @@ export default function ProjectDetails() {
         {project.liveDemoUrl ? (
           <View style={styles.demoItem}>
             <View style={styles.demoLabelRow}>
-              <Ionicons name="globe-outline" size={18} color="#38B2AC" />
+              <Ionicons
+                name="globe-outline"
+                size={18}
+                color="#38B2AC"
+              />
 
-              <Text style={styles.demoLabel}>Live Demo</Text>
+              <Text style={styles.demoLabel}>
+                Live Demo
+              </Text>
             </View>
 
             <Pressable
               style={styles.liveDemoButton}
-              onPress={() => openUrl(project.liveDemoUrl!)}
+              onPress={() =>
+                openUrl(project.liveDemoUrl!)
+              }
             >
-              <Text style={styles.liveDemoButtonText}>Open Live Demo</Text>
+              <Text style={styles.liveDemoButtonText}>
+                Open Live Demo
+              </Text>
 
-              <Ionicons name="open-outline" size={17} color="#238F89" />
+              <Ionicons
+                name="open-outline"
+                size={17}
+                color="#238F89"
+              />
             </Pressable>
           </View>
         ) : null}
@@ -466,22 +583,39 @@ export default function ProjectDetails() {
         {project.videoUrl ? (
           <View style={styles.demoItem}>
             <View style={styles.demoLabelRow}>
-              <Ionicons name="videocam-outline" size={18} color="#4338CA" />
+              <Ionicons
+                name="videocam-outline"
+                size={18}
+                color="#4338CA"
+              />
 
-              <Text style={styles.demoLabel}>Demo Video</Text>
+              <Text style={styles.demoLabel}>
+                Demo Video
+              </Text>
             </View>
 
             <Pressable
               style={styles.videoButton}
-              onPress={() => openUrl(project.videoUrl!)}
+              onPress={() =>
+                openUrl(project.videoUrl!)
+              }
             >
-              <Ionicons name="play-circle-outline" size={19} color="#FFFFFF" />
+              <Ionicons
+                name="play-circle-outline"
+                size={19}
+                color="#FFFFFF"
+              />
 
-              <Text style={styles.videoButtonText}>Watch Demo Video</Text>
+              <Text style={styles.videoButtonText}>
+                Watch Demo Video
+              </Text>
             </Pressable>
 
             {project.videoName ? (
-              <Text style={styles.fileName} numberOfLines={2}>
+              <Text
+                style={styles.fileName}
+                numberOfLines={2}
+              >
                 {project.videoName}
               </Text>
             ) : null}
@@ -490,12 +624,19 @@ export default function ProjectDetails() {
 
         {/* SCREENSHOTS */}
 
-        {project.screenshotUrls && project.screenshotUrls.length > 0 ? (
+        {project.screenshotUrls &&
+        project.screenshotUrls.length > 0 ? (
           <View style={styles.demoItem}>
             <View style={styles.demoLabelRow}>
-              <Ionicons name="images-outline" size={18} color="#4338CA" />
+              <Ionicons
+                name="images-outline"
+                size={18}
+                color="#4338CA"
+              />
 
-              <Text style={styles.demoLabel}>Screenshots</Text>
+              <Text style={styles.demoLabel}>
+                Screenshots
+              </Text>
             </View>
 
             <ScrollView
@@ -503,23 +644,32 @@ export default function ProjectDetails() {
               showsHorizontalScrollIndicator={false}
               style={styles.screenshotScroll}
             >
-              {project.screenshotUrls.map((url, index) => (
-                <Pressable key={`${url}-${index}`} onPress={() => openUrl(url)}>
-                  <Image
-                    source={{
-                      uri: url,
-                    }}
-                    style={styles.screenshot}
-                  />
+              {project.screenshotUrls.map(
+                (url, index) => (
+                  <Pressable
+                    key={`${url}-${index}`}
+                    onPress={() => openUrl(url)}
+                  >
+                    <Image
+                      source={{
+                        uri: url,
+                      }}
+                      style={styles.screenshot}
+                    />
 
-                  <View style={styles.imageNumber}>
-                    <Text style={styles.imageNumberText}>{index + 1}</Text>
-                  </View>
-                </Pressable>
-              ))}
+                    <View style={styles.imageNumber}>
+                      <Text style={styles.imageNumberText}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ),
+              )}
             </ScrollView>
 
-            <Text style={styles.imageHint}>Tap an image to open it</Text>
+            <Text style={styles.imageHint}>
+              Tap an image to open it
+            </Text>
           </View>
         ) : null}
 
@@ -527,9 +677,14 @@ export default function ProjectDetails() {
 
         {!project.liveDemoUrl &&
         !project.videoUrl &&
-        (!project.screenshotUrls || project.screenshotUrls.length === 0) ? (
+        (!project.screenshotUrls ||
+          project.screenshotUrls.length === 0) ? (
           <View style={styles.emptyDemo}>
-            <Ionicons name="eye-off-outline" size={22} color="#9CA3AF" />
+            <Ionicons
+              name="eye-off-outline"
+              size={22}
+              color="#9CA3AF"
+            />
 
             <Text style={styles.notAvailable}>
               No project demonstration available.
@@ -552,14 +707,18 @@ export default function ProjectDetails() {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Project Report</Text>
+          <Text style={styles.sectionTitle}>
+            Project Report
+          </Text>
         </View>
 
         {project.reportUrl ? (
           <>
             <Pressable
               style={styles.reportButton}
-              onPress={() => openUrl(project.reportUrl!)}
+              onPress={() =>
+                openUrl(project.reportUrl!)
+              }
             >
               <Ionicons
                 name="document-text-outline"
@@ -567,22 +726,37 @@ export default function ProjectDetails() {
                 color="#4338CA"
               />
 
-              <Text style={styles.reportButtonText}>View Project Report</Text>
+              <Text style={styles.reportButtonText}>
+                View Project Report
+              </Text>
 
-              <Ionicons name="open-outline" size={16} color="#4338CA" />
+              <Ionicons
+                name="open-outline"
+                size={16}
+                color="#4338CA"
+              />
             </Pressable>
 
             {project.reportName ? (
-              <Text style={styles.fileName} numberOfLines={2}>
+              <Text
+                style={styles.fileName}
+                numberOfLines={2}
+              >
                 {project.reportName}
               </Text>
             ) : null}
           </>
         ) : (
           <View style={styles.emptyDemo}>
-            <Ionicons name="document-outline" size={21} color="#9CA3AF" />
+            <Ionicons
+              name="document-outline"
+              size={21}
+              color="#9CA3AF"
+            />
 
-            <Text style={styles.notAvailable}>No report available.</Text>
+            <Text style={styles.notAvailable}>
+              No report available.
+            </Text>
           </View>
         )}
       </View>
@@ -594,26 +768,48 @@ export default function ProjectDetails() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionIcon}>
-            <Ionicons name="logo-github" size={19} color="#4338CA" />
+            <Ionicons
+              name="logo-github"
+              size={19}
+              color="#4338CA"
+            />
           </View>
 
-          <Text style={styles.sectionTitle}>Source Code</Text>
+          <Text style={styles.sectionTitle}>
+            Source Code
+          </Text>
         </View>
 
         {project.githubUrl ? (
           <Pressable
             style={styles.githubButton}
-            onPress={() => openUrl(project.githubUrl!)}
+            onPress={() =>
+              openUrl(project.githubUrl!)
+            }
           >
-            <Ionicons name="logo-github" size={20} color="#FFFFFF" />
+            <Ionicons
+              name="logo-github"
+              size={20}
+              color="#FFFFFF"
+            />
 
-            <Text style={styles.githubButtonText}>GitHub Repository</Text>
+            <Text style={styles.githubButtonText}>
+              GitHub Repository
+            </Text>
 
-            <Ionicons name="open-outline" size={16} color="#FFFFFF" />
+            <Ionicons
+              name="open-outline"
+              size={16}
+              color="#FFFFFF"
+            />
           </Pressable>
         ) : (
           <View style={styles.emptyDemo}>
-            <Ionicons name="logo-github" size={21} color="#9CA3AF" />
+            <Ionicons
+              name="logo-github"
+              size={21}
+              color="#9CA3AF"
+            />
 
             <Text style={styles.notAvailable}>
               No GitHub repository available.
@@ -628,7 +824,12 @@ export default function ProjectDetails() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={[styles.sectionIcon, styles.feedbackIcon]}>
+          <View
+            style={[
+              styles.sectionIcon,
+              styles.feedbackIcon,
+            ]}
+          >
             <Ionicons
               name="chatbubble-ellipses-outline"
               size={19}
@@ -637,7 +838,9 @@ export default function ProjectDetails() {
           </View>
 
           <View>
-            <Text style={styles.sectionTitle}>Guide Feedback</Text>
+            <Text style={styles.sectionTitle}>
+              Guide Feedback
+            </Text>
 
             <Text style={styles.sectionSubtitle}>
               Feedback and screenshots provided by your guide.
@@ -650,16 +853,28 @@ export default function ProjectDetails() {
         {project.guideFeedback ? (
           <View style={styles.feedbackBox}>
             <View style={styles.feedbackHeader}>
-              <Ionicons name="person-outline" size={16} color="#238F89" />
+              <Ionicons
+                name="person-outline"
+                size={16}
+                color="#238F89"
+              />
 
-              <Text style={styles.feedbackLabel}>Feedback from your guide</Text>
+              <Text style={styles.feedbackLabel}>
+                Feedback from your guide
+              </Text>
             </View>
 
-            <Text style={styles.feedbackText}>{project.guideFeedback}</Text>
+            <Text style={styles.feedbackText}>
+              {project.guideFeedback}
+            </Text>
           </View>
         ) : (
           <View style={styles.feedbackBox}>
-            <Ionicons name="chatbubble-outline" size={20} color="#9CA3AF" />
+            <Ionicons
+              name="chatbubble-outline"
+              size={20}
+              color="#9CA3AF"
+            />
 
             <Text style={styles.feedbackText}>
               No feedback has been provided by the guide yet.
@@ -672,7 +887,11 @@ export default function ProjectDetails() {
         {guideAttachmentUrls.length > 0 ? (
           <View style={styles.guideAttachmentsSection}>
             <View style={styles.attachmentsHeader}>
-              <Ionicons name="images-outline" size={18} color="#4338CA" />
+              <Ionicons
+                name="images-outline"
+                size={18}
+                color="#4338CA"
+              />
 
               <Text style={styles.attachmentsTitle}>
                 Screenshots from Guide
@@ -685,11 +904,18 @@ export default function ProjectDetails() {
             </Text>
 
             <View style={styles.attachmentCountRow}>
-              <Ionicons name="attach-outline" size={15} color="#4338CA" />
+              <Ionicons
+                name="attach-outline"
+                size={15}
+                color="#4338CA"
+              />
 
               <Text style={styles.attachmentCount}>
                 {guideAttachmentUrls.length} screenshot
-                {guideAttachmentUrls.length !== 1 ? "s" : ""} attached
+                {guideAttachmentUrls.length !== 1
+                  ? "s"
+                  : ""}{" "}
+                attached
               </Text>
             </View>
 
@@ -698,54 +924,88 @@ export default function ProjectDetails() {
               showsHorizontalScrollIndicator={false}
               style={styles.guideAttachmentScroll}
             >
-              {guideAttachmentUrls.map((url, index) => (
-                <View
-                  key={`${url}-${index}`}
-                  style={styles.guideAttachmentCard}
-                >
-                  {/* IMAGE */}
-
-                  <Pressable onPress={() => openUrl(url)}>
-                    <Image
-                      source={{
-                        uri: url,
-                      }}
-                      style={styles.guideAttachmentImage}
-                      resizeMode="cover"
-                    />
-                  </Pressable>
-
-                  {/* NUMBER */}
-
-                  <View style={styles.guideAttachmentInfo}>
-                    <Text style={styles.guideAttachmentNumber}>
-                      Screenshot {index + 1}
-                    </Text>
-
-                    {guideAttachmentNames[index] ? (
-                      <Text
-                        style={styles.guideAttachmentName}
-                        numberOfLines={2}
-                      >
-                        {guideAttachmentNames[index]}
-                      </Text>
-                    ) : null}
-                  </View>
-
-                  {/* OPEN */}
-
-                  <Pressable
-                    style={styles.viewGuideAttachmentButton}
-                    onPress={() => openUrl(url)}
+              {guideAttachmentUrls.map(
+                (url, index) => (
+                  <View
+                    key={`${url}-${index}`}
+                    style={styles.guideAttachmentCard}
                   >
-                    <Text style={styles.viewGuideAttachmentText}>
-                      View Full Image
-                    </Text>
+                    {/* IMAGE */}
 
-                    <Ionicons name="open-outline" size={14} color="#4338CA" />
-                  </Pressable>
-                </View>
-              ))}
+                    <Pressable
+                      onPress={() => openUrl(url)}
+                    >
+                      <Image
+                        source={{
+                          uri: url,
+                        }}
+                        style={
+                          styles.guideAttachmentImage
+                        }
+                        resizeMode="cover"
+                      />
+                    </Pressable>
+
+                    {/* NUMBER */}
+
+                    <View
+                      style={
+                        styles.guideAttachmentInfo
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.guideAttachmentNumber
+                        }
+                      >
+                        Screenshot {index + 1}
+                      </Text>
+
+                      {guideAttachmentNames[
+                        index
+                      ] ? (
+                        <Text
+                          style={
+                            styles.guideAttachmentName
+                          }
+                          numberOfLines={2}
+                        >
+                          {
+                            guideAttachmentNames[
+                              index
+                            ]
+                          }
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {/* OPEN */}
+
+                    <Pressable
+                      style={
+                        styles.viewGuideAttachmentButton
+                      }
+                      onPress={() =>
+                        openUrl(url)
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.viewGuideAttachmentText
+                        }
+                      >
+                        View Full Image
+                      </Text>
+
+                      <Ionicons
+                        name="open-outline"
+                        size={14}
+                        color="#4338CA"
+                      />
+                    </Pressable>
+                  </View>
+                ),
+              )}
             </ScrollView>
 
             <Text style={styles.imageHint}>
@@ -763,11 +1023,17 @@ export default function ProjectDetails() {
         <View style={styles.revisionSection}>
           <View style={styles.revisionHeader}>
             <View style={styles.revisionIcon}>
-              <Ionicons name="create-outline" size={22} color="#C27A16" />
+              <Ionicons
+                name="create-outline"
+                size={22}
+                color="#C27A16"
+              />
             </View>
 
             <View style={styles.revisionHeaderText}>
-              <Text style={styles.revisionTitle}>Changes Required</Text>
+              <Text style={styles.revisionTitle}>
+                Changes Required
+              </Text>
 
               <Text style={styles.revisionSubtitle}>
                 Your guide has requested changes to this project.
@@ -784,18 +1050,29 @@ export default function ProjectDetails() {
             style={styles.reviseButton}
             onPress={() => {
               router.push({
-                pathname: "/student/project/revise-project",
+                pathname:
+                  "/student/project/revise-project",
                 params: {
                   id: id,
                 },
               });
             }}
           >
-            <Ionicons name="refresh-outline" size={19} color="#FFFFFF" />
+            <Ionicons
+              name="refresh-outline"
+              size={19}
+              color="#FFFFFF"
+            />
 
-            <Text style={styles.reviseButtonText}>Revise Project</Text>
+            <Text style={styles.reviseButtonText}>
+              Revise Project
+            </Text>
 
-            <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+            <Ionicons
+              name="arrow-forward"
+              size={17}
+              color="#FFFFFF"
+            />
           </Pressable>
         </View>
       ) : null}
@@ -812,10 +1089,6 @@ export default function ProjectDetails() {
 // ======================================================
 
 const styles = StyleSheet.create({
-  // ==================================================
-  // PAGE
-  // ==================================================
-
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
@@ -825,10 +1098,6 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 35,
   },
-
-  // ==================================================
-  // LOADING
-  // ==================================================
 
   loadingContainer: {
     flex: 1,
@@ -867,10 +1136,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // ==================================================
-  // BACK
-  // ==================================================
-
   backLink: {
     flexDirection: "row",
     alignItems: "center",
@@ -884,10 +1149,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 6,
   },
-
-  // ==================================================
-  // HEADER
-  // ==================================================
 
   header: {
     backgroundColor: "#FFFFFF",
@@ -953,10 +1214,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#C44747",
   },
 
-  // ==================================================
-  // REVIEW STATUS
-  // ==================================================
-
   reviewStatusSection: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -1010,10 +1267,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // ==================================================
-  // SECTION
-  // ==================================================
-
   section: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -1061,19 +1314,11 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  // ==================================================
-  // DESCRIPTION
-  // ==================================================
-
   description: {
     fontSize: 14,
     lineHeight: 22,
     color: "#4B5563",
   },
-
-  // ==================================================
-  // INFORMATION
-  // ==================================================
 
   infoRow: {
     flexDirection: "row",
@@ -1113,10 +1358,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#EDF0F4",
     marginVertical: 11,
   },
-
-  // ==================================================
-  // DEMONSTRATION
-  // ==================================================
 
   demoItem: {
     marginBottom: 18,
@@ -1224,20 +1465,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // ==================================================
-  // FILES
-  // ==================================================
-
   fileName: {
     marginTop: 7,
     color: "#9CA3AF",
     fontSize: 10,
     lineHeight: 15,
   },
-
-  // ==================================================
-  // REPORT
-  // ==================================================
 
   reportButton: {
     minHeight: 46,
@@ -1258,10 +1491,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
 
-  // ==================================================
-  // GITHUB
-  // ==================================================
-
   githubButton: {
     minHeight: 46,
     backgroundColor: "#1F2937",
@@ -1278,10 +1507,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginHorizontal: 8,
   },
-
-  // ==================================================
-  // GUIDE FEEDBACK
-  // ==================================================
 
   feedbackBox: {
     backgroundColor: "#F1FBFA",
@@ -1309,10 +1534,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
   },
-
-  // ==================================================
-  // GUIDE ATTACHMENTS
-  // ==================================================
 
   guideAttachmentsSection: {
     marginTop: 18,
@@ -1413,10 +1634,6 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
 
-  // ==================================================
-  // REVISION
-  // ==================================================
-
   revisionSection: {
     backgroundColor: "#FFF9ED",
     borderWidth: 1,
@@ -1481,10 +1698,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginHorizontal: 8,
   },
-
-  // ==================================================
-  // BACK BUTTON
-  // ==================================================
 
   backButton: {
     backgroundColor: "#4338CA",

@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
-import { auth, db } from "../../../firebase/firebaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
 
 export default function StudentDashboard() {
   const router = useRouter();

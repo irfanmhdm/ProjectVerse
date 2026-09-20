@@ -1,7 +1,6 @@
 import { Drawer } from "expo-router/drawer";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
-
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -15,7 +14,7 @@ function CustomDrawerContent(props: any) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace("/login");
+      router.replace("/");
     } catch (error) {
       console.log("Logout error:", error);
 
@@ -26,18 +25,14 @@ function CustomDrawerContent(props: any) {
   return (
     <View style={styles.drawerContainer}>
       <DrawerContentScrollView {...props}>
-        {/* Drawer Header */}
         <View style={styles.drawerHeader}>
           <Text style={styles.appName}>ProjectVerse</Text>
-
           <Text style={styles.role}>Student Portal</Text>
         </View>
 
-        {/* Drawer Pages */}
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
 
-      {/* Logout */}
       <View style={styles.logoutContainer}>
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutIcon}>↪</Text>
@@ -52,11 +47,12 @@ function CustomDrawerContent(props: any) {
 export default function StudentLayout() {
   return (
     <Drawer
+      backBehavior="history"
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: true,
 
-        drawerActiveTintColor: "#2563EB",
+        drawerActiveTintColor: "#4338CA",
         drawerInactiveTintColor: "#374151",
 
         drawerLabelStyle: {
@@ -77,6 +73,8 @@ export default function StudentLayout() {
           fontWeight: "bold",
           color: "#111827",
         },
+
+        headerTintColor: "#4338CA",
       }}
     >
       <Drawer.Screen
@@ -104,10 +102,10 @@ export default function StudentLayout() {
       />
 
       <Drawer.Screen
-        name="project-details"
+        name="explore"
         options={{
-          drawerLabel: "Project Details",
-          title: "Project Details",
+          drawerLabel: "Explore",
+          title: "Explore",
         }}
       />
 
@@ -119,22 +117,16 @@ export default function StudentLayout() {
         }}
       />
 
+      {/* Project Stack */}
       <Drawer.Screen
-        name="explore"
+        name="project"
         options={{
-          drawerLabel: "Explore",
-          title: "Explore",
+          drawerItemStyle: {
+            display: "none",
+          },
+          headerShown: true,
         }}
       />
-
-      <Drawer.Screen
-        name="revise-project"
-        options={{
-          drawerLabel: "Revise Project",
-          title: "Revise Project",
-        }}
-      />
-
     </Drawer>
   );
 }
@@ -157,33 +149,33 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#2563EB",
+    color: "#4338CA",
   },
 
   role: {
-    fontSize: 13,
+    marginTop: 5,
+    fontSize: 14,
     color: "#6B7280",
-    marginTop: 4,
   },
 
   logoutContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 25,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
-    padding: 15,
   },
 
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-    borderRadius: 10,
+    paddingVertical: 12,
   },
 
   logoutIcon: {
-    fontSize: 20,
-    color: "#DC2626",
+    fontSize: 22,
     marginRight: 12,
+    color: "#DC2626",
   },
 
   logoutText: {

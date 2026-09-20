@@ -10,10 +10,16 @@ export default function ProjectLayout() {
     >
       <Stack.Screen
         name="project-details"
+        options={{
+          headerShown: false,
+        }}
       />
 
       <Stack.Screen
         name="revise-project"
+        options={{
+          headerShown: false,
+        }}
       />
     </Stack>
   );

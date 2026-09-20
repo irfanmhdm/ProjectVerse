@@ -25,8 +25,8 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 
-import { auth, db } from "../../../firebase/firebaseConfig";
-import { supabase } from "../../../supabase/supabaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
+import { supabase } from "../../supabase/supabaseConfig";
 
 type SelectedImage = ImagePicker.ImagePickerAsset;
 
