@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { signOut } from "firebase/auth";
 import {
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +14,8 @@ import {
   DrawerContentScrollView,
   DrawerItemList,
 } from "@react-navigation/drawer";
+
+import { Ionicons } from "@expo/vector-icons";
 
 import { auth } from "../../firebase/firebaseConfig";
 
@@ -34,14 +37,34 @@ function CustomDrawerContent(props: any) {
 
   return (
     <View style={styles.drawerContainer}>
-      <DrawerContentScrollView {...props}>
+      <DrawerContentScrollView
+        {...props}
+        contentContainerStyle={styles.drawerContent}
+      >
         {/* Drawer Header */}
         <View style={styles.drawerHeader}>
-          <Text style={styles.appName}>ProjectVerse</Text>
-          <Text style={styles.role}>Guide Portal</Text>
+          <View style={styles.logoContainer}>
+
+            {/* ProjectVerse Logo */}
+            <Image
+              source={require("../../assets/images/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+
+            <View>
+              <Text style={styles.appName}>
+                ProjectVerse
+              </Text>
+
+              <Text style={styles.role}>
+                Guide Portal
+              </Text>
+            </View>
+          </View>
         </View>
 
-        {/* Existing Drawer Pages */}
+        {/* Drawer Pages */}
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
 
@@ -51,7 +74,11 @@ function CustomDrawerContent(props: any) {
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutIcon}>↪</Text>
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color="#DC2626"
+          />
 
           <Text style={styles.logoutText}>
             Logout
@@ -68,85 +95,149 @@ export default function GuideLayout() {
       drawerContent={(props) => (
         <CustomDrawerContent {...props} />
       )}
+      backBehavior="history"
       screenOptions={{
         headerShown: true,
 
-        drawerActiveTintColor: "#2563EB",
+        drawerActiveTintColor: "#4338CA",
         drawerInactiveTintColor: "#374151",
 
         drawerLabelStyle: {
           fontSize: 15,
           fontWeight: "600",
+          marginLeft: -5,
         },
 
         drawerStyle: {
           backgroundColor: "#FFFFFF",
-          width: 280,
+          width: 285,
         },
+
+        drawerActiveBackgroundColor: "#D5F5F2",
 
         headerStyle: {
           backgroundColor: "#FFFFFF",
         },
 
+        headerTintColor: "#1F2937",
+
         headerTitleStyle: {
-          fontWeight: "bold",
-          color: "#111827",
+          fontSize: 18,
+          fontWeight: "700",
+          color: "#1F2937",
         },
       }}
     >
+      {/* Dashboard */}
       <Drawer.Screen
         name="index"
         options={{
-          title: "Dashboard",
-          drawerLabel: "Dashboard",
+          title: "Home",
+          drawerLabel: "Home",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="grid-outline"
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
 
+      {/* My Students */}
       <Drawer.Screen
         name="students"
         options={{
           title: "My Students",
           drawerLabel: "My Students",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="people-outline"
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
 
+      {/* Add Student */}
       <Drawer.Screen
         name="add-student"
         options={{
           title: "Add Student",
           drawerLabel: "Add Student",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="person-add-outline"
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
 
+      {/* Projects */}
       <Drawer.Screen
         name="projects"
         options={{
           title: "Projects",
           drawerLabel: "Projects",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="folder-open-outline"
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
 
-      <Drawer.Screen
-        name="reports"
-        options={{
-          title: "Reports",
-          drawerLabel: "Reports",
-        }}
-      />
-
+     
+      {/* Chat */}
       <Drawer.Screen
         name="chat"
         options={{
           title: "Chat",
           drawerLabel: "Chat",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="chatbubbles-outline"
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
 
+      {/* Profile */}
       <Drawer.Screen
         name="profile"
         options={{
           title: "Profile",
           drawerLabel: "Profile",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="person-circle-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+
+      {/* Project Details - Hidden from Drawer */}
+      <Drawer.Screen
+        name="project-details"
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
         }}
       />
     </Drawer>
@@ -159,31 +250,52 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
+  drawerContent: {
+    paddingTop: 0,
+  },
+
   drawerHeader: {
     paddingHorizontal: 20,
-    paddingTop: 45,
-    paddingBottom: 25,
+
+    // Header moved slightly lower
+    paddingTop: 65,
+
+    paddingBottom: 24,
+
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
-    marginBottom: 10,
+
+    marginBottom: 8,
+  },
+
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  logo: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
   },
 
   appName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2563EB",
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#4338CA",
   },
 
   role: {
     fontSize: 13,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 3,
   },
 
   logoutContainer: {
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
-    padding: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
   },
 
   logoutButton: {
@@ -194,15 +306,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  logoutIcon: {
-    fontSize: 20,
-    color: "#DC2626",
-    marginRight: 12,
-  },
-
   logoutText: {
     fontSize: 15,
     fontWeight: "600",
     color: "#DC2626",
+    marginLeft: 12,
   },
 });

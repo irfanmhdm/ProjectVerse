@@ -254,33 +254,36 @@ const styles = StyleSheet.create({
   // ========================================================
 
   loginButton: {
-    minHeight: 54,
-    width: "100%",
-    backgroundColor: "#4338CA",
-    borderRadius: 14,
-    paddingHorizontal: 16,
+  minHeight: 54,
+  width: "100%",
+  backgroundColor: "#FFFFFF",
+  borderRadius: 14,
+  paddingHorizontal: 16,
 
-    flexDirection: "row",
-    alignItems: "center",
+  flexDirection: "row",
+  alignItems: "center",
 
-    marginBottom: 12,
+  marginBottom: 12,
 
-    shadowColor: "#4338CA",
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-
-    elevation: 4,
+  shadowColor: "#4338CA",
+  shadowOffset: {
+    width: 0,
+    height: 5,
   },
+  shadowOpacity: 0.18,
+  shadowRadius: 8,
+
+  borderWidth: 1.5,
+  borderColor: "#4338CA",
+
+  elevation: 4,
+},
 
   buttonIcon: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgb(81, 70, 203)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -288,7 +291,7 @@ const styles = StyleSheet.create({
 
   loginText: {
     flex: 1,
-    color: "#FFFFFF",
+    color: "#4338CA",
     fontSize: 15,
     fontWeight: "700",
   },
