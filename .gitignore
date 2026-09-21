@@ -41,3 +41,13 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Python virtual environment
+similarity_backend/venv/
+
+# Firebase Admin SDK credentials
+similarity_backend/serviceAccountKey.json
+
+# Python cache
+__pycache__/
+*.pyc
