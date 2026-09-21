@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 
 import {
   doc,
@@ -66,7 +67,6 @@ type Project = {
 
   guideFeedback?: string;
 
-  // Multiple guide feedback attachments
   guideFeedbackAttachmentUrls?: string[];
   guideFeedbackAttachmentNames?: string[];
 
@@ -82,11 +82,8 @@ type FeedbackAttachment =
 // ======================================================
 
 export default function GuideProjectDetails() {
-  const { id } =
-    useLocalSearchParams();
-
-  const router =
-    useRouter();
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
 
   // ======================================================
   // PROJECT
@@ -108,10 +105,6 @@ export default function GuideProjectDetails() {
   const [feedback, setFeedback] =
     useState("");
 
-  // ======================================================
-  // FEEDBACK ATTACHMENTS
-  // ======================================================
-
   const [feedbackAttachments, setFeedbackAttachments] =
     useState<FeedbackAttachment[]>([]);
 
@@ -122,36 +115,13 @@ export default function GuideProjectDetails() {
   useEffect(() => {
     const loadProject = async () => {
       try {
-        console.log(
-          "📌 Guide Project ID:",
-          id
-        );
-
-        // --------------------------------------------------
-        // CHECK PROJECT ID
-        // --------------------------------------------------
-
         if (
           !id ||
           typeof id !== "string"
         ) {
-          console.log(
-            "❌ Project ID is missing"
-          );
-
           setLoading(false);
-
           return;
         }
-
-        console.log(
-          "🔍 Fetching project:",
-          id
-        );
-
-        // --------------------------------------------------
-        // FIRESTORE PROJECT
-        // --------------------------------------------------
 
         const projectRef =
           doc(
@@ -168,26 +138,72 @@ export default function GuideProjectDetails() {
         if (
           !projectSnap.exists()
         ) {
-          console.log(
-            "❌ Project not found"
-          );
-
           setLoading(false);
-
           return;
         }
 
         const data =
           projectSnap.data();
 
-        console.log(
-          "✅ Project found:",
-          data
-        );
+        // ==================================================
+        // LOAD STUDENT DETAILS
+        // ==================================================
 
-        // --------------------------------------------------
-        // LOAD ATTACHMENT ARRAYS
-        // --------------------------------------------------
+        let studentName =
+          data.studentName || "";
+
+        let studentEmail =
+          data.studentEmail || "";
+
+        /*
+         * The project normally contains studentName
+         * and studentEmail.
+         *
+         * If either is missing, use studentId to
+         * retrieve the student's actual details
+         * from the users collection.
+         */
+
+        if (
+          data.studentId &&
+          (!studentName || !studentEmail)
+        ) {
+          try {
+            const studentRef =
+              doc(
+                db,
+                "users",
+                data.studentId
+              );
+
+            const studentSnap =
+              await getDoc(
+                studentRef
+              );
+
+            if (
+              studentSnap.exists()
+            ) {
+              const studentData =
+                studentSnap.data();
+
+              studentName =
+                studentData.name ||
+                studentName ||
+                "Student";
+
+              studentEmail =
+                studentData.email ||
+                studentEmail ||
+                "";
+            }
+          } catch (studentError) {
+            console.log(
+              "Error loading student details:",
+              studentError
+            );
+          }
+        }
 
         const attachmentUrls =
           Array.isArray(
@@ -202,10 +218,6 @@ export default function GuideProjectDetails() {
           )
             ? data.guideFeedbackAttachmentNames
             : [];
-
-        // --------------------------------------------------
-        // LOADED PROJECT
-        // --------------------------------------------------
 
         const loadedProject: Project = {
           title:
@@ -229,11 +241,11 @@ export default function GuideProjectDetails() {
             "",
 
           studentName:
-            data.studentName ||
-            "Unknown Student",
+            studentName ||
+            "Student",
 
           studentEmail:
-            data.studentEmail ||
+            studentEmail ||
             "",
 
           githubUrl:
@@ -298,17 +310,13 @@ export default function GuideProjectDetails() {
           loadedProject
         );
 
-        // --------------------------------------------------
-        // LOAD EXISTING FEEDBACK
-        // --------------------------------------------------
-
         setFeedback(
           loadedProject.guideFeedback ||
             ""
         );
       } catch (error) {
         console.log(
-          "❌ Error loading project:",
+          "Error loading project:",
           error
         );
 
@@ -351,7 +359,7 @@ export default function GuideProjectDetails() {
       );
     } catch (error) {
       console.log(
-        "❌ Error opening URL:",
+        "Error opening URL:",
         error
       );
 
@@ -363,16 +371,12 @@ export default function GuideProjectDetails() {
   };
 
   // ======================================================
-  // PICK MULTIPLE FEEDBACK SCREENSHOTS
+  // PICK FEEDBACK ATTACHMENTS
   // ======================================================
 
   const pickFeedbackAttachments =
     async () => {
       try {
-        // --------------------------------------------------
-        // REQUEST PERMISSION
-        // --------------------------------------------------
-
         const permission =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -386,10 +390,6 @@ export default function GuideProjectDetails() {
 
           return;
         }
-
-        // --------------------------------------------------
-        // OPEN IMAGE PICKER
-        // --------------------------------------------------
 
         const result =
           await ImagePicker.launchImageLibraryAsync(
@@ -421,10 +421,6 @@ export default function GuideProjectDetails() {
           return;
         }
 
-        // --------------------------------------------------
-        // MAXIMUM 8 ATTACHMENTS
-        // --------------------------------------------------
-
         const images =
           selectedImages.slice(
             0,
@@ -441,16 +437,8 @@ export default function GuideProjectDetails() {
           );
         }
 
-        // --------------------------------------------------
-        // MAXIMUM SIZE PER IMAGE
-        // --------------------------------------------------
-
         const maxSize =
           10 * 1024 * 1024;
-
-        // --------------------------------------------------
-        // VALIDATE IMAGES
-        // --------------------------------------------------
 
         const validImages =
           images.filter(
@@ -459,7 +447,6 @@ export default function GuideProjectDetails() {
                 image.fileName ||
                 "feedback_screenshot.jpg";
 
-              // File type
               const isImage =
                 image.mimeType?.startsWith(
                   "image/"
@@ -468,13 +455,10 @@ export default function GuideProjectDetails() {
                   fileName
                 );
 
-              if (
-                !isImage
-              ) {
+              if (!isImage) {
                 return false;
               }
 
-              // File size
               if (
                 image.fileSize &&
                 image.fileSize >
@@ -487,10 +471,6 @@ export default function GuideProjectDetails() {
             }
           );
 
-        // --------------------------------------------------
-        // INVALID FILE WARNING
-        // --------------------------------------------------
-
         if (
           validImages.length !==
           images.length
@@ -501,21 +481,12 @@ export default function GuideProjectDetails() {
           );
         }
 
-        // --------------------------------------------------
-        // SAVE SELECTED IMAGES
-        // --------------------------------------------------
-
         setFeedbackAttachments(
           validImages
         );
-
-        console.log(
-          "📎 Selected feedback attachments:",
-          validImages.length
-        );
       } catch (error) {
         console.log(
-          "❌ Error selecting feedback screenshots:",
+          "Error selecting screenshots:",
           error
         );
 
@@ -527,7 +498,7 @@ export default function GuideProjectDetails() {
     };
 
   // ======================================================
-  // REMOVE ONE ATTACHMENT
+  // REMOVE ATTACHMENT
   // ======================================================
 
   const removeFeedbackAttachment =
@@ -544,7 +515,7 @@ export default function GuideProjectDetails() {
     };
 
   // ======================================================
-  // UPLOAD ONE FILE TO SUPABASE
+  // UPLOAD ATTACHMENT
   // ======================================================
 
   const uploadFeedbackAttachment =
@@ -552,18 +523,12 @@ export default function GuideProjectDetails() {
       image: FeedbackAttachment,
       projectId: string
     ) => {
-      // --------------------------------------------------
-      // READ IMAGE
-      // --------------------------------------------------
-
       const response =
         await fetch(
           image.uri
         );
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           "Could not read the selected screenshot."
         );
@@ -571,10 +536,6 @@ export default function GuideProjectDetails() {
 
       const arrayBuffer =
         await response.arrayBuffer();
-
-      // --------------------------------------------------
-      // FILE NAME
-      // --------------------------------------------------
 
       const originalName =
         image.fileName ||
@@ -592,10 +553,6 @@ export default function GuideProjectDetails() {
           .pop() ||
         "jpg";
 
-      // --------------------------------------------------
-      // UNIQUE STORAGE PATH
-      // --------------------------------------------------
-
       const uniqueId =
         Math.random()
           .toString(36)
@@ -606,15 +563,6 @@ export default function GuideProjectDetails() {
 
       const filePath =
         `guide-feedback/${projectId}/${Date.now()}_feedback_${uniqueId}.${extension}`;
-
-      console.log(
-        "📤 Uploading feedback attachment:",
-        filePath
-      );
-
-      // --------------------------------------------------
-      // SUPABASE UPLOAD
-      // --------------------------------------------------
 
       const {
         error,
@@ -636,15 +584,9 @@ export default function GuideProjectDetails() {
             }
           );
 
-      if (
-        error
-      ) {
+      if (error) {
         throw error;
       }
-
-      // --------------------------------------------------
-      // GET PUBLIC URL
-      // --------------------------------------------------
 
       const {
         data,
@@ -656,11 +598,6 @@ export default function GuideProjectDetails() {
           .getPublicUrl(
             filePath
           );
-
-      console.log(
-        "✅ Feedback attachment uploaded:",
-        data.publicUrl
-      );
 
       return {
         url:
@@ -678,9 +615,7 @@ export default function GuideProjectDetails() {
   const formatStatus = (
     status?: string
   ) => {
-    if (
-      !status
-    ) {
+    if (!status) {
       return "Pending";
     }
 
@@ -704,26 +639,54 @@ export default function GuideProjectDetails() {
   };
 
   // ======================================================
-  // STATUS STYLE
+  // STATUS CONFIG
   // ======================================================
 
-  const getStatusStyle = (
+  const getStatusConfig = (
     status?: string
   ) => {
     switch (
       status?.toLowerCase()
     ) {
       case "approved":
-        return styles.approved;
+        return {
+          background:
+            "#D1FAE5",
+          color:
+            "#047857",
+          icon:
+            "checkmark-circle" as const,
+        };
 
       case "revision_required":
-        return styles.revision;
+        return {
+          background:
+            "#FEF3C7",
+          color:
+            "#B45309",
+          icon:
+            "create-outline" as const,
+        };
 
       case "rejected":
-        return styles.rejected;
+        return {
+          background:
+            "#FEE2E2",
+          color:
+            "#B91C1C",
+          icon:
+            "close-circle" as const,
+        };
 
       default:
-        return styles.pending;
+        return {
+          background:
+            "#E0E7FF",
+          color:
+            "#4338CA",
+          icon:
+            "time-outline" as const,
+        };
     }
   };
 
@@ -735,10 +698,6 @@ export default function GuideProjectDetails() {
     async (
       newStatus: string
     ) => {
-      // --------------------------------------------------
-      // PROJECT ID
-      // --------------------------------------------------
-
       if (
         !id ||
         typeof id !== "string"
@@ -750,10 +709,6 @@ export default function GuideProjectDetails() {
 
         return;
       }
-
-      // --------------------------------------------------
-      // CURRENT GUIDE
-      // --------------------------------------------------
 
       const guide =
         auth.currentUser;
@@ -767,14 +722,9 @@ export default function GuideProjectDetails() {
         return;
       }
 
-      // --------------------------------------------------
-      // FEEDBACK VALIDATION
-      // --------------------------------------------------
-
       const trimmedFeedback =
         feedback.trim();
 
-      // Revision requires feedback
       if (
         newStatus ===
           "revision_required" &&
@@ -788,7 +738,6 @@ export default function GuideProjectDetails() {
         return;
       }
 
-      // Rejection requires reason
       if (
         newStatus ===
           "rejected" &&
@@ -802,35 +751,10 @@ export default function GuideProjectDetails() {
         return;
       }
 
-      // --------------------------------------------------
-      // UPDATE
-      // --------------------------------------------------
-
       try {
         setUpdating(
           true
         );
-
-        console.log(
-          "🔄 Updating project review:",
-          {
-            status:
-              newStatus,
-
-            feedback:
-              trimmedFeedback,
-
-            attachmentCount:
-              feedbackAttachments.length,
-
-            guideId:
-              guide.uid,
-          }
-        );
-
-        // ==================================================
-        // ATTACHMENT ARRAYS
-        // ==================================================
 
         const attachmentUrls: string[] =
           [];
@@ -838,29 +762,16 @@ export default function GuideProjectDetails() {
         const attachmentNames: string[] =
           [];
 
-        // ==================================================
-        // UPLOAD ALL SELECTED ATTACHMENTS
-        // ==================================================
-
         if (
           feedbackAttachments.length >
           0
         ) {
-          console.log(
-            "📎 Uploading feedback screenshots:",
-            feedbackAttachments.length
-          );
-
           for (
             let i = 0;
             i <
             feedbackAttachments.length;
             i++
           ) {
-            console.log(
-              `📤 Uploading attachment ${i + 1}/${feedbackAttachments.length}`
-            );
-
             const uploaded =
               await uploadFeedbackAttachment(
                 feedbackAttachments[
@@ -878,15 +789,6 @@ export default function GuideProjectDetails() {
             );
           }
         }
-
-        console.log(
-          "📎 Total uploaded attachments:",
-          attachmentUrls.length
-        );
-
-        // ==================================================
-        // FIRESTORE
-        // ==================================================
 
         const projectRef =
           doc(
@@ -917,14 +819,6 @@ export default function GuideProjectDetails() {
               serverTimestamp(),
           }
         );
-
-        console.log(
-          "✅ Review updated successfully"
-        );
-
-        // ==================================================
-        // UPDATE LOCAL UI
-        // ==================================================
 
         setProject(
           (
@@ -957,17 +851,9 @@ export default function GuideProjectDetails() {
           }
         );
 
-        // ==================================================
-        // CLEAR SELECTED ATTACHMENTS
-        // ==================================================
-
         setFeedbackAttachments(
           []
         );
-
-        // ==================================================
-        // SUCCESS
-        // ==================================================
 
         Alert.alert(
           "Review Submitted",
@@ -979,18 +865,8 @@ export default function GuideProjectDetails() {
         error: any
       ) {
         console.log(
-          "❌ Error updating review:",
+          "Error updating review:",
           error
-        );
-
-        console.log(
-          "Error code:",
-          error?.code
-        );
-
-        console.log(
-          "Error message:",
-          error?.message
         );
 
         Alert.alert(
@@ -1016,10 +892,6 @@ export default function GuideProjectDetails() {
       const trimmedFeedback =
         feedback.trim();
 
-      // --------------------------------------------------
-      // REVISION VALIDATION
-      // --------------------------------------------------
-
       if (
         newStatus ===
           "revision_required" &&
@@ -1032,10 +904,6 @@ export default function GuideProjectDetails() {
 
         return;
       }
-
-      // --------------------------------------------------
-      // REJECTION VALIDATION
-      // --------------------------------------------------
 
       if (
         newStatus ===
@@ -1050,15 +918,8 @@ export default function GuideProjectDetails() {
         return;
       }
 
-      let title =
-        "";
-
-      let message =
-        "";
-
-      // --------------------------------------------------
-      // APPROVE
-      // --------------------------------------------------
+      let title = "";
+      let message = "";
 
       if (
         newStatus ===
@@ -1072,10 +933,6 @@ export default function GuideProjectDetails() {
             ? "Are you sure you want to approve this project with this feedback?"
             : "Are you sure you want to approve this project without additional feedback?";
       }
-
-      // --------------------------------------------------
-      // REVISION
-      // --------------------------------------------------
 
       if (
         newStatus ===
@@ -1091,10 +948,6 @@ export default function GuideProjectDetails() {
             : "The student will see your feedback and will need to make the requested changes. Continue?";
       }
 
-      // --------------------------------------------------
-      // REJECT
-      // --------------------------------------------------
-
       if (
         newStatus ===
         "rejected"
@@ -1108,10 +961,6 @@ export default function GuideProjectDetails() {
             ? `The student will see the rejection reason and ${feedbackAttachments.length} attached screenshot${feedbackAttachments.length !== 1 ? "s" : ""}. Continue?`
             : "The student will see the rejection reason you provided. Continue?";
       }
-
-      // --------------------------------------------------
-      // CONFIRMATION
-      // --------------------------------------------------
 
       Alert.alert(
         title,
@@ -1149,18 +998,28 @@ export default function GuideProjectDetails() {
   // LOADING
   // ======================================================
 
-  if (
-    loading
-  ) {
+  if (loading) {
     return (
       <View
         style={
           styles.centerContainer
         }
       >
+        <View
+          style={
+            styles.loadingIcon
+          }
+        >
+          <Ionicons
+            name="document-text-outline"
+            size={30}
+            color="#4338CA"
+          />
+        </View>
+
         <ActivityIndicator
-          size="large"
-          color="#2563EB"
+          size="small"
+          color="#38B2AC"
         />
 
         <Text
@@ -1178,21 +1037,41 @@ export default function GuideProjectDetails() {
   // PROJECT NOT FOUND
   // ======================================================
 
-  if (
-    !project
-  ) {
+  if (!project) {
     return (
       <View
         style={
           styles.centerContainer
         }
       >
+        <View
+          style={
+            styles.emptyIcon
+          }
+        >
+          <Ionicons
+            name="document-text-outline"
+            size={32}
+            color="#4338CA"
+          />
+        </View>
+
         <Text
           style={
             styles.notFoundTitle
           }
         >
           Project Not Found
+        </Text>
+
+        <Text
+          style={
+            styles.notFoundText
+          }
+        >
+          The project could not be
+          loaded or may have been
+          removed.
         </Text>
 
         <Pressable
@@ -1203,6 +1082,12 @@ export default function GuideProjectDetails() {
             router.back()
           }
         >
+          <Ionicons
+            name="arrow-back"
+            size={18}
+            color="#FFFFFF"
+          />
+
           <Text
             style={
               styles.backButtonText
@@ -1215,8 +1100,13 @@ export default function GuideProjectDetails() {
     );
   }
 
+  const statusConfig =
+    getStatusConfig(
+      project.status
+    );
+
   // ======================================================
-  // MAIN SCREEN
+  // MAIN UI
   // ======================================================
 
   return (
@@ -1244,76 +1134,143 @@ export default function GuideProjectDetails() {
           router.back()
         }
       >
+        <Ionicons
+          name="arrow-back"
+          size={18}
+          color="#4338CA"
+        />
+
         <Text
           style={
             styles.backLinkText
           }
         >
-          ← Back to Projects
+          Back to Projects
         </Text>
       </Pressable>
 
       {/* ==================================================
-          HEADER
+          PROJECT HERO
       ================================================== */}
 
       <View
         style={
-          styles.headerCard
+          styles.heroCard
         }
       >
-        <Text
+        <View
           style={
-            styles.title
+            styles.heroIcon
           }
         >
-          {project.title ||
-            "Untitled Project"}
-        </Text>
+          <Ionicons
+            name="document-text-outline"
+            size={28}
+            color="#4338CA"
+          />
+        </View>
 
         <View
-          style={[
-            styles.statusBadge,
-            getStatusStyle(
-              project.status
-            ),
-          ]}
+          style={
+            styles.heroContent
+          }
         >
           <Text
             style={
-              styles.statusText
+              styles.heroTitle
             }
           >
-            {formatStatus(
-              project.status
-            )}
+            {project.title ||
+              "Untitled Project"}
           </Text>
+
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor:
+                  statusConfig.background,
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                statusConfig.icon
+              }
+              size={14}
+              color={
+                statusConfig.color
+              }
+            />
+
+            <Text
+              style={[
+                styles.statusText,
+                {
+                  color:
+                    statusConfig.color,
+                },
+              ]}
+            >
+              {formatStatus(
+                project.status
+              )}
+            </Text>
+          </View>
         </View>
 
-        {project.studentName ? (
-          <Text
+        <View
+          style={
+            styles.studentBox
+          }
+        >
+          <View
             style={
-              styles.studentName
+              styles.studentAvatar
             }
           >
-            👨‍🎓{" "}
-            {
-              project.studentName
-            }
-          </Text>
-        ) : null}
+            <Text
+              style={
+                styles.studentAvatarText
+              }
+            >
+              {(
+                project.studentName ||
+                "S"
+              )
+                .charAt(0)
+                .toUpperCase()}
+            </Text>
+          </View>
 
-        {project.studentEmail ? (
-          <Text
+          <View
             style={
-              styles.studentEmail
+              styles.studentInfo
             }
           >
-            {
-              project.studentEmail
-            }
-          </Text>
-        ) : null}
+            <Text
+              style={
+                styles.studentName
+              }
+            >
+              {project.studentName ||
+                "Student"}
+            </Text>
+
+            {project.studentEmail ? (
+              <Text
+                style={
+                  styles.studentEmail
+                }
+                numberOfLines={1}
+              >
+                {
+                  project.studentEmail
+                }
+              </Text>
+            ) : null}
+          </View>
+        </View>
       </View>
 
       {/* ==================================================
@@ -1325,13 +1282,31 @@ export default function GuideProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Description
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="information-circle-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Project Description
+          </Text>
+        </View>
 
         <Text
           style={
@@ -1352,69 +1327,117 @@ export default function GuideProjectDetails() {
           styles.section
         }
       >
-        <Text
-          style={
-            styles.sectionTitle
-          }
-        >
-          Project Information
-        </Text>
-
         <View
           style={
-            styles.infoRow
+            styles.sectionHeader
           }
         >
-          <Text
+          <View
             style={
-              styles.label
+              styles.sectionIcon
             }
           >
-            Domain
-          </Text>
+            <Ionicons
+              name="layers-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
 
           <Text
             style={
-              styles.value
+              styles.sectionTitle
             }
           >
-            {project.domain ||
-              "Not specified"}
+            Project Information
           </Text>
         </View>
 
         <View
           style={
-            styles.divider
+            styles.infoCard
           }
-        />
+        >
+          <View
+            style={
+              styles.infoIcon
+            }
+          >
+            <Ionicons
+              name="grid-outline"
+              size={17}
+              color="#38B2AC"
+            />
+          </View>
+
+          <View
+            style={
+              styles.infoContent
+            }
+          >
+            <Text
+              style={
+                styles.infoLabel
+              }
+            >
+              DOMAIN
+            </Text>
+
+            <Text
+              style={
+                styles.infoValue
+              }
+            >
+              {project.domain ||
+                "Not specified"}
+            </Text>
+          </View>
+        </View>
 
         <View
           style={
-            styles.infoRow
+            styles.infoCard
           }
         >
-          <Text
+          <View
             style={
-              styles.label
+              styles.infoIcon
             }
           >
-            Technologies
-          </Text>
+            <Ionicons
+              name="code-slash-outline"
+              size={17}
+              color="#38B2AC"
+            />
+          </View>
 
-          <Text
+          <View
             style={
-              styles.value
+              styles.infoContent
             }
           >
-            {project.technologies ||
-              "Not specified"}
-          </Text>
+            <Text
+              style={
+                styles.infoLabel
+              }
+            >
+              TECHNOLOGIES
+            </Text>
+
+            <Text
+              style={
+                styles.infoValue
+              }
+            >
+              {project.technologies ||
+                "Not specified"}
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* ==================================================
-          PROJECT DEMONSTRATION
+          DEMONSTRATION
       ================================================== */}
 
       <View
@@ -1422,13 +1445,31 @@ export default function GuideProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Demonstration
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="play-circle-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Project Demonstration
+          </Text>
+        </View>
 
         <Text
           style={
@@ -1441,136 +1482,175 @@ export default function GuideProjectDetails() {
           materials.
         </Text>
 
-        {/* LIVE DEMO */}
-
         {project.liveDemoUrl ? (
-          <View
-            style={
-              styles.demoItem
+          <Pressable
+            style={[
+              styles.resourceButton,
+              styles.liveDemoButton,
+            ]}
+            onPress={() =>
+              openUrl(
+                project.liveDemoUrl!
+              )
             }
           >
-            <Text
+            <View
               style={
-                styles.demoLabel
+                styles.resourceIcon
               }
             >
-              🌐 Live Demo
-            </Text>
+              <Ionicons
+                name="globe-outline"
+                size={20}
+                color="#4338CA"
+              />
+            </View>
 
-            <Pressable
+            <View
               style={
-                styles.liveDemoButton
-              }
-              onPress={() =>
-                openUrl(
-                  project.liveDemoUrl!
-                )
+                styles.resourceText
               }
             >
               <Text
                 style={
-                  styles.liveDemoButtonText
+                  styles.resourceTitle
                 }
               >
-                Open Live Demo ↗
+                Live Demo
               </Text>
-            </Pressable>
-          </View>
-        ) : null}
 
-        {/* VIDEO */}
+              <Text
+                style={
+                  styles.resourceSubtitle
+                }
+              >
+                Open project application
+              </Text>
+            </View>
+
+            <Ionicons
+              name="open-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </Pressable>
+        ) : null}
 
         {project.videoUrl ? (
-          <View
-            style={
-              styles.demoItem
+          <Pressable
+            style={[
+              styles.resourceButton,
+              styles.videoResourceButton,
+            ]}
+            onPress={() =>
+              openUrl(
+                project.videoUrl!
+              )
             }
           >
-            <Text
-              style={
-                styles.demoLabel
-              }
+            <View
+              style={[
+                styles.resourceIcon,
+                styles.videoIcon,
+              ]}
             >
-              🎥 Video Demonstration
-            </Text>
+              <Ionicons
+                name="videocam-outline"
+                size={20}
+                color="#4338CA"
+              />
+            </View>
 
-            {project.videoName ? (
-              <Text
-                style={
-                  styles.fileName
-                }
-              >
-                {
-                  project.videoName
-                }
-              </Text>
-            ) : null}
-
-            <Pressable
+            <View
               style={
-                styles.videoButton
-              }
-              onPress={() =>
-                openUrl(
-                  project.videoUrl!
-                )
+                styles.resourceText
               }
             >
               <Text
                 style={
-                  styles.videoButtonText
+                  styles.resourceTitle
                 }
               >
-                ▶ Watch Project Video
+                Video Demonstration
               </Text>
-            </Pressable>
-          </View>
+
+              <Text
+                style={
+                  styles.resourceSubtitle
+                }
+              >
+                {project.videoName ||
+                  "Watch project video"}
+              </Text>
+            </View>
+
+            <Ionicons
+              name="play-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </Pressable>
         ) : null}
 
-        {/* SCREENSHOTS */}
-
         {project.screenshotUrls &&
-        project.screenshotUrls
-          .length > 0 ? (
+        project.screenshotUrls.length >
+          0 ? (
           <View
             style={
-              styles.demoItem
+              styles.galleryContainer
             }
           >
-            <Text
+            <View
               style={
-                styles.demoLabel
+                styles.galleryHeader
               }
             >
-              🖼️ Project Screenshots
-            </Text>
+              <View
+                style={
+                  styles.galleryTitleRow
+                }
+              >
+                <Ionicons
+                  name="images-outline"
+                  size={19}
+                  color="#4338CA"
+                />
 
-            <Text
-              style={
-                styles.screenshotCount
-              }
-            >
-              {
-                project
-                  .screenshotUrls
-                  .length
-              }{" "}
-              screenshot
-              {project
-                .screenshotUrls
-                .length !==
-              1
-                ? "s"
-                : ""}
-            </Text>
+                <Text
+                  style={
+                    styles.galleryTitle
+                  }
+                >
+                  Screenshots
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.countBadge
+                }
+              >
+                <Text
+                  style={
+                    styles.countBadgeText
+                  }
+                >
+                  {
+                    project
+                      .screenshotUrls
+                      .length
+                  }
+                </Text>
+              </View>
+            </View>
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={
                 false
               }
-              style={
-                styles.screenshotScroll
+              contentContainerStyle={
+                styles.galleryScroll
               }
             >
               {project.screenshotUrls.map(
@@ -1580,13 +1660,13 @@ export default function GuideProjectDetails() {
                 ) => (
                   <Pressable
                     key={`${url}-${index}`}
+                    style={
+                      styles.screenshotCard
+                    }
                     onPress={() =>
                       openUrl(
                         url
                       )
-                    }
-                    style={
-                      styles.screenshotCard
                     }
                   >
                     <Image
@@ -1600,15 +1680,26 @@ export default function GuideProjectDetails() {
                       resizeMode="cover"
                     />
 
-                    <Text
+                    <View
                       style={
-                        styles.screenshotNumber
+                        styles.screenshotOverlay
                       }
                     >
-                      Screenshot{" "}
-                      {index +
-                        1}
-                    </Text>
+                      <Ionicons
+                        name="open-outline"
+                        size={15}
+                        color="#FFFFFF"
+                      />
+
+                      <Text
+                        style={
+                          styles.screenshotOverlayText
+                        }
+                      >
+                        {index +
+                          1}
+                      </Text>
+                    </View>
                   </Pressable>
                 )
               )}
@@ -1616,20 +1707,22 @@ export default function GuideProjectDetails() {
           </View>
         ) : null}
 
-        {/* NO DEMO */}
-
         {!project.liveDemoUrl &&
         !project.videoUrl &&
         (!project.screenshotUrls ||
-          project
-            .screenshotUrls
-            .length ===
-            0) ? (
+          project.screenshotUrls
+            .length === 0) ? (
           <View
             style={
               styles.noDemoBox
             }
           >
+            <Ionicons
+              name="folder-open-outline"
+              size={25}
+              color="#9CA3AF"
+            />
+
             <Text
               style={
                 styles.noDemoTitle
@@ -1660,60 +1753,110 @@ export default function GuideProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Project Report
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="document-attach-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Project Report
+          </Text>
+        </View>
 
         {project.reportUrl ? (
-          <>
-            <Pressable
+          <Pressable
+            style={
+              styles.documentButton
+            }
+            onPress={() =>
+              openUrl(
+                project.reportUrl!
+              )
+            }
+          >
+            <View
               style={
-                styles.reportButton
+                styles.documentIcon
               }
-              onPress={() =>
-                openUrl(
-                  project.reportUrl!
-                )
+            >
+              <Ionicons
+                name="document-text-outline"
+                size={22}
+                color="#4338CA"
+              />
+            </View>
+
+            <View
+              style={
+                styles.resourceText
               }
             >
               <Text
                 style={
-                  styles.reportButtonText
+                  styles.resourceTitle
                 }
               >
-                📄 View Project Report
+                View Project Report
               </Text>
-            </Pressable>
 
-            {project.reportName ? (
               <Text
                 style={
-                  styles.fileName
+                  styles.resourceSubtitle
                 }
+                numberOfLines={1}
               >
-                {
-                  project.reportName
-                }
+                {project.reportName ||
+                  "Project report"}
               </Text>
-            ) : null}
-          </>
+            </View>
+
+            <Ionicons
+              name="open-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </Pressable>
         ) : (
-          <Text
+          <View
             style={
-              styles.notAvailable
+              styles.unavailableBox
             }
           >
-            No report available.
-          </Text>
+            <Ionicons
+              name="document-outline"
+              size={20}
+              color="#9CA3AF"
+            />
+
+            <Text
+              style={
+                styles.notAvailable
+              }
+            >
+              No report available.
+            </Text>
+          </View>
         )}
       </View>
 
       {/* ==================================================
-          GITHUB
+          SOURCE CODE
       ================================================== */}
 
       <View
@@ -1721,13 +1864,31 @@ export default function GuideProjectDetails() {
           styles.section
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.sectionHeader
           }
         >
-          Source Code
-        </Text>
+          <View
+            style={
+              styles.sectionIcon
+            }
+          >
+            <Ionicons
+              name="logo-github"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Source Code
+          </Text>
+        </View>
 
         {project.githubUrl ? (
           <Pressable
@@ -1740,28 +1901,52 @@ export default function GuideProjectDetails() {
               )
             }
           >
+            <Ionicons
+              name="logo-github"
+              size={21}
+              color="#FFFFFF"
+            />
+
             <Text
               style={
                 styles.githubButtonText
               }
             >
-              GitHub ↗
+              Open GitHub Repository
             </Text>
+
+            <Ionicons
+              name="open-outline"
+              size={18}
+              color="#FFFFFF"
+            />
           </Pressable>
         ) : (
-          <Text
+          <View
             style={
-              styles.notAvailable
+              styles.unavailableBox
             }
           >
-            No GitHub repository
-            available.
-          </Text>
+            <Ionicons
+              name="logo-github"
+              size={20}
+              color="#9CA3AF"
+            />
+
+            <Text
+              style={
+                styles.notAvailable
+              }
+            >
+              No GitHub repository
+              available.
+            </Text>
+          </View>
         )}
       </View>
 
       {/* ==================================================
-          EXISTING GUIDE FEEDBACK
+          PREVIOUS FEEDBACK
       ================================================== */}
 
       {project.guideFeedback ||
@@ -1775,29 +1960,60 @@ export default function GuideProjectDetails() {
             styles.previousFeedbackBox
           }
         >
-          <Text
+          <View
             style={
-              styles.previousFeedbackTitle
+              styles.feedbackHeader
             }
           >
-            Previous Guide Feedback
-          </Text>
-
-          {project.guideFeedback ? (
-            <Text
+            <View
               style={
-                styles.previousFeedbackText
+                styles.feedbackHeaderIcon
               }
             >
-              {
-                project.guideFeedback
-              }
-            </Text>
-          ) : null}
+              <Ionicons
+                name="chatbox-ellipses-outline"
+                size={19}
+                color="#B45309"
+              />
+            </View>
 
-          {/* ==================================================
-              EXISTING ATTACHMENTS
-          ================================================== */}
+            <View>
+              <Text
+                style={
+                  styles.previousFeedbackTitle
+                }
+              >
+                Previous Guide Feedback
+              </Text>
+
+              <Text
+                style={
+                  styles.previousFeedbackSubtitle
+                }
+              >
+                Feedback from the previous
+                review
+              </Text>
+            </View>
+          </View>
+
+          {project.guideFeedback ? (
+            <View
+              style={
+                styles.previousFeedbackTextBox
+              }
+            >
+              <Text
+                style={
+                  styles.previousFeedbackText
+                }
+              >
+                {
+                  project.guideFeedback
+                }
+              </Text>
+            </View>
+          ) : null}
 
           {project.guideFeedbackAttachmentUrls &&
           project.guideFeedbackAttachmentUrls
@@ -1807,37 +2023,45 @@ export default function GuideProjectDetails() {
                 styles.existingAttachment
               }
             >
-              <Text
+              <View
                 style={
-                  styles.attachmentLabel
+                  styles.attachmentHeader
                 }
               >
-                📎 Attached Screenshots
-              </Text>
+                <Text
+                  style={
+                    styles.attachmentLabel
+                  }
+                >
+                  Attached Screenshots
+                </Text>
 
-              <Text
-                style={
-                  styles.attachmentCount
-                }
-              >
-                {
-                  project
-                    .guideFeedbackAttachmentUrls
-                    .length
-                }{" "}
-                screenshot
-                {project
-                  .guideFeedbackAttachmentUrls
-                  .length !==
-                1
-                  ? "s"
-                  : ""}
-              </Text>
+                <View
+                  style={
+                    styles.countBadgeOrange
+                  }
+                >
+                  <Text
+                    style={
+                      styles.countBadgeOrangeText
+                    }
+                  >
+                    {
+                      project
+                        .guideFeedbackAttachmentUrls
+                        .length
+                    }
+                  </Text>
+                </View>
+              </View>
 
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={
                   false
+                }
+                contentContainerStyle={
+                  styles.galleryScroll
                 }
               >
                 {project.guideFeedbackAttachmentUrls.map(
@@ -1867,23 +2091,27 @@ export default function GuideProjectDetails() {
                         resizeMode="cover"
                       />
 
-                      <Text
+                      <View
                         style={
-                          styles.existingAttachmentNumber
+                          styles.attachmentViewRow
                         }
                       >
-                        Screenshot{" "}
-                        {index +
-                          1}
-                      </Text>
+                        <Text
+                          style={
+                            styles.existingAttachmentNumber
+                          }
+                        >
+                          Screenshot{" "}
+                          {index +
+                            1}
+                        </Text>
 
-                      <Text
-                        style={
-                          styles.viewAttachmentText
-                        }
-                      >
-                        View ↗
-                      </Text>
+                        <Ionicons
+                          name="open-outline"
+                          size={14}
+                          color="#C2410C"
+                        />
+                      </View>
                     </Pressable>
                   )
                 )}
@@ -1899,32 +2127,53 @@ export default function GuideProjectDetails() {
 
       <View
         style={
-          styles.section
+          styles.reviewSection
         }
       >
-        <Text
+        <View
           style={
-            styles.sectionTitle
+            styles.reviewHeader
           }
         >
-          Guide Review
-        </Text>
+          <View
+            style={
+              styles.reviewIcon
+            }
+          >
+            <Ionicons
+              name="checkmark-done-outline"
+              size={21}
+              color="#FFFFFF"
+            />
+          </View>
+
+          <View
+            style={
+              styles.reviewHeaderText
+            }
+          >
+            <Text
+              style={
+                styles.reviewTitle
+              }
+            >
+              Guide Review
+            </Text>
+
+            <Text
+              style={
+                styles.reviewSubtitle
+              }
+            >
+              Review the project and
+              provide clear feedback.
+            </Text>
+          </View>
+        </View>
 
         <Text
           style={
-            styles.reviewText
-          }
-        >
-          Add clear feedback so the
-          student understands what
-          needs to be improved.
-        </Text>
-
-        {/* FEEDBACK INPUT */}
-
-        <Text
-          style={
-            styles.label
+            styles.inputLabel
           }
         >
           Feedback / Review Comments
@@ -1934,9 +2183,7 @@ export default function GuideProjectDetails() {
           style={
             styles.feedbackInput
           }
-          placeholder={
-            "Example: Improve login validation, add proper error handling, and update the project documentation."
-          }
+          placeholder="Example: Improve login validation, add proper error handling, and update the project documentation."
           placeholderTextColor="#9CA3AF"
           value={
             feedback
@@ -1961,13 +2208,9 @@ export default function GuideProjectDetails() {
           rejecting a project.
         </Text>
 
-        {/* ==================================================
-            MULTIPLE ATTACHMENTS
-        ================================================== */}
-
         <Text
           style={
-            styles.label
+            styles.inputLabel
           }
         >
           Feedback Screenshots
@@ -1977,7 +2220,7 @@ export default function GuideProjectDetails() {
             }
           >
             {" "}
-            (Optional)
+            Optional
           </Text>
         </Text>
 
@@ -1989,10 +2232,8 @@ export default function GuideProjectDetails() {
           Attach screenshots to visually
           show the student where problems
           or required changes are located.
-          You can select up to 8 screenshots.
+          Maximum 8 screenshots.
         </Text>
-
-        {/* ATTACH BUTTON */}
 
         <Pressable
           style={
@@ -2005,16 +2246,32 @@ export default function GuideProjectDetails() {
             updating
           }
         >
+          <View
+            style={
+              styles.attachIcon
+            }
+          >
+            <Ionicons
+              name="images-outline"
+              size={19}
+              color="#4338CA"
+            />
+          </View>
+
           <Text
             style={
               styles.attachButtonText
             }
           >
-            📎 Attach Screenshots
+            Attach Screenshots
           </Text>
-        </Pressable>
 
-        {/* SELECTED ATTACHMENTS */}
+          <Ionicons
+            name="add"
+            size={19}
+            color="#4338CA"
+          />
+        </Pressable>
 
         {feedbackAttachments.length >
         0 ? (
@@ -2023,26 +2280,43 @@ export default function GuideProjectDetails() {
               styles.selectedAttachments
             }
           >
-            <Text
+            <View
               style={
-                styles.attachmentSelectedTitle
+                styles.selectedHeader
               }
             >
-              {
-                feedbackAttachments.length
-              }{" "}
-              screenshot
-              {feedbackAttachments.length !==
-              1
-                ? "s"
-                : ""}{" "}
-              selected
-            </Text>
+              <Text
+                style={
+                  styles.attachmentSelectedTitle
+                }
+              >
+                Selected Attachments
+              </Text>
+
+              <View
+                style={
+                  styles.selectedCount
+                }
+              >
+                <Text
+                  style={
+                    styles.selectedCountText
+                  }
+                >
+                  {
+                    feedbackAttachments.length
+                  }
+                </Text>
+              </View>
+            </View>
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={
                 false
+              }
+              contentContainerStyle={
+                styles.galleryScroll
               }
             >
               {feedbackAttachments.map(
@@ -2067,35 +2341,37 @@ export default function GuideProjectDetails() {
                       resizeMode="cover"
                     />
 
-                    <Text
+                    <View
                       style={
-                        styles.selectedAttachmentNumber
-                      }
-                    >
-                      {
-                        index +
-                        1
-                      }
-                    </Text>
-
-                    <Pressable
-                      onPress={() =>
-                        removeFeedbackAttachment(
-                          index
-                        )
-                      }
-                      disabled={
-                        updating
+                        styles.selectedImageFooter
                       }
                     >
                       <Text
                         style={
-                          styles.removeAttachmentText
+                          styles.selectedAttachmentNumber
                         }
                       >
-                        Remove
+                        {index +
+                          1}
                       </Text>
-                    </Pressable>
+
+                      <Pressable
+                        onPress={() =>
+                          removeFeedbackAttachment(
+                            index
+                          )
+                        }
+                        disabled={
+                          updating
+                        }
+                      >
+                        <Ionicons
+                          name="close-circle"
+                          size={20}
+                          color="#DC2626"
+                        />
+                      </Pressable>
+                    </View>
                   </View>
                 )
               )}
@@ -2103,9 +2379,13 @@ export default function GuideProjectDetails() {
           </View>
         ) : null}
 
-        {/* ==================================================
-            APPROVE
-        ================================================== */}
+        <Text
+          style={
+            styles.actionLabel
+          }
+        >
+          Review Decision
+        </Text>
 
         <Pressable
           style={[
@@ -2123,18 +2403,47 @@ export default function GuideProjectDetails() {
             )
           }
         >
-          <Text
+          <View
             style={
-              styles.actionButtonText
+              styles.actionIcon
             }
           >
-            ✓ Approve Project
-          </Text>
-        </Pressable>
+            <Ionicons
+              name="checkmark"
+              size={19}
+              color="#047857"
+            />
+          </View>
 
-        {/* ==================================================
-            REVISION
-        ================================================== */}
+          <View
+            style={
+              styles.actionTextContainer
+            }
+          >
+            <Text
+              style={
+                styles.actionTitle
+              }
+            >
+              Approve Project
+            </Text>
+
+            <Text
+              style={
+                styles.actionSubtitle
+              }
+            >
+              Mark this project as
+              approved
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={19}
+            color="#047857"
+          />
+        </Pressable>
 
         <Pressable
           style={[
@@ -2152,18 +2461,48 @@ export default function GuideProjectDetails() {
             )
           }
         >
-          <Text
+          <View
+            style={[
+              styles.actionIcon,
+              styles.revisionIcon,
+            ]}
+          >
+            <Ionicons
+              name="create-outline"
+              size={19}
+              color="#B45309"
+            />
+          </View>
+
+          <View
             style={
-              styles.actionButtonText
+              styles.actionTextContainer
             }
           >
-            ↻ Request Revision
-          </Text>
-        </Pressable>
+            <Text
+              style={
+                styles.actionTitle
+              }
+            >
+              Request Revision
+            </Text>
 
-        {/* ==================================================
-            REJECT
-        ================================================== */}
+            <Text
+              style={
+                styles.actionSubtitle
+              }
+            >
+              Ask the student to make
+              changes
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={19}
+            color="#B45309"
+          />
+        </Pressable>
 
         <Pressable
           style={[
@@ -2181,18 +2520,48 @@ export default function GuideProjectDetails() {
             )
           }
         >
-          <Text
+          <View
+            style={[
+              styles.actionIcon,
+              styles.rejectIcon,
+            ]}
+          >
+            <Ionicons
+              name="close-outline"
+              size={19}
+              color="#B91C1C"
+            />
+          </View>
+
+          <View
             style={
-              styles.actionButtonText
+              styles.actionTextContainer
             }
           >
-            ✕ Reject Project
-          </Text>
-        </Pressable>
+            <Text
+              style={
+                styles.actionTitle
+              }
+            >
+              Reject Project
+            </Text>
 
-        {/* ==================================================
-            UPDATING
-        ================================================== */}
+            <Text
+              style={
+                styles.actionSubtitle
+              }
+            >
+              Reject this project with a
+              reason
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={19}
+            color="#B91C1C"
+          />
+        </Pressable>
 
         {updating && (
           <View
@@ -2202,7 +2571,7 @@ export default function GuideProjectDetails() {
           >
             <ActivityIndicator
               size="small"
-              color="#2563EB"
+              color="#4338CA"
             />
 
             <Text
@@ -2214,6 +2583,32 @@ export default function GuideProjectDetails() {
             </Text>
           </View>
         )}
+      </View>
+
+      {/* ==================================================
+          FOOTER
+      ================================================== */}
+
+      <View
+        style={
+          styles.footer
+        }
+      >
+        <Text
+          style={
+            styles.footerText
+          }
+        >
+          ProjectVerse
+        </Text>
+
+        <Text
+          style={
+            styles.footerSubtext
+          }
+        >
+          Guide Review Portal
+        </Text>
       </View>
     </ScrollView>
   );
@@ -2228,426 +2623,813 @@ const styles =
     container: {
       flex: 1,
       backgroundColor:
-        "#F8FAFC",
+        "#F5F7FB",
     },
 
     content: {
-      padding: 20,
-      paddingBottom: 50,
+      padding: 18,
+      paddingBottom: 45,
     },
+
+    // ==================================================
+    // CENTER
+    // ==================================================
 
     centerContainer: {
       flex: 1,
       justifyContent:
         "center",
-      alignItems: "center",
+      alignItems:
+        "center",
       backgroundColor:
-        "#F8FAFC",
-      padding: 20,
+        "#F5F7FB",
+      padding: 25,
+    },
+
+    loadingIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginBottom: 18,
     },
 
     loadingText: {
-      marginTop: 12,
+      marginTop: 10,
       color: "#6B7280",
       fontSize: 14,
     },
 
+    emptyIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: 22,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginBottom: 18,
+    },
+
     notFoundTitle: {
       fontSize: 22,
-      fontWeight: "bold",
-      color: "#111827",
-      marginBottom: 20,
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 7,
+    },
+
+    notFoundText: {
+      fontSize: 14,
+      color: "#6B7280",
+      textAlign:
+        "center",
+      lineHeight: 21,
+      marginBottom: 22,
     },
 
     backButton: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 8,
       backgroundColor:
-        "#2563EB",
+        "#4338CA",
       paddingHorizontal: 20,
       paddingVertical: 12,
-      borderRadius: 10,
+      borderRadius: 12,
     },
 
     backButtonText: {
       color: "#FFFFFF",
-      fontWeight: "600",
+      fontSize: 14,
+      fontWeight: "700",
     },
 
+    // ==================================================
+    // BACK
+    // ==================================================
+
     backLink: {
-      marginBottom: 15,
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 7,
+      marginBottom: 14,
+      paddingVertical: 5,
     },
 
     backLinkText: {
-      color: "#2563EB",
-      fontSize: 15,
-      fontWeight: "600",
+      color: "#4338CA",
+      fontSize: 14,
+      fontWeight: "700",
     },
 
-    headerCard: {
+    // ==================================================
+    // HERO
+    // ==================================================
+
+    heroCard: {
       backgroundColor:
         "#FFFFFF",
-      borderRadius: 16,
-      padding: 20,
+      borderRadius: 22,
       borderWidth: 1,
       borderColor:
         "#E5E7EB",
+      padding: 20,
       marginBottom: 16,
+      shadowColor:
+        "#1F2937",
+      shadowOffset: {
+        width: 0,
+        height: 3,
+      },
+      shadowOpacity:
+        0.05,
+      shadowRadius: 10,
+      elevation: 2,
     },
 
-    title: {
-      fontSize: 28,
-      fontWeight: "bold",
-      color: "#111827",
-      marginBottom: 12,
+    heroIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginBottom: 14,
+    },
+
+    heroContent: {
+      marginBottom: 17,
+    },
+
+    heroTitle: {
+      fontSize: 26,
+      lineHeight: 33,
+      fontWeight: "700",
+      color: "#1F2937",
+      marginBottom: 10,
     },
 
     statusBadge: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       alignSelf:
         "flex-start",
-      paddingHorizontal: 12,
+      gap: 6,
+      paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 20,
     },
 
     statusText: {
-      color: "#FFFFFF",
       fontSize: 12,
-      fontWeight: "bold",
+      fontWeight: "700",
     },
 
-    pending: {
-      backgroundColor:
-        "#F59E0B",
+    studentBox: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      paddingTop: 15,
+      borderTopWidth: 1,
+      borderTopColor:
+        "#F0F1F5",
     },
 
-    approved: {
+    studentAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
       backgroundColor:
-        "#16A34A",
+        "#4338CA",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 11,
     },
 
-    revision: {
-      backgroundColor:
-        "#EA580C",
+    studentAvatarText: {
+      color: "#FFFFFF",
+      fontSize: 17,
+      fontWeight: "700",
     },
 
-    rejected: {
-      backgroundColor:
-        "#DC2626",
+    studentInfo: {
+      flex: 1,
     },
 
     studentName: {
-      marginTop: 14,
       fontSize: 15,
-      fontWeight: "600",
-      color: "#2563EB",
+      fontWeight: "700",
+      color: "#1F2937",
     },
 
     studentEmail: {
-      marginTop: 4,
-      fontSize: 13,
+      marginTop: 3,
+      fontSize: 12,
       color: "#6B7280",
     },
+
+    // ==================================================
+    // SECTIONS
+    // ==================================================
 
     section: {
       backgroundColor:
         "#FFFFFF",
-      borderRadius: 16,
-      padding: 20,
+      borderRadius: 18,
+      padding: 18,
       borderWidth: 1,
       borderColor:
         "#E5E7EB",
-      marginBottom: 16,
+      marginBottom: 14,
+    },
+
+    sectionHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      marginBottom: 14,
+    },
+
+    sectionIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 10,
     },
 
     sectionTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: "#111827",
-      marginBottom: 12,
+      flex: 1,
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#1F2937",
     },
 
     sectionDescription: {
-      fontSize: 14,
+      fontSize: 13,
       color: "#6B7280",
-      lineHeight: 20,
+      lineHeight: 19,
       marginBottom: 15,
     },
 
     description: {
-      fontSize: 15,
+      fontSize: 14,
       color: "#4B5563",
-      lineHeight: 23,
+      lineHeight: 22,
     },
 
-    infoRow: {
-      paddingVertical: 5,
-    },
+    // ==================================================
+    // INFORMATION
+    // ==================================================
 
-    label: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: "#6B7280",
-      marginBottom: 5,
-    },
-
-    value: {
-      fontSize: 15,
-      color: "#111827",
-    },
-
-    divider: {
-      height: 1,
+    infoCard: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       backgroundColor:
-        "#E5E7EB",
-      marginVertical: 12,
+        "#F8FAFC",
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 9,
     },
 
-    demoItem: {
-      marginBottom: 18,
+    infoIcon: {
+      width: 35,
+      height: 35,
+      borderRadius: 10,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 11,
     },
 
-    demoLabel: {
-      fontSize: 15,
+    infoContent: {
+      flex: 1,
+    },
+
+    infoLabel: {
+      fontSize: 10,
       fontWeight: "700",
-      color: "#111827",
-      marginBottom: 8,
+      color: "#9CA3AF",
+      letterSpacing: 0.6,
+      marginBottom: 3,
+    },
+
+    infoValue: {
+      fontSize: 14,
+      color: "#1F2937",
+      fontWeight: "600",
+    },
+
+    // ==================================================
+    // RESOURCES
+    // ==================================================
+
+    resourceButton: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      borderRadius: 13,
+      padding: 12,
+      marginBottom: 9,
+      borderWidth: 1,
     },
 
     liveDemoButton: {
       backgroundColor:
-        "#2563EB",
-      paddingVertical: 13,
-      borderRadius: 10,
-      alignItems:
-        "center",
+        "#EEF2FF",
+      borderColor:
+        "#C7D2FE",
     },
 
-    liveDemoButtonText: {
-      color: "#FFFFFF",
-      fontWeight: "700",
-      fontSize: 14,
-    },
-
-    videoButton: {
+    videoResourceButton: {
       backgroundColor:
-        "#7C3AED",
-      paddingVertical: 13,
-      borderRadius: 10,
+        "#F5F3FF",
+      borderColor:
+        "#DDD6FE",
+    },
+
+    resourceIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 11,
+      backgroundColor:
+        "#D5F5F2",
       alignItems:
         "center",
+      justifyContent:
+        "center",
+      marginRight: 11,
     },
 
-    videoButtonText: {
-      color: "#FFFFFF",
-      fontWeight: "700",
+    videoIcon: {
+      backgroundColor:
+        "#EDE9FE",
+    },
+
+    resourceText: {
+      flex: 1,
+      marginRight: 8,
+    },
+
+    resourceTitle: {
       fontSize: 14,
+      fontWeight: "700",
+      color: "#1F2937",
     },
 
-    fileName: {
-      fontSize: 13,
+    resourceSubtitle: {
+      fontSize: 11,
       color: "#6B7280",
-      marginBottom: 8,
+      marginTop: 3,
     },
 
-    screenshotCount: {
-      fontSize: 13,
-      color: "#6B7280",
+    // ==================================================
+    // SCREENSHOT GALLERY
+    // ==================================================
+
+    galleryContainer: {
+      marginTop: 6,
+    },
+
+    galleryHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
       marginBottom: 10,
     },
 
-    screenshotScroll: {
-      marginHorizontal:
-        -5,
+    galleryTitleRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 7,
+    },
+
+    galleryTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#1F2937",
+    },
+
+    countBadge: {
+      minWidth: 27,
+      height: 27,
+      borderRadius: 14,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      paddingHorizontal: 8,
+    },
+
+    countBadgeText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#4338CA",
+    },
+
+    galleryScroll: {
+      paddingRight: 5,
     },
 
     screenshotCard: {
-      width: 170,
-      marginHorizontal: 5,
-    },
-
-    screenshot: {
-      width: 170,
-      height: 220,
-      borderRadius: 10,
+      width: 145,
+      height: 185,
+      borderRadius: 13,
+      overflow: "hidden",
+      marginRight: 10,
       backgroundColor:
         "#E5E7EB",
     },
 
-    screenshotNumber: {
-      fontSize: 12,
-      color: "#6B7280",
-      marginTop: 6,
-      textAlign:
+    screenshot: {
+      width: "100%",
+      height: "100%",
+    },
+
+    screenshotOverlay: {
+      position: "absolute",
+      left: 8,
+      right: 8,
+      bottom: 8,
+      flexDirection:
+        "row",
+      alignItems:
         "center",
+      justifyContent:
+        "space-between",
+      backgroundColor:
+        "rgba(31,41,55,0.72)",
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+    },
+
+    screenshotOverlayText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontWeight: "700",
     },
 
     noDemoBox: {
       backgroundColor:
-        "#F9FAFB",
-      borderRadius: 10,
-      padding: 15,
+        "#F8FAFC",
       borderWidth: 1,
       borderColor:
         "#E5E7EB",
+      borderRadius: 12,
+      padding: 16,
+      alignItems:
+        "center",
     },
 
     noDemoTitle: {
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: "700",
       color: "#374151",
-      marginBottom: 5,
+      marginTop: 7,
+      marginBottom: 4,
     },
 
     notAvailable: {
       color: "#9CA3AF",
-      fontSize: 14,
+      fontSize: 13,
+      lineHeight: 19,
     },
 
-    reportButton: {
+    // ==================================================
+    // DOCUMENT
+    // ==================================================
+
+    documentButton: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       backgroundColor:
-        "#EFF6FF",
+        "#EEF2FF",
       borderWidth: 1,
       borderColor:
-        "#BFDBFE",
-      paddingVertical: 13,
-      borderRadius: 10,
-      alignItems:
-        "center",
+        "#C7D2FE",
+      borderRadius: 13,
+      padding: 12,
     },
 
-    reportButtonText: {
-      color: "#2563EB",
-      fontWeight: "700",
-      fontSize: 14,
+    documentIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 11,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 11,
     },
+
+    unavailableBox: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 9,
+      backgroundColor:
+        "#F8FAFC",
+      borderRadius: 11,
+      padding: 13,
+    },
+
+    // ==================================================
+    // GITHUB
+    // ==================================================
 
     githubButton: {
-      backgroundColor:
-        "#111827",
-      paddingVertical: 13,
-      borderRadius: 10,
+      flexDirection:
+        "row",
       alignItems:
         "center",
+      justifyContent:
+        "center",
+      gap: 9,
+      backgroundColor:
+        "#1F2937",
+      borderRadius: 12,
+      paddingVertical: 14,
     },
 
     githubButtonText: {
       color: "#FFFFFF",
-      fontWeight: "700",
       fontSize: 14,
+      fontWeight: "700",
+      flex: 1,
+      textAlign:
+        "center",
     },
+
+    // ==================================================
+    // PREVIOUS FEEDBACK
+    // ==================================================
 
     previousFeedbackBox: {
       backgroundColor:
-        "#FFF7ED",
+        "#FFFBEB",
       borderWidth: 1,
       borderColor:
-        "#FED7AA",
-      borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+        "#FDE68A",
+      borderRadius: 18,
+      padding: 17,
+      marginBottom: 14,
+    },
+
+    feedbackHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      marginBottom: 13,
+    },
+
+    feedbackHeaderIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      backgroundColor:
+        "#FEF3C7",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 10,
     },
 
     previousFeedbackTitle: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: "700",
-      color: "#9A3412",
-      marginBottom: 8,
+      color: "#92400E",
+    },
+
+    previousFeedbackSubtitle: {
+      fontSize: 11,
+      color: "#B45309",
+      marginTop: 2,
+    },
+
+    previousFeedbackTextBox: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 11,
+      padding: 12,
+      borderWidth: 1,
+      borderColor:
+        "#FDE68A",
     },
 
     previousFeedbackText: {
-      fontSize: 14,
-      color: "#7C2D12",
-      lineHeight: 21,
-      marginBottom: 5,
+      fontSize: 13,
+      color: "#78350F",
+      lineHeight: 20,
     },
 
     existingAttachment: {
-      marginTop: 15,
-      paddingTop: 15,
+      marginTop: 14,
+      paddingTop: 14,
       borderTopWidth: 1,
       borderTopColor:
-        "#FED7AA",
+        "#FDE68A",
+    },
+
+    attachmentHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
+      marginBottom: 9,
     },
 
     attachmentLabel: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "700",
-      color: "#9A3412",
-      marginBottom: 7,
+      color: "#92400E",
     },
 
-    attachmentCount: {
-      fontSize: 12,
-      color: "#9A3412",
-      marginBottom: 10,
+    countBadgeOrange: {
+      minWidth: 25,
+      height: 25,
+      borderRadius: 13,
+      backgroundColor:
+        "#FEF3C7",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      paddingHorizontal: 7,
+    },
+
+    countBadgeOrangeText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#B45309",
     },
 
     existingAttachmentCard: {
-      width: 130,
-      marginRight: 12,
+      width: 125,
+      marginRight: 10,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 11,
+      padding: 6,
+      borderWidth: 1,
+      borderColor:
+        "#FED7AA",
     },
 
     existingAttachmentImage: {
-      width: 130,
-      height: 150,
-      borderRadius: 10,
+      width: 113,
+      height: 135,
+      borderRadius: 8,
       backgroundColor:
         "#E5E7EB",
     },
 
-    existingAttachmentNumber: {
-      fontSize: 12,
-      color: "#7C2D12",
-      textAlign:
-        "center",
-      marginTop: 5,
-    },
-
-    viewAttachmentButton: {
-      backgroundColor:
-        "#FFFFFF",
-      borderWidth: 1,
-      borderColor:
-        "#FDBA74",
-      borderRadius: 8,
-      paddingVertical: 10,
+    attachmentViewRow: {
+      flexDirection:
+        "row",
       alignItems:
         "center",
+      justifyContent:
+        "space-between",
+      paddingHorizontal: 3,
+      paddingTop: 6,
     },
 
-    viewAttachmentText: {
-      color: "#C2410C",
-      fontWeight: "700",
-      fontSize: 12,
-      textAlign:
-        "center",
-      marginTop: 4,
+    existingAttachmentNumber: {
+      fontSize: 10,
+      color: "#9A3412",
+      fontWeight: "600",
     },
 
-    reviewText: {
-      fontSize: 14,
-      color: "#6B7280",
-      lineHeight: 21,
+    // ==================================================
+    // REVIEW
+    // ==================================================
+
+    reviewSection: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 18,
+      borderWidth: 1,
+      borderColor:
+        "#E5E7EB",
       marginBottom: 15,
     },
 
+    reviewHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#4338CA",
+      borderRadius: 15,
+      padding: 14,
+      marginBottom: 19,
+    },
+
+    reviewIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor:
+        "rgba(255,255,255,0.16)",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 11,
+    },
+
+    reviewHeaderText: {
+      flex: 1,
+    },
+
+    reviewTitle: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "700",
+    },
+
+    reviewSubtitle: {
+      color: "#E0E7FF",
+      fontSize: 11,
+      marginTop: 3,
+      lineHeight: 16,
+    },
+
+    inputLabel: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#374151",
+      marginBottom: 7,
+    },
+
     feedbackInput: {
-      minHeight: 130,
+      minHeight: 125,
       borderWidth: 1,
       borderColor:
         "#D1D5DB",
       borderRadius: 12,
-      padding: 14,
-      fontSize: 15,
-      color: "#111827",
+      padding: 13,
+      fontSize: 14,
+      color: "#1F2937",
       backgroundColor:
-        "#FFFFFF",
-      marginBottom: 8,
+        "#F9FAFB",
+      marginBottom: 7,
     },
 
     feedbackHint: {
-      fontSize: 12,
+      fontSize: 11,
       color: "#6B7280",
-      lineHeight: 18,
+      lineHeight: 17,
       marginBottom: 18,
     },
 
@@ -2658,105 +3440,210 @@ const styles =
     },
 
     attachmentHint: {
-      fontSize: 12,
+      fontSize: 11,
       color: "#6B7280",
-      lineHeight: 18,
-      marginBottom: 12,
+      lineHeight: 17,
+      marginBottom: 11,
     },
 
     attachButton: {
-      borderWidth: 1,
-      borderColor:
-        "#2563EB",
-      borderStyle:
-        "dashed",
-      borderRadius: 10,
-      paddingVertical: 14,
+      flexDirection:
+        "row",
       alignItems:
         "center",
-      marginBottom: 18,
+      borderWidth: 1,
+      borderColor:
+        "#A5B4FC",
+      borderStyle:
+        "dashed",
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 13,
       backgroundColor:
-        "#EFF6FF",
+        "#EEF2FF",
+      marginBottom: 15,
+    },
+
+    attachIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 9,
     },
 
     attachButtonText: {
-      color: "#2563EB",
-      fontSize: 14,
+      flex: 1,
+      color: "#4338CA",
+      fontSize: 13,
       fontWeight: "700",
     },
 
     selectedAttachments: {
+      backgroundColor:
+        "#F8FAFC",
+      borderRadius: 12,
+      padding: 11,
       marginBottom: 18,
     },
 
+    selectedHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
+      marginBottom: 9,
+    },
+
+    attachmentSelectedTitle: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#374151",
+    },
+
+    selectedCount: {
+      minWidth: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor:
+        "#D5F5F2",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      paddingHorizontal: 6,
+    },
+
+    selectedCountText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#4338CA",
+    },
+
     selectedAttachmentItem: {
-      width: 115,
-      marginRight: 12,
+      width: 105,
+      marginRight: 10,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 9,
+      padding: 5,
+      borderWidth: 1,
+      borderColor:
+        "#E5E7EB",
     },
 
     attachmentPreview: {
-      width: 115,
-      height: 130,
-      borderRadius: 8,
+      width: 95,
+      height: 115,
+      borderRadius: 7,
       backgroundColor:
         "#E5E7EB",
     },
 
+    selectedImageFooter: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
+      paddingHorizontal: 2,
+      paddingTop: 5,
+    },
+
     selectedAttachmentNumber: {
-      fontSize: 11,
+      fontSize: 10,
       color: "#6B7280",
-      textAlign:
-        "center",
-      marginTop: 4,
+      fontWeight: "600",
     },
 
-    attachmentSelectedTitle: {
-      fontSize: 14,
+    actionLabel: {
+      fontSize: 13,
       fontWeight: "700",
-      color: "#1E3A8A",
-      marginBottom: 10,
-    },
-
-    removeAttachmentText: {
-      color: "#DC2626",
-      fontSize: 12,
-      fontWeight: "700",
-      textAlign:
-        "center",
-      marginTop: 5,
+      color: "#374151",
+      marginBottom: 9,
     },
 
     actionButton: {
-      paddingVertical: 14,
-      borderRadius: 10,
+      flexDirection:
+        "row",
       alignItems:
         "center",
-      marginBottom: 12,
+      borderRadius: 13,
+      padding: 12,
+      marginBottom: 9,
+      borderWidth: 1,
     },
 
     approveButton: {
       backgroundColor:
-        "#16A34A",
+        "#ECFDF5",
+      borderColor:
+        "#A7F3D0",
     },
 
     revisionButton: {
       backgroundColor:
-        "#EA580C",
+        "#FFFBEB",
+      borderColor:
+        "#FDE68A",
     },
 
     rejectButton: {
       backgroundColor:
-        "#DC2626",
+        "#FEF2F2",
+      borderColor:
+        "#FECACA",
+    },
+
+    actionIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 11,
+      backgroundColor:
+        "#D1FAE5",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 10,
+    },
+
+    revisionIcon: {
+      backgroundColor:
+        "#FEF3C7",
+    },
+
+    rejectIcon: {
+      backgroundColor:
+        "#FEE2E2",
+    },
+
+    actionTextContainer: {
+      flex: 1,
+    },
+
+    actionTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#1F2937",
+    },
+
+    actionSubtitle: {
+      fontSize: 10,
+      color: "#6B7280",
+      marginTop: 3,
     },
 
     disabledButton: {
       opacity: 0.5,
-    },
-
-    actionButtonText: {
-      color: "#FFFFFF",
-      fontSize: 15,
-      fontWeight: "700",
     },
 
     updatingContainer: {
@@ -2772,6 +3659,29 @@ const styles =
     updatingText: {
       marginLeft: 8,
       color: "#6B7280",
-      fontSize: 13,
+      fontSize: 12,
+    },
+
+    // ==================================================
+    // FOOTER
+    // ==================================================
+
+    footer: {
+      alignItems:
+        "center",
+      paddingTop: 8,
+      paddingBottom: 10,
+    },
+
+    footerText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#4338CA",
+    },
+
+    footerSubtext: {
+      fontSize: 10,
+      color: "#9CA3AF",
+      marginTop: 2,
     },
   });

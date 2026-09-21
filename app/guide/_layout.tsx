@@ -24,7 +24,7 @@ function CustomDrawerContent(props: any) {
     try {
       await signOut(auth);
 
-      router.replace("/login");
+      router.replace("/");
     } catch (error) {
       console.log("Logout error:", error);
 
@@ -235,6 +235,7 @@ export default function GuideLayout() {
       <Drawer.Screen
         name="project-details"
         options={{
+          title:"Project Details",
           drawerItemStyle: {
             display: "none",
           },

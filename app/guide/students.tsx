@@ -1,10 +1,10 @@
 import {
   collection,
   onSnapshot,
-  orderBy,
   query,
   where,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
+
+import { Ionicons } from "@expo/vector-icons";
 
 import { auth, db } from "../../firebase/firebaseConfig";
 
@@ -32,248 +34,568 @@ export default function Students() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // =====================================================
+  // LOAD GUIDE'S STUDENTS
+  // =====================================================
+
   useEffect(() => {
-    const guide = auth.currentUser;
+    let unsubscribeStudents: (() => void) | undefined;
 
-    if (!guide) {
-      setLoading(false);
-      return;
-    }
+    const unsubscribeAuth = onAuthStateChanged(
+      auth,
+      (guide) => {
+        if (!guide) {
+          setStudents([]);
+          setLoading(false);
+          return;
+        }
 
-    const studentsQuery = query(
-      collection(db, "guideStudents"),
-      where("guideId", "==", guide.uid),
+        setLoading(true);
+
+        const studentsQuery = query(
+          collection(db, "guideStudents"),
+          where("guideId", "==", guide.uid),
+        );
+
+        unsubscribeStudents = onSnapshot(
+          studentsQuery,
+          (snapshot) => {
+            const studentList: Student[] =
+              snapshot.docs.map((document) => ({
+                id: document.id,
+                ...(document.data() as Omit<Student, "id">),
+              }));
+
+            setStudents(studentList);
+            setLoading(false);
+          },
+          (error) => {
+            console.log(
+              "Error fetching students:",
+              error,
+            );
+
+            Alert.alert(
+              "Error",
+              "Could not load your students.",
+            );
+
+            setLoading(false);
+          },
+        );
+      },
     );
 
-    const unsubscribe = onSnapshot(
-      studentsQuery,
-      (snapshot) => {
-        const studentList: Student[] = snapshot.docs.map((document) => ({
-          id: document.id,
-          ...document.data(),
-        })) as Student[];
-
-        setStudents(studentList);
-        setLoading(false);
-      },
-      (error) => {
-        console.log("Error fetching students:", error);
-
-        Alert.alert("Error", "Could not load your students.");
-
-        setLoading(false);
-      },
-    );
-
-    return unsubscribe;
+    return () => {
+      unsubscribeStudents?.();
+      unsubscribeAuth();
+    };
   }, []);
+
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator
+          size="large"
+          color="#4338CA"
+        />
 
-        <Text style={styles.loadingText}>Loading students...</Text>
+        <Text style={styles.loadingText}>
+          Loading students...
+        </Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>My Students</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* =================================================
+          STUDENT COUNT
+      ================================================= */}
 
-      <Text style={styles.subtitle}>Students assigned under your guidance</Text>
+      {!students.length ? null : (
+        <View style={styles.countCard}>
+          <View style={styles.countIcon}>
+            <Ionicons
+              name="people-outline"
+              size={25}
+              color="#0F766E"
+            />
+          </View>
+
+          <View style={styles.countContent}>
+            <Text style={styles.countNumber}>
+              {students.length}
+            </Text>
+
+            <Text style={styles.countLabel}>
+              {students.length === 1
+                ? "Student"
+                : "Students"}
+            </Text>
+          </View>
+
+          <View style={styles.countStatus}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={19}
+              color="#0F766E"
+            />
+
+            <Text style={styles.countStatusText}>
+              Assigned
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* =================================================
+          EMPTY STATE
+      ================================================= */}
 
       {students.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No Students Yet</Text>
+          <View style={styles.emptyIcon}>
+            <Ionicons
+              name="people-outline"
+              size={34}
+              color="#4338CA"
+            />
+          </View>
+
+          <Text style={styles.emptyTitle}>
+            No Students Yet
+          </Text>
 
           <Text style={styles.emptyText}>
             You haven't added any students yet.
+            Add a student to start managing their
+            projects and progress.
           </Text>
 
           <Pressable
-            style={styles.addButton}
-            onPress={() => router.push("/guide/add-student")}
+            style={({ pressed }) => [
+              styles.addButton,
+              pressed && styles.pressed,
+            ]}
+            onPress={() =>
+              router.push("/guide/add-student")
+            }
           >
-            <Text style={styles.addButtonText}>+ Add Student</Text>
+            <Ionicons
+              name="person-add-outline"
+              size={19}
+              color="#FFFFFF"
+            />
+
+            <Text style={styles.addButtonText}>
+              Add Student
+            </Text>
           </Pressable>
         </View>
       ) : (
         <>
-          <Text style={styles.count}>
-            {students.length} {students.length === 1 ? "Student" : "Students"}
-          </Text>
+          {/* =================================================
+              STUDENT LIST
+          ================================================= */}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              Assigned Students
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Students currently assigned to you
+            </Text>
+          </View>
 
           {students.map((student) => (
-            <View key={student.id} style={styles.studentCard}>
-              <Text style={styles.studentName}>{student.studentName}</Text>
+            <View
+              key={student.id}
+              style={styles.studentCard}
+            >
+              {/* Card Top */}
+              <View style={styles.cardTop}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {student.studentName
+                      ?.charAt(0)
+                      .toUpperCase() || "S"}
+                  </Text>
+                </View>
 
-              <View style={styles.infoSection}>
-                <Text style={styles.label}>Email</Text>
+                <View style={styles.studentHeader}>
+                  <Text
+                    style={styles.studentName}
+                    numberOfLines={1}
+                  >
+                    {student.studentName}
+                  </Text>
 
-                <Text style={styles.value}>{student.studentEmail}</Text>
+                  <View style={styles.classBadge}>
+                    <Ionicons
+                      name="school-outline"
+                      size={13}
+                      color="#4338CA"
+                    />
+
+                    <Text style={styles.classBadgeText}>
+                      {student.studentClass ||
+                        "Class not specified"}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
-              <View style={styles.infoSection}>
-                <Text style={styles.label}>Class</Text>
+              {/* Email */}
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={17}
+                    color="#6B7280"
+                  />
+                </View>
 
-                <Text style={styles.value}>{student.studentClass}</Text>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>
+                    Email
+                  </Text>
+
+                  <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                  >
+                    {student.studentEmail}
+                  </Text>
+                </View>
               </View>
-
-              <Pressable
-                style={styles.projectsButton}
-                onPress={() => {
-                  console.log("Selected student:", student.studentId);
-
-                  // We'll connect this next.
-                }}
-              >
-                <Text style={styles.projectsButtonText}>View Projects</Text>
-              </Pressable>
             </View>
           ))}
         </>
       )}
+
+      {/* =================================================
+          FOOTER
+      ================================================= */}
+
+      <View style={styles.footer}>
+        <Text style={styles.footerTitle}>
+          ProjectVerse
+        </Text>
+
+        <Text style={styles.footerSubtitle}>
+          Academic Project Management Platform
+        </Text>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  // =====================================================
+  // PAGE
+  // =====================================================
+
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F7FB",
   },
 
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 18,
+    paddingTop: 18,
+    paddingBottom: 35,
   },
 
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    marginTop: 10,
+  // =====================================================
+  // COUNT CARD
+  // =====================================================
+
+  countCard: {
+    minHeight: 82,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#D8E8E6",
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 25,
   },
 
-  subtitle: {
-    fontSize: 15,
+  countIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 15,
+    backgroundColor: "#D5F5F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+
+  countContent: {
+    flex: 1,
+  },
+
+  countNumber: {
+    fontSize: 23,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+
+  countLabel: {
+    fontSize: 12,
     color: "#6B7280",
-    marginTop: 6,
-    marginBottom: 20,
+    marginTop: 1,
   },
 
-  count: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 12,
+  countStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D5F5F2",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 15,
   },
+
+  countStatusText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#0F766E",
+    marginLeft: 4,
+  },
+
+  // =====================================================
+  // SECTION
+  // =====================================================
+
+  sectionHeader: {
+    marginBottom: 14,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#5C5599",
+    marginBottom: 4,
+  },
+
+  sectionSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+
+  // =====================================================
+  // STUDENT CARD
+  // =====================================================
 
   studentCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 15,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#DCDFF0",
+    padding: 17,
+    marginBottom: 13,
+    overflow: "hidden",
+  },
 
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 17,
+  },
 
-    elevation: 2,
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  avatarText: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#4338CA",
+  },
+
+  studentHeader: {
+    flex: 1,
   },
 
   studentName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 15,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
   },
 
-  infoSection: {
-    marginBottom: 12,
-  },
-
-  label: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginBottom: 3,
-  },
-
-  value: {
-    fontSize: 14,
-    color: "#111827",
-  },
-
-  projectsButton: {
-    backgroundColor: "#111827",
-    paddingVertical: 12,
-    borderRadius: 9,
+  classBadge: {
+    flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#EEF0FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
     marginTop: 5,
   },
 
-  projectsButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
+  classBadgeText: {
+    fontSize: 11,
     fontWeight: "600",
+    color: "#4338CA",
+    marginLeft: 4,
   },
+
+  // =====================================================
+  // STUDENT INFO
+  // =====================================================
+
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    padding: 10,
+  },
+
+  infoIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 9,
+  },
+
+  infoContent: {
+    flex: 1,
+  },
+
+  infoLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    marginBottom: 2,
+  },
+
+  infoValue: {
+    fontSize: 13,
+    color: "#374151",
+  },
+
+  // =====================================================
+  // EMPTY STATE
+  // =====================================================
 
   emptyContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 30,
-    marginTop: 15,
+    borderRadius: 18,
+    padding: 28,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#DCDFF0",
+    marginTop: 5,
+  },
+
+  emptyIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 21,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
 
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 8,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 7,
   },
 
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 20,
     color: "#6B7280",
     textAlign: "center",
     marginBottom: 20,
   },
 
   addButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 9,
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: 11,
+    backgroundColor: "#4338CA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   addButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
+    marginLeft: 8,
   },
+
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F7FB",
   },
 
   loadingText: {
     marginTop: 12,
     fontSize: 14,
     color: "#6B7280",
+  },
+
+  // =====================================================
+  // FOOTER
+  // =====================================================
+
+  footer: {
+    alignItems: "center",
+    paddingTop: 99,
+    paddingBottom: 8,
+  },
+
+  footerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#4338CA",
+    marginBottom: 4,
+  },
+
+  footerSubtitle: {
+    fontSize: 11,
+    color: "#9CA3AF",
+  },
+
+  // =====================================================
+  // PRESS
+  // =====================================================
+
+  pressed: {
+    opacity: 0.82,
   },
 });

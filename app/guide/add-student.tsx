@@ -14,11 +14,14 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+
+import { Ionicons } from "@expo/vector-icons";
 
 import { auth, db } from "../../firebase/firebaseConfig";
 
@@ -31,14 +34,32 @@ type Student = {
 
 export default function AddStudent() {
   const [email, setEmail] = useState("");
-  const [student, setStudent] = useState<Student | null>(null);
+  const [student, setStudent] =
+    useState<Student | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  // Search student by email
+  // =====================================================
+  // SEARCH STUDENT
+  // =====================================================
+
   const searchStudent = async () => {
-    if (email.trim() === "") {
-      Alert.alert("Error", "Please enter the student's email.");
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (cleanEmail === "") {
+      Alert.alert(
+        "Email Required",
+        "Please enter the student's email.",
+      );
+      return;
+    }
+
+    if (!cleanEmail.includes("@")) {
+      Alert.alert(
+        "Invalid Email",
+        "Please enter a valid student email.",
+      );
       return;
     }
 
@@ -48,11 +69,12 @@ export default function AddStudent() {
     try {
       const studentQuery = query(
         collection(db, "users"),
-        where("email", "==", email.trim().toLowerCase()),
+        where("email", "==", cleanEmail),
         where("role", "==", "student"),
       );
 
-      const snapshot = await getDocs(studentQuery);
+      const snapshot =
+        await getDocs(studentQuery);
 
       if (snapshot.empty) {
         Alert.alert(
@@ -65,20 +87,22 @@ export default function AddStudent() {
       }
 
       const studentDoc = snapshot.docs[0];
-
       const studentData = studentDoc.data();
 
       setStudent({
         id: studentDoc.id,
-        name: studentData.name,
-        email: studentData.email,
-        class: studentData.class,
+        name: studentData.name || "Unknown Student",
+        email: studentData.email || cleanEmail,
+        class: studentData.class || "Not provided",
       });
     } catch (error) {
-      console.log("Error searching student:", error);
+      console.log(
+        "Error searching student:",
+        error,
+      );
 
       Alert.alert(
-        "Error",
+        "Search Failed",
         "Something went wrong while searching for the student.",
       );
     }
@@ -86,12 +110,18 @@ export default function AddStudent() {
     setLoading(false);
   };
 
-  // Add student under current guide
+  // =====================================================
+  // ADD STUDENT
+  // =====================================================
+
   const addStudent = async () => {
     const guide = auth.currentUser;
 
     if (!guide) {
-      Alert.alert("Error", "Guide is not logged in.");
+      Alert.alert(
+        "Authentication Error",
+        "Guide is not logged in.",
+      );
       return;
     }
 
@@ -102,206 +132,641 @@ export default function AddStudent() {
     setAdding(true);
 
     try {
-      // Unique ID for guide + student relationship
-      const assignmentId = `${guide.uid}_${student.id}`;
+      // Unique relationship ID
+      const assignmentId =
+        `${guide.uid}_${student.id}`;
 
-      await setDoc(doc(db, "guideStudents", assignmentId), {
-        guideId: guide.uid,
-        studentId: student.id,
+      await setDoc(
+        doc(
+          db,
+          "guideStudents",
+          assignmentId,
+        ),
+        {
+          guideId: guide.uid,
+          studentId: student.id,
 
-        studentName: student.name,
-        studentEmail: student.email,
-        studentClass: student.class || "Not provided",
+          studentName: student.name,
+          studentEmail: student.email,
+          studentClass:
+            student.class || "Not provided",
 
-        createdAt: serverTimestamp(),
-      });
-
-      Alert.alert(
-        "Success",
-        `${student.name} has been added to your students.`,
+          createdAt: serverTimestamp(),
+        },
       );
 
-      setEmail("");
-      setStudent(null);
+      Alert.alert(
+        "Student Added",
+        `${student.name} has been added to your students.`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setEmail("");
+              setStudent(null);
+            },
+          },
+        ],
+      );
     } catch (error: any) {
-      console.log("Error adding student:", error);
-      console.log("Error code:", error.code);
-      console.log("Error message:", error.message);
+      console.log(
+        "Error adding student:",
+        error,
+      );
+
+      console.log(
+        "Error code:",
+        error.code,
+      );
+
+      console.log(
+        "Error message:",
+        error.message,
+      );
 
       Alert.alert(
         "Add Student Failed",
-        error.message || "Something went wrong while adding the student.",
+        error.message ||
+          "Something went wrong while adding the student.",
       );
     }
 
     setAdding(false);
   };
 
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Add Student</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* =================================================
+          SEARCH CARD
+      ================================================= */}
 
-      <Text style={styles.subtitle}>
-        Add a student under your guidance using their registered email.
-      </Text>
+      <View style={styles.searchCard}>
+        <View style={styles.iconContainer}>
+          <Ionicons
+            name="person-add-outline"
+            size={27}
+            color="#4338CA"
+          />
+        </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Student Email"
-        placeholderTextColor="#777"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
+        <View style={styles.searchHeading}>
+          <Text style={styles.cardTitle}>
+            Add a Student
+          </Text>
 
-      <Pressable
-        style={styles.searchButton}
-        onPress={searchStudent}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.buttonText}>Search Student</Text>
-        )}
-      </Pressable>
+          <Text style={styles.cardSubtitle}>
+            Search for a registered student using
+            their email address.
+          </Text>
+        </View>
+
+        {/* =================================================
+            EMAIL INPUT
+        ================================================= */}
+
+        <Text style={styles.inputLabel}>
+          Student Email
+        </Text>
+
+        <View style={styles.inputContainer}>
+          <Ionicons
+            name="mail-outline"
+            size={19}
+            color="#9CA3AF"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="student@example.com"
+            placeholderTextColor="#9CA3AF"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          {email.length > 0 && (
+            <Pressable
+              onPress={() => {
+                setEmail("");
+                setStudent(null);
+              }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={19}
+                color="#9CA3AF"
+              />
+            </Pressable>
+          )}
+        </View>
+
+        {/* =================================================
+            SEARCH BUTTON
+        ================================================= */}
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.searchButton,
+            pressed && styles.pressed,
+            loading && styles.disabledButton,
+          ]}
+          onPress={searchStudent}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator
+              color="#FFFFFF"
+              size="small"
+            />
+          ) : (
+            <>
+              <Ionicons
+                name="search-outline"
+                size={18}
+                color="#FFFFFF"
+              />
+
+              <Text style={styles.buttonText}>
+                Search Student
+              </Text>
+            </>
+          )}
+        </Pressable>
+      </View>
+
+      {/* =================================================
+          STUDENT FOUND
+      ================================================= */}
 
       {student && (
         <View style={styles.studentCard}>
-          <Text style={styles.cardTitle}>Student Found</Text>
+          {/* Student Header */}
 
-          <View style={styles.infoSection}>
-            <Text style={styles.label}>Name</Text>
-            <Text style={styles.value}>{student.name}</Text>
+          <View style={styles.studentHeader}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {student.name
+                  ?.charAt(0)
+                  .toUpperCase() || "S"}
+              </Text>
+            </View>
+
+            <View style={styles.studentHeaderInfo}>
+              <Text style={styles.studentName}>
+                {student.name}
+              </Text>
+
+              <View style={styles.foundBadge}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={13}
+                  color="#0F766E"
+                />
+
+                <Text style={styles.foundText}>
+                  Student Found
+                </Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.infoSection}>
-            <Text style={styles.label}>Email</Text>
-            <Text style={styles.value}>{student.email}</Text>
+          {/* =================================================
+              STUDENT DETAILS
+          ================================================= */}
+
+          <View style={styles.detailsContainer}>
+            {/* Email */}
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIcon}>
+                <Ionicons
+                  name="mail-outline"
+                  size={17}
+                  color="#4338CA"
+                />
+              </View>
+
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>
+                  Email
+                </Text>
+
+                <Text
+                  style={styles.detailValue}
+                  numberOfLines={1}
+                >
+                  {student.email}
+                </Text>
+              </View>
+            </View>
+
+            {/* Class */}
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIcon}>
+                <Ionicons
+                  name="school-outline"
+                  size={17}
+                  color="#4338CA"
+                />
+              </View>
+
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>
+                  Class
+                </Text>
+
+                <Text style={styles.detailValue}>
+                  {student.class}
+                </Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.infoSection}>
-            <Text style={styles.label}>Class</Text>
-            <Text style={styles.value}>{student.class}</Text>
-          </View>
+          {/* =================================================
+              ADD BUTTON
+          ================================================= */}
 
           <Pressable
-            style={styles.addButton}
+            style={({ pressed }) => [
+              styles.addButton,
+              pressed && styles.pressed,
+              adding && styles.disabledButton,
+            ]}
             onPress={addStudent}
             disabled={adding}
           >
             {adding ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator
+                color="#FFFFFF"
+                size="small"
+              />
             ) : (
-              <Text style={styles.buttonText}>Add Student</Text>
+              <>
+                <Ionicons
+                  name="person-add-outline"
+                  size={18}
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.buttonText}>
+                  Add Student
+                </Text>
+              </>
             )}
           </Pressable>
         </View>
       )}
 
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>Back</Text>
-      </Pressable>
-    </View>
+      {/* =================================================
+          INFORMATION CARD
+      ================================================= */}
+
+      {!student && (
+        <View style={styles.infoCard}>
+          <View style={styles.infoIcon}>
+            <Ionicons
+              name="information-circle-outline"
+              size={23}
+              color="#4338CA"
+            />
+          </View>
+
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>
+              How it works
+            </Text>
+
+            <Text style={styles.infoText}>
+              Enter the email address used by the
+              student to register with ProjectVerse.
+              Once found, you can add the student
+              under your guidance.
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* =================================================
+          FOOTER
+      ================================================= */}
+
+      <View style={styles.footer}>
+        <Text style={styles.footerTitle}>
+          ProjectVerse
+        </Text>
+
+        <Text style={styles.footerSubtitle}>
+          Academic Project Management Platform
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
+// ======================================================
+// STYLES
+// ======================================================
+
 const styles = StyleSheet.create({
+  // =====================================================
+  // PAGE
+  // =====================================================
+
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-    padding: 20,
+    backgroundColor: "#F5F7FB",
   },
 
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    marginTop: 20,
+  content: {
+    padding: 18,
+    paddingBottom: 35,
   },
 
-  subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    marginTop: 6,
-    marginBottom: 25,
-    lineHeight: 22,
-  },
+  // =====================================================
+  // SEARCH CARD
+  // =====================================================
 
-  input: {
+  searchCard: {
     backgroundColor: "#FFFFFF",
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#111827",
-    marginBottom: 15,
+    borderColor: "#DCDFF0",
+    padding: 18,
   },
 
-  searchButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 14,
-    borderRadius: 10,
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 15,
+    backgroundColor: "#D5F5F2",
     alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
   },
 
-  studentCard: {
-    backgroundColor: "#FFFFFF",
-    marginTop: 25,
-    padding: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+  searchHeading: {
+    marginBottom: 20,
   },
 
   cardTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 18,
+    fontWeight: "700",
+    color: "#1F2937",
   },
 
-  infoSection: {
-    marginBottom: 14,
-  },
-
-  label: {
-    fontSize: 12,
-    fontWeight: "600",
+  cardSubtitle: {
+    fontSize: 13,
+    lineHeight: 20,
     color: "#6B7280",
-    marginBottom: 3,
+    marginTop: 5,
   },
 
-  value: {
-    fontSize: 15,
-    color: "#111827",
+  // =====================================================
+  // INPUT
+  // =====================================================
+
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#374151",
+    marginBottom: 7,
+  },
+
+  inputContainer: {
+    height: 48,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DCDFF0",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 13,
+  },
+
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1F2937",
+    marginLeft: 9,
+    paddingVertical: 0,
+  },
+
+  // =====================================================
+  // BUTTONS
+  // =====================================================
+
+  searchButton: {
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: "#4338CA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 13,
   },
 
   addButton: {
-    backgroundColor: "#16A34A",
-    paddingVertical: 14,
-    borderRadius: 10,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: "#4338CA",
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 5,
+    justifyContent: "center",
+    marginTop: 16,
   },
 
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "bold",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 8,
   },
 
-  backButton: {
-    marginTop: 20,
+  disabledButton: {
+    opacity: 0.65,
+  },
+
+  pressed: {
+    opacity: 0.82,
+  },
+
+  // =====================================================
+  // STUDENT CARD
+  // =====================================================
+
+  studentCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DCDFF0",
+    padding: 18,
+    marginTop: 14,
+  },
+
+  studentHeader: {
+    flexDirection: "row",
     alignItems: "center",
   },
 
-  backButtonText: {
-    color: "#2563EB",
-    fontSize: 15,
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  avatarText: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#4338CA",
+  },
+
+  studentHeaderInfo: {
+    flex: 1,
+  },
+
+  studentName: {
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+
+  foundBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#D5F5F2",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+    marginTop: 6,
+  },
+
+  foundText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#0F766E",
+    marginLeft: 4,
+  },
+
+  // =====================================================
+  // STUDENT DETAILS
+  // =====================================================
+
+  detailsContainer: {
+    marginTop: 18,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  detailIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  detailContent: {
+    flex: 1,
+  },
+
+  detailLabel: {
+    fontSize: 10,
     fontWeight: "600",
+    color: "#9CA3AF",
+    marginBottom: 2,
+  },
+
+  detailValue: {
+    fontSize: 13,
+    color: "#374151",
+  },
+
+  // =====================================================
+  // INFO CARD
+  // =====================================================
+
+  infoCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#D8E8E6",
+    padding: 16,
+    marginTop: 14,
+    flexDirection: "row",
+  },
+
+  infoIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#D5F5F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 11,
+  },
+
+  infoContent: {
+    flex: 1,
+  },
+
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+
+  infoText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#6B7280",
+  },
+
+  // =====================================================
+  // FOOTER
+  // =====================================================
+
+  footer: {
+    alignItems: "center",
+    paddingTop: 25,
+    paddingBottom: 8,
+  },
+
+  footerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#4338CA",
+    marginBottom: 4,
+  },
+
+  footerSubtitle: {
+    fontSize: 11,
+    color: "#9CA3AF",
   },
 });

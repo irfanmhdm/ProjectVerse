@@ -30,12 +30,12 @@ export default function GuideDashboard() {
           </Text>
 
           <Text style={styles.greeting}>
-            Welcome
+            Welcome back, <Text style={styles.guideName}>
+             Guide
+          </Text>
           </Text>
 
-          <Text style={styles.guideName}>
-            back, Guide
-          </Text>
+          
 
           <Text style={styles.heroDescription}>
             Manage your students, review projects,
@@ -363,19 +363,19 @@ const styles = StyleSheet.create({
   },
 
   greeting: {
-    fontSize: 28,
-    lineHeight: 35,
-    fontWeight: "700",
-    color: "#579DAF",
-  },
+  fontSize: 28,
+  lineHeight: 35,
+  fontWeight: "700",
+  color: "#38B2AC", // Mint
+},
 
-  guideName: {
-    fontSize: 31,
-    lineHeight: 39,
-    fontWeight: "700",
-    color: "#574BC6",
-    marginBottom: 14,
-  },
+guideName: {
+  fontSize: 31,
+  lineHeight: 39,
+  fontWeight: "700",
+  color: "#574BC6", // Indigo
+  marginBottom: 14,
+},
 
   heroDescription: {
     fontSize: 13,
