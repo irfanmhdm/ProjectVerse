@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from services.firebase_service import db
 
@@ -19,7 +19,7 @@ def save_processed_project(
         "processedText": processed_text,
         "tfidfFeatures": features,
         "tfidfVector": tfidf_vector,
-        "processedAt": datetime.utcnow(),
+        "processedAt": datetime.now(timezone.utc),
     }
 
     db.collection("processed_projects").document(
