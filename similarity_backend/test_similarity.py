@@ -1,6 +1,6 @@
 from services.pdf_extractor import extract_text_from_pdf
 from services.text_processor import preprocess_text
-from services.tfidf_processor import generate_tfidf
+from similarity_backend.services.tfidf_service import generate_tfidf
 from services.similarity import calculate_similarity
 
 
