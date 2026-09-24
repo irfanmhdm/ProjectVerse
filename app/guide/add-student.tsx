@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import {
   collection,
+    deleteDoc,
   getDocs,
   doc,
   query,
@@ -34,8 +35,7 @@ type Student = {
 
 export default function AddStudent() {
   const [email, setEmail] = useState("");
-  const [student, setStudent] =
-    useState<Student | null>(null);
+  const [student, setStudent] = useState<Student | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -48,18 +48,12 @@ export default function AddStudent() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (cleanEmail === "") {
-      Alert.alert(
-        "Email Required",
-        "Please enter the student's email.",
-      );
+      Alert.alert("Email Required", "Please enter the student's email.");
       return;
     }
 
     if (!cleanEmail.includes("@")) {
-      Alert.alert(
-        "Invalid Email",
-        "Please enter a valid student email.",
-      );
+      Alert.alert("Invalid Email", "Please enter a valid student email.");
       return;
     }
 
@@ -73,8 +67,7 @@ export default function AddStudent() {
         where("role", "==", "student"),
       );
 
-      const snapshot =
-        await getDocs(studentQuery);
+      const snapshot = await getDocs(studentQuery);
 
       if (snapshot.empty) {
         Alert.alert(
@@ -96,10 +89,7 @@ export default function AddStudent() {
         class: studentData.class || "Not provided",
       });
     } catch (error) {
-      console.log(
-        "Error searching student:",
-        error,
-      );
+      console.log("Error searching student:", error);
 
       Alert.alert(
         "Search Failed",
@@ -118,10 +108,7 @@ export default function AddStudent() {
     const guide = auth.currentUser;
 
     if (!guide) {
-      Alert.alert(
-        "Authentication Error",
-        "Guide is not logged in.",
-      );
+      Alert.alert("Authentication Error", "Guide is not logged in.");
       return;
     }
 
@@ -132,28 +119,64 @@ export default function AddStudent() {
     setAdding(true);
 
     try {
-      // Unique relationship ID
-      const assignmentId =
-        `${guide.uid}_${student.id}`;
+      // =================================================
+      // CHECK IF STUDENT IS ALREADY ASSIGNED
+      // =================================================
 
-      await setDoc(
-        doc(
-          db,
-          "guideStudents",
-          assignmentId,
-        ),
-        {
-          guideId: guide.uid,
-          studentId: student.id,
-
-          studentName: student.name,
-          studentEmail: student.email,
-          studentClass:
-            student.class || "Not provided",
-
-          createdAt: serverTimestamp(),
-        },
+      const existingAssignmentQuery = query(
+        collection(db, "guideStudents"),
+        where("studentId", "==", student.id),
       );
+
+      const existingAssignmentSnapshot = await getDocs(existingAssignmentQuery);
+
+      // =================================================
+      // STUDENT ALREADY ASSIGNED
+      // =================================================
+
+      if (!existingAssignmentSnapshot.empty) {
+        const existingAssignment = existingAssignmentSnapshot.docs[0].data();
+
+        // Same guide
+        if (existingAssignment.guideId === guide.uid) {
+          Alert.alert(
+            "Already Added",
+            `${student.name} is already assigned to you.`,
+          );
+        }
+
+        // Different guide
+        else {
+          Alert.alert(
+            "Student Already Assigned",
+            `${student.name} is already assigned to another guide.`,
+          );
+        }
+
+        setAdding(false);
+        return;
+      }
+
+      // =================================================
+      // CREATE NEW ASSIGNMENT
+      // =================================================
+
+      const assignmentId = `${guide.uid}_${student.id}`;
+
+      await setDoc(doc(db, "guideStudents", assignmentId), {
+        guideId: guide.uid,
+        studentId: student.id,
+
+        studentName: student.name,
+        studentEmail: student.email,
+        studentClass: student.class || "Not provided",
+
+        createdAt: serverTimestamp(),
+      });
+
+      // =================================================
+      // SUCCESS
+      // =================================================
 
       Alert.alert(
         "Student Added",
@@ -169,30 +192,98 @@ export default function AddStudent() {
         ],
       );
     } catch (error: any) {
-      console.log(
-        "Error adding student:",
-        error,
-      );
+      console.log("Error adding student:", error);
 
-      console.log(
-        "Error code:",
-        error.code,
-      );
+      console.log("Error code:", error.code);
 
-      console.log(
-        "Error message:",
-        error.message,
-      );
+      console.log("Error message:", error.message);
 
       Alert.alert(
         "Add Student Failed",
-        error.message ||
-          "Something went wrong while adding the student.",
+        error.message || "Something went wrong while adding the student.",
       );
+    } finally {
+      setAdding(false);
     }
-
-    setAdding(false);
   };
+
+  // =====================================================
+// REMOVE STUDENT
+// =====================================================
+
+const removeStudent = async (studentId: string) => {
+  const guide = auth.currentUser;
+
+  if (!guide) {
+    Alert.alert(
+      "Authentication Error",
+      "Guide is not logged in.",
+    );
+    return;
+  }
+
+  Alert.alert(
+    "Remove Student",
+    "Are you sure you want to remove this student from your students?",
+    [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Remove",
+        style: "destructive",
+
+        onPress: async () => {
+          try {
+            // -----------------------------------------
+            // Assignment document ID
+            // -----------------------------------------
+
+            const assignmentId =
+              `${guide.uid}_${studentId}`;
+
+            // -----------------------------------------
+            // Delete assignment
+            // -----------------------------------------
+
+            await deleteDoc(
+              doc(
+                db,
+                "guideStudents",
+                assignmentId,
+              ),
+            );
+
+            Alert.alert(
+              "Student Removed",
+              "The student has been removed from your students.",
+            );
+
+            // -----------------------------------------
+            // Reload assigned students
+            // -----------------------------------------
+
+            await loadStudents();
+
+          } catch (error: any) {
+
+            console.log(
+              "Error removing student:",
+              error,
+            );
+
+            Alert.alert(
+              "Remove Failed",
+              error.message ||
+                "Something went wrong while removing the student.",
+            );
+          }
+        },
+      },
+    ],
+  );
+};
 
   // =====================================================
   // UI
@@ -211,21 +302,14 @@ export default function AddStudent() {
 
       <View style={styles.searchCard}>
         <View style={styles.iconContainer}>
-          <Ionicons
-            name="person-add-outline"
-            size={27}
-            color="#4338CA"
-          />
+          <Ionicons name="person-add-outline" size={27} color="#4338CA" />
         </View>
 
         <View style={styles.searchHeading}>
-          <Text style={styles.cardTitle}>
-            Add a Student
-          </Text>
+          <Text style={styles.cardTitle}>Add a Student</Text>
 
           <Text style={styles.cardSubtitle}>
-            Search for a registered student using
-            their email address.
+            Search for a registered student using their email address.
           </Text>
         </View>
 
@@ -233,16 +317,10 @@ export default function AddStudent() {
             EMAIL INPUT
         ================================================= */}
 
-        <Text style={styles.inputLabel}>
-          Student Email
-        </Text>
+        <Text style={styles.inputLabel}>Student Email</Text>
 
         <View style={styles.inputContainer}>
-          <Ionicons
-            name="mail-outline"
-            size={19}
-            color="#9CA3AF"
-          />
+          <Ionicons name="mail-outline" size={19} color="#9CA3AF" />
 
           <TextInput
             style={styles.input}
@@ -262,11 +340,7 @@ export default function AddStudent() {
                 setStudent(null);
               }}
             >
-              <Ionicons
-                name="close-circle"
-                size={19}
-                color="#9CA3AF"
-              />
+              <Ionicons name="close-circle" size={19} color="#9CA3AF" />
             </Pressable>
           )}
         </View>
@@ -285,21 +359,12 @@ export default function AddStudent() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator
-              color="#FFFFFF"
-              size="small"
-            />
+            <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <>
-              <Ionicons
-                name="search-outline"
-                size={18}
-                color="#FFFFFF"
-              />
+              <Ionicons name="search-outline" size={18} color="#FFFFFF" />
 
-              <Text style={styles.buttonText}>
-                Search Student
-              </Text>
+              <Text style={styles.buttonText}>Search Student</Text>
             </>
           )}
         </Pressable>
@@ -316,16 +381,12 @@ export default function AddStudent() {
           <View style={styles.studentHeader}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {student.name
-                  ?.charAt(0)
-                  .toUpperCase() || "S"}
+                {student.name?.charAt(0).toUpperCase() || "S"}
               </Text>
             </View>
 
             <View style={styles.studentHeaderInfo}>
-              <Text style={styles.studentName}>
-                {student.name}
-              </Text>
+              <Text style={styles.studentName}>{student.name}</Text>
 
               <View style={styles.foundBadge}>
                 <Ionicons
@@ -334,9 +395,7 @@ export default function AddStudent() {
                   color="#0F766E"
                 />
 
-                <Text style={styles.foundText}>
-                  Student Found
-                </Text>
+                <Text style={styles.foundText}>Student Found</Text>
               </View>
             </View>
           </View>
@@ -350,22 +409,13 @@ export default function AddStudent() {
 
             <View style={styles.detailRow}>
               <View style={styles.detailIcon}>
-                <Ionicons
-                  name="mail-outline"
-                  size={17}
-                  color="#4338CA"
-                />
+                <Ionicons name="mail-outline" size={17} color="#4338CA" />
               </View>
 
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>
-                  Email
-                </Text>
+                <Text style={styles.detailLabel}>Email</Text>
 
-                <Text
-                  style={styles.detailValue}
-                  numberOfLines={1}
-                >
+                <Text style={styles.detailValue} numberOfLines={1}>
                   {student.email}
                 </Text>
               </View>
@@ -375,21 +425,13 @@ export default function AddStudent() {
 
             <View style={styles.detailRow}>
               <View style={styles.detailIcon}>
-                <Ionicons
-                  name="school-outline"
-                  size={17}
-                  color="#4338CA"
-                />
+                <Ionicons name="school-outline" size={17} color="#4338CA" />
               </View>
 
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>
-                  Class
-                </Text>
+                <Text style={styles.detailLabel}>Class</Text>
 
-                <Text style={styles.detailValue}>
-                  {student.class}
-                </Text>
+                <Text style={styles.detailValue}>{student.class}</Text>
               </View>
             </View>
           </View>
@@ -408,21 +450,12 @@ export default function AddStudent() {
             disabled={adding}
           >
             {adding ? (
-              <ActivityIndicator
-                color="#FFFFFF"
-                size="small"
-              />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Ionicons
-                  name="person-add-outline"
-                  size={18}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
 
-                <Text style={styles.buttonText}>
-                  Add Student
-                </Text>
+                <Text style={styles.buttonText}>Add Student</Text>
               </>
             )}
           </Pressable>
@@ -444,15 +477,12 @@ export default function AddStudent() {
           </View>
 
           <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>
-              How it works
-            </Text>
+            <Text style={styles.infoTitle}>How it works</Text>
 
             <Text style={styles.infoText}>
-              Enter the email address used by the
-              student to register with ProjectVerse.
-              Once found, you can add the student
-              under your guidance.
+              Enter the email address used by the student to register with
+              ProjectVerse. Once found, you can add the student under your
+              guidance.
             </Text>
           </View>
         </View>
@@ -463,9 +493,7 @@ export default function AddStudent() {
       ================================================= */}
 
       <View style={styles.footer}>
-        <Text style={styles.footerTitle}>
-          ProjectVerse
-        </Text>
+        <Text style={styles.footerTitle}>ProjectVerse</Text>
 
         <Text style={styles.footerSubtitle}>
           Academic Project Management Platform

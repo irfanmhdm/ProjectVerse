@@ -2,12 +2,24 @@ import {
   collection,
   doc,
   getDocs,
-  query,
   updateDoc,
-  where,
 } from "firebase/firestore";
 
 import { db } from "../firebase/firebaseConfig";
+
+// =====================================================
+// TYPES
+// =====================================================
+
+export type Guide = {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  status?: "pending" | "approved" | "rejected";
+  createdAt?: any;
+};
 
 // =====================================================
 // GET ADMIN DASHBOARD COUNTS
@@ -15,9 +27,9 @@ import { db } from "../firebase/firebaseConfig";
 
 export const getAdminDashboardCounts = async () => {
   try {
-    // -----------------------------------------------
-    // GET USERS
-    // -----------------------------------------------
+    // =================================================
+    // GET ALL USERS
+    // =================================================
 
     const usersSnapshot = await getDocs(
       collection(db, "users")
@@ -29,53 +41,87 @@ export const getAdminDashboardCounts = async () => {
     usersSnapshot.forEach((userDoc) => {
       const user = userDoc.data();
 
-      // Students can register directly
+      // -----------------------------------------------
+      // STUDENTS
+      // -----------------------------------------------
+
       if (user.role === "student") {
         totalStudents++;
       }
 
-      // Only approved guides count as guides
+      // -----------------------------------------------
+      // GUIDES
+      // -----------------------------------------------
+      //
+      // Only APPROVED guides should be counted.
+      //
+      // New records:
+      // approvalStatus: "approved"
+      //
+      // Older records may have:
+      // status: "approved"
+      //
+      // We support both so existing approved guides
+      // don't disappear.
+      // -----------------------------------------------
+
+      const guideApprovalStatus =
+        user.approvalStatus ?? user.status;
+
       if (
         user.role === "guide" &&
-        user.approvalStatus === "approved"
+        guideApprovalStatus === "approved"
       ) {
         totalGuides++;
       }
     });
 
-    // -----------------------------------------------
-    // SUBMITTED PROJECTS
-    // -----------------------------------------------
+    // =================================================
+    // GET PROJECTS
+    // =================================================
 
-    const submittedQuery = query(
-      collection(db, "projects"),
-      where("status", "==", "submitted")
+    const projectsSnapshot = await getDocs(
+      collection(db, "projects")
     );
 
-    const submittedSnapshot =
-      await getDocs(submittedQuery);
+    let submittedProjects = 0;
+    let approvedProjects = 0;
 
-    // -----------------------------------------------
-    // APPROVED PROJECTS
-    // -----------------------------------------------
+    projectsSnapshot.forEach((projectDoc) => {
+      const project = projectDoc.data();
 
-    const approvedQuery = query(
-      collection(db, "projects"),
-      where("approvalStatus", "==", "approved")
-    );
+      // Submitted projects
+      if (project.status === "submitted") {
+        submittedProjects++;
+      }
 
-    const approvedSnapshot =
-      await getDocs(approvedQuery);
+      // Approved projects
+      if (project.approvalStatus === "approved") {
+        approvedProjects++;
+      }
+    });
 
-    // -----------------------------------------------
-    // RETURN COUNTS
-    // -----------------------------------------------
+    // =================================================
+    // DEBUG LOG
+    // =================================================
+
+    console.log("=================================");
+    console.log("ADMIN DASHBOARD COUNTS");
+    console.log("Students:", totalStudents);
+    console.log("Approved Guides:", totalGuides);
+    console.log("Submitted Projects:", submittedProjects);
+    console.log("Approved Projects:", approvedProjects);
+    console.log("=================================");
+
+    // =================================================
+    // RETURN
+    // =================================================
 
     return {
       totalStudents,
       totalGuides,
-      submittedProjects: submittedSnapshot.size,
-      approvedProjects: approvedSnapshot.size,
+      submittedProjects,
+      approvedProjects,
     };
 
   } catch (error) {
@@ -93,30 +139,57 @@ export const getAdminDashboardCounts = async () => {
 // GET PENDING GUIDE REQUESTS
 // =====================================================
 
-export const getPendingGuides = async () => {
+export const getPendingGuides = async (): Promise<Guide[]> => {
   try {
+    // =================================================
+    // GET ALL USERS
+    // =================================================
 
-    const pendingQuery = query(
-      collection(db, "users"),
-
-      // User must be a guide
-      where("role", "==", "guide"),
-
-      // Guide must be waiting for admin approval
-      where("approvalStatus", "==", "pending")
+    const usersSnapshot = await getDocs(
+      collection(db, "users")
     );
 
-    const snapshot = await getDocs(pendingQuery);
+    // =================================================
+    // FILTER ONLY PENDING GUIDES
+    // =================================================
+
+    const pendingGuides: Guide[] = [];
+
+    usersSnapshot.forEach((userDoc) => {
+      const user = userDoc.data();
+
+      // New guide registration should have:
+      //
+      // role: "guide"
+      // approvalStatus: "pending"
+      //
+
+      if (
+        user.role === "guide" &&
+        user.approvalStatus === "pending"
+      ) {
+        pendingGuides.push({
+          id: userDoc.id,
+          ...user,
+        });
+      }
+    });
+
+    // =================================================
+    // DEBUG
+    // =================================================
 
     console.log(
       "Pending guide requests:",
-      snapshot.size
+      pendingGuides.length
     );
 
-    return snapshot.docs.map((guideDoc) => ({
-      id: guideDoc.id,
-      ...guideDoc.data(),
-    }));
+    console.log(
+      "Pending guides:",
+      pendingGuides
+    );
+
+    return pendingGuides;
 
   } catch (error) {
     console.error(
@@ -138,6 +211,9 @@ export const updateGuideStatus = async (
   status: "approved" | "rejected"
 ) => {
   try {
+    // =================================================
+    // GUIDE DOCUMENT
+    // =================================================
 
     const guideRef = doc(
       db,
@@ -145,12 +221,16 @@ export const updateGuideStatus = async (
       guideId
     );
 
+    // =================================================
+    // UPDATE APPROVAL STATUS
+    // =================================================
+
     await updateDoc(guideRef, {
       approvalStatus: status,
     });
 
     console.log(
-      `Guide ${guideId} ${status}`
+      `Guide ${guideId} approval status updated to: ${status}`
     );
 
     return true;

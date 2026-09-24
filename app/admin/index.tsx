@@ -21,7 +21,6 @@ import {
 
 import { db, auth } from "../../firebase/firebaseConfig";
 
-
 // =====================================================
 // TYPES
 // =====================================================
@@ -34,13 +33,11 @@ type Guide = {
   status?: string;
 };
 
-
 // =====================================================
 // ADMIN DASHBOARD
 // =====================================================
 
 export default function AdminDashboard() {
-
   const router = useRouter();
 
   const [totalStudents, setTotalStudents] = useState(0);
@@ -53,30 +50,24 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [processingGuide, setProcessingGuide] = useState<string | null>(null);
 
-
   // =====================================================
   // LOAD DASHBOARD DATA
   // =====================================================
 
   const loadDashboard = async () => {
-
     try {
-
       setLoading(true);
 
       // -----------------------------------------------
       // GET USERS
       // -----------------------------------------------
 
-      const usersSnapshot = await getDocs(
-        collection(db, "users")
-      );
+      const usersSnapshot = await getDocs(collection(db, "users"));
 
       let students = 0;
       let guides = 0;
 
       usersSnapshot.forEach((userDoc) => {
-
         const user = userDoc.data();
 
         if (user.role === "student") {
@@ -86,12 +77,10 @@ export default function AdminDashboard() {
         if (user.role === "guide") {
           guides++;
         }
-
       });
 
       setTotalStudents(students);
       setTotalGuides(guides);
-
 
       // -----------------------------------------------
       // SUBMITTED PROJECTS
@@ -99,15 +88,12 @@ export default function AdminDashboard() {
 
       const submittedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "submitted")
+        where("status", "==", "submitted"),
       );
 
-      const submittedSnapshot = await getDocs(
-        submittedQuery
-      );
+      const submittedSnapshot = await getDocs(submittedQuery);
 
       setSubmittedProjects(submittedSnapshot.size);
-
 
       // -----------------------------------------------
       // APPROVED PROJECTS
@@ -115,15 +101,12 @@ export default function AdminDashboard() {
 
       const approvedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "approved")
+        where("status", "==", "approved"),
       );
 
-      const approvedSnapshot = await getDocs(
-        approvedQuery
-      );
+      const approvedSnapshot = await getDocs(approvedQuery);
 
       setApprovedProjects(approvedSnapshot.size);
-
 
       // -----------------------------------------------
       // PENDING GUIDES
@@ -132,544 +115,298 @@ export default function AdminDashboard() {
       const pendingGuideQuery = query(
         collection(db, "users"),
         where("role", "==", "guide"),
-        where("status", "==", "pending")
+        where("approvalStatus", "==", "pending"),
       );
 
-      const pendingGuideSnapshot = await getDocs(
-        pendingGuideQuery
-      );
+      const pendingGuideSnapshot = await getDocs(pendingGuideQuery);
 
       const guidesList: Guide[] = [];
 
       pendingGuideSnapshot.forEach((guideDoc) => {
-
         guidesList.push({
           id: guideDoc.id,
           ...guideDoc.data(),
         } as Guide);
-
       });
 
       setPendingGuides(guidesList);
-
     } catch (error) {
+      console.error("Error loading admin dashboard:", error);
 
-      console.error(
-        "Error loading admin dashboard:",
-        error
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to load admin dashboard."
-      );
-
+      Alert.alert("Error", "Unable to load admin dashboard.");
     } finally {
-
       setLoading(false);
-
     }
-
   };
-
 
   // =====================================================
   // LOAD WHEN SCREEN OPENS
   // =====================================================
 
   useEffect(() => {
-
     loadDashboard();
-
   }, []);
-
 
   // =====================================================
   // APPROVE GUIDE
   // =====================================================
 
   const approveGuide = async (guideId: string) => {
-
     try {
-
       setProcessingGuide(guideId);
 
-      await updateDoc(
-        doc(db, "users", guideId),
-        {
-          status: "approved",
-        }
-      );
+      await updateDoc(doc(db, "users", guideId), {
+        approvalStatus: "approved",
+      });
 
-      Alert.alert(
-        "Guide Approved",
-        "The guide can now log in."
-      );
+      Alert.alert("Guide Approved", "The guide can now log in.");
 
+      // Reload dashboard and pending requests
       await loadDashboard();
-
     } catch (error) {
+      console.error("Error approving guide:", error);
 
-      console.error(
-        "Error approving guide:",
-        error
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to approve guide."
-      );
-
+      Alert.alert("Error", "Unable to approve guide.");
     } finally {
-
       setProcessingGuide(null);
-
     }
-
   };
-
 
   // =====================================================
   // REJECT GUIDE
   // =====================================================
 
   const rejectGuide = async (guideId: string) => {
-
     try {
-
       setProcessingGuide(guideId);
 
-      await updateDoc(
-        doc(db, "users", guideId),
-        {
-          status: "rejected",
-        }
-      );
+      await updateDoc(doc(db, "users", guideId), {
+        approvalStatus: "rejected",
+      });
 
-      Alert.alert(
-        "Guide Rejected",
-        "The guide request has been rejected."
-      );
+      Alert.alert("Guide Rejected", "The guide request has been rejected.");
 
+      // Reload dashboard and pending requests
       await loadDashboard();
-
     } catch (error) {
+      console.error("Error rejecting guide:", error);
 
-      console.error(
-        "Error rejecting guide:",
-        error
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to reject guide."
-      );
-
+      Alert.alert("Error", "Unable to reject guide.");
     } finally {
-
       setProcessingGuide(null);
-
     }
-
   };
-
-
   // =====================================================
   // LOGOUT
   // =====================================================
 
   const handleLogout = async () => {
-
     try {
-
       await auth.signOut();
 
       router.replace("/login");
-
     } catch (error) {
-
-      console.error(
-        "Logout error:",
-        error
-      );
-
+      console.error("Logout error:", error);
     }
-
   };
-
 
   // =====================================================
   // LOADING
   // =====================================================
 
   if (loading) {
-
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4338CA" />
 
-        <ActivityIndicator
-          size="large"
-          color="#4338CA"
-        />
-
-        <Text style={styles.loadingText}>
-          Loading dashboard...
-        </Text>
-
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
-
   }
-
 
   // =====================================================
   // UI
   // =====================================================
 
   return (
-
     <View style={styles.container}>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-
         {/* ============================================
             HEADER
         ============================================ */}
 
         <View style={styles.header}>
-
           <View>
+            <Text style={styles.title}>Admin Dashboard</Text>
 
-            <Text style={styles.title}>
-              Admin Dashboard
-            </Text>
-
-            <Text style={styles.subtitle}>
-              Manage ProjectVerse
-            </Text>
-
+            <Text style={styles.subtitle}>Manage ProjectVerse</Text>
           </View>
 
-
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={handleLogout}
-          >
-
-            <Ionicons
-              name="log-out-outline"
-              size={22}
-              color="#4338CA"
-            />
-
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={22} color="#4338CA" />
           </TouchableOpacity>
-
         </View>
-
 
         {/* ============================================
             STATISTICS
         ============================================ */}
 
-        <Text style={styles.sectionTitle}>
-          Overview
-        </Text>
-
+        <Text style={styles.sectionTitle}>Overview</Text>
 
         <View style={styles.statsGrid}>
-
           {/* STUDENTS */}
 
           <View style={styles.statCard}>
-
-            <View
-              style={[
-                styles.iconContainer,
-                styles.mintIcon,
-              ]}
-            >
-
-              <Ionicons
-                name="people-outline"
-                size={25}
-                color="#0F766E"
-              />
-
+            <View style={[styles.iconContainer, styles.mintIcon]}>
+              <Ionicons name="people-outline" size={25} color="#0F766E" />
             </View>
 
-            <Text style={styles.statNumber}>
-              {totalStudents}
-            </Text>
+            <Text style={styles.statNumber}>{totalStudents}</Text>
 
-            <Text style={styles.statLabel}>
-              Students
-            </Text>
-
+            <Text style={styles.statLabel}>Students</Text>
           </View>
-
 
           {/* GUIDES */}
 
           <View style={styles.statCard}>
-
-            <View
-              style={[
-                styles.iconContainer,
-                styles.indigoIcon,
-              ]}
-            >
-
-              <Ionicons
-                name="school-outline"
-                size={25}
-                color="#4338CA"
-              />
-
+            <View style={[styles.iconContainer, styles.indigoIcon]}>
+              <Ionicons name="school-outline" size={25} color="#4338CA" />
             </View>
 
-            <Text style={styles.statNumber}>
-              {totalGuides}
-            </Text>
+            <Text style={styles.statNumber}>{totalGuides}</Text>
 
-            <Text style={styles.statLabel}>
-              Guides
-            </Text>
-
+            <Text style={styles.statLabel}>Guides</Text>
           </View>
-
 
           {/* SUBMITTED */}
 
           <View style={styles.statCard}>
-
-            <View
-              style={[
-                styles.iconContainer,
-                styles.orangeIcon,
-              ]}
-            >
-
+            <View style={[styles.iconContainer, styles.orangeIcon]}>
               <Ionicons
                 name="document-text-outline"
                 size={25}
                 color="#C2410C"
               />
-
             </View>
 
-            <Text style={styles.statNumber}>
-              {submittedProjects}
-            </Text>
+            <Text style={styles.statNumber}>{submittedProjects}</Text>
 
-            <Text style={styles.statLabel}>
-              Submitted Projects
-            </Text>
-
+            <Text style={styles.statLabel}>Submitted Projects</Text>
           </View>
-
 
           {/* APPROVED */}
 
           <View style={styles.statCard}>
-
-            <View
-              style={[
-                styles.iconContainer,
-                styles.greenIcon,
-              ]}
-            >
-
+            <View style={[styles.iconContainer, styles.greenIcon]}>
               <Ionicons
                 name="checkmark-circle-outline"
                 size={25}
                 color="#15803D"
               />
-
             </View>
 
-            <Text style={styles.statNumber}>
-              {approvedProjects}
-            </Text>
+            <Text style={styles.statNumber}>{approvedProjects}</Text>
 
-            <Text style={styles.statLabel}>
-              Approved Projects
-            </Text>
-
+            <Text style={styles.statLabel}>Approved Projects</Text>
           </View>
-
         </View>
-
 
         {/* ============================================
             GUIDE APPROVAL
         ============================================ */}
 
         <View style={styles.sectionHeader}>
-
-          <Text style={styles.sectionTitle}>
-            Guide Approval
-          </Text>
+          <Text style={styles.sectionTitle}>Guide Approval</Text>
 
           <View style={styles.pendingBadge}>
-
             <Text style={styles.pendingBadgeText}>
               {pendingGuides.length} Pending
             </Text>
-
           </View>
-
         </View>
 
-
         {pendingGuides.length === 0 ? (
-
           <View style={styles.emptyCard}>
+            <Ionicons name="checkmark-done-outline" size={42} color="#0F766E" />
 
-            <Ionicons
-              name="checkmark-done-outline"
-              size={42}
-              color="#0F766E"
-            />
-
-            <Text style={styles.emptyTitle}>
-              No Pending Requests
-            </Text>
+            <Text style={styles.emptyTitle}>No Pending Requests</Text>
 
             <Text style={styles.emptyText}>
               There are no guide approval requests at the moment.
             </Text>
-
           </View>
-
         ) : (
-
           pendingGuides.map((guide) => (
-
-            <View
-              key={guide.id}
-              style={styles.guideCard}
-            >
-
+            <View key={guide.id} style={styles.guideCard}>
               <View style={styles.guideInfo}>
-
                 <View style={styles.guideIcon}>
-
-                  <Ionicons
-                    name="person-outline"
-                    size={24}
-                    color="#4338CA"
-                  />
-
+                  <Ionicons name="person-outline" size={24} color="#4338CA" />
                 </View>
 
-
                 <View style={styles.guideDetails}>
-
-                  <Text style={styles.guideName}>
-                    {guide.name || "Guide"}
-                  </Text>
+                  <Text style={styles.guideName}>{guide.name || "Guide"}</Text>
 
                   <Text style={styles.guideEmail}>
                     {guide.email || "No email"}
                   </Text>
 
                   <View style={styles.pendingStatus}>
-
-                    <Ionicons
-                      name="time-outline"
-                      size={14}
-                      color="#C2410C"
-                    />
+                    <Ionicons name="time-outline" size={14} color="#C2410C" />
 
                     <Text style={styles.pendingStatusText}>
                       Pending approval
                     </Text>
-
                   </View>
-
                 </View>
-
               </View>
-
 
               {/* ACTIONS */}
 
               <View style={styles.actionRow}>
-
                 <TouchableOpacity
                   style={styles.rejectButton}
                   disabled={processingGuide === guide.id}
                   onPress={() => rejectGuide(guide.id)}
                 >
+                  <Ionicons name="close-outline" size={19} color="#DC2626" />
 
-                  <Ionicons
-                    name="close-outline"
-                    size={19}
-                    color="#DC2626"
-                  />
-
-                  <Text style={styles.rejectText}>
-                    Reject
-                  </Text>
-
+                  <Text style={styles.rejectText}>Reject</Text>
                 </TouchableOpacity>
-
 
                 <TouchableOpacity
                   style={styles.approveButton}
                   disabled={processingGuide === guide.id}
                   onPress={() => approveGuide(guide.id)}
                 >
-
                   {processingGuide === guide.id ? (
-
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                    />
-
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-
                     <Ionicons
                       name="checkmark-outline"
                       size={19}
                       color="#FFFFFF"
                     />
-
                   )}
 
-                  <Text style={styles.approveText}>
-                    Approve
-                  </Text>
-
+                  <Text style={styles.approveText}>Approve</Text>
                 </TouchableOpacity>
-
               </View>
-
             </View>
-
           ))
-
         )}
-
       </ScrollView>
-
     </View>
-
   );
-
 }
-
 
 // =====================================================
 // STYLES
 // =====================================================
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
@@ -921,5 +658,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-
 });
