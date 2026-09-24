@@ -27,14 +27,27 @@ export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [studentClass, setStudentClass] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+  const [studentClass, setStudentClass] =
+    useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
+  // =====================================================
+  // ROLE
+  // =====================================================
+
+  const [role, setRole] = useState<
+    "student" | "guide"
+  >("student");
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
   // =====================================================
   // REGISTER
@@ -60,13 +73,15 @@ export default function RegisterScreen() {
     if (
       cleanName === "" ||
       cleanEmail === "" ||
-      cleanClass === "" ||
       password === "" ||
-      confirmPassword === ""
+      confirmPassword === "" ||
+      (role === "student" && cleanClass === "")
     ) {
       Alert.alert(
         "Missing Information",
-        "Please fill in all fields.",
+        role === "student"
+          ? "Please fill in all fields."
+          : "Please fill in all required fields.",
       );
 
       return;
@@ -89,7 +104,8 @@ export default function RegisterScreen() {
     // EMAIL VALIDATION
     // ===================================================
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
       Alert.alert(
@@ -147,43 +163,91 @@ export default function RegisterScreen() {
       const uid = userCredential.user.uid;
 
       console.log("New user UID:", uid);
+      console.log("Selected role:", role);
 
       // =================================================
       // 3. CREATE FIRESTORE USER PROFILE
       // =================================================
 
+      const userData: any = {
+        name: cleanName,
+        email: cleanEmail,
+        role: role,
+
+        // Students are automatically approved.
+        // Guides need admin approval.
+        approvalStatus:
+          role === "student"
+            ? "approved"
+            : "pending",
+
+        createdAt: new Date(),
+      };
+
+      // =================================================
+      // 4. ADD CLASS ONLY FOR STUDENTS
+      // =================================================
+
+      if (role === "student") {
+        userData.class = cleanClass;
+      }
+
+      // =================================================
+      // 5. SAVE USER PROFILE
+      // =================================================
+
       await setDoc(
         doc(db, "users", uid),
-        {
-          name: cleanName,
-          email: cleanEmail,
-          class: cleanClass,
-          role: "student",
-        },
+        userData,
       );
 
       console.log(
-        "Student profile created successfully.",
+        "User profile created successfully.",
+      );
+
+      console.log(
+        "Role:",
+        role,
+        "Approval:",
+        userData.approvalStatus,
       );
 
       // =================================================
-      // 4. SUCCESS
+      // 6. SUCCESS MESSAGE
       // =================================================
 
-      Alert.alert(
-        "Registration Successful",
-        "Your ProjectVerse account has been created.",
-        [
-          {
-            text: "Continue",
-            onPress: () => {
-              router.replace("/login");
+      if (role === "student") {
+        Alert.alert(
+          "Registration Successful",
+          "Your ProjectVerse account has been created. You can now login.",
+          [
+            {
+              text: "Continue",
+              onPress: () => {
+                router.replace("/login");
+              },
             },
-          },
-        ],
-      );
+          ],
+        );
+      } else {
+        Alert.alert(
+          "Registration Submitted",
+          "Your guide registration has been submitted for admin approval. You can login after your account is approved.",
+          [
+            {
+              text: "Continue",
+              onPress: () => {
+                router.replace("/login");
+              },
+            },
+          ],
+        );
+      }
     } catch (error: any) {
-      console.log("Registration error:", error);
+      console.log(
+        "Registration error:",
+        error,
+      );
 
       // =================================================
       // FIREBASE ERROR HANDLING
@@ -238,6 +302,7 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.container}>
+
       {/* =================================================
           BACK BUTTON
       ================================================= */}
@@ -263,18 +328,25 @@ export default function RegisterScreen() {
       ================================================= */}
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={
+          styles.scrollContent
+        }
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+
         <View style={styles.content}>
+
           {/* =================================================
               BRAND
           ================================================= */}
 
           <View style={styles.brandSection}>
+
             <Image
-              source={require("../assets/images/logo.png")}
+              source={require(
+                "../assets/images/logo.png"
+              )}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -286,6 +358,7 @@ export default function RegisterScreen() {
             <Text style={styles.tagline}>
               Discover. Learn. Innovate.
             </Text>
+
           </View>
 
           {/* =================================================
@@ -293,13 +366,16 @@ export default function RegisterScreen() {
           ================================================= */}
 
           <View style={styles.headingSection}>
+
             <Text style={styles.title}>
               Create Account
             </Text>
 
             <Text style={styles.subtitle}>
-              Join ProjectVerse and explore academic projects
+              Join ProjectVerse and explore
+              academic projects
             </Text>
+
           </View>
 
           {/* =================================================
@@ -307,14 +383,19 @@ export default function RegisterScreen() {
           ================================================= */}
 
           <View style={styles.formCard}>
-            {/* FULL NAME */}
+
+            {/* =================================================
+                FULL NAME
+            ================================================= */}
 
             <View style={styles.inputGroup}>
+
               <Text style={styles.inputLabel}>
                 Full Name
               </Text>
 
               <View style={styles.inputContainer}>
+
                 <Ionicons
                   name="person-outline"
                   size={19}
@@ -332,45 +413,166 @@ export default function RegisterScreen() {
                   autoCorrect={false}
                   editable={!loading}
                 />
+
               </View>
+
             </View>
 
-            {/* CLASS */}
+            {/* =================================================
+                ROLE SELECTION
+            ================================================= */}
 
             <View style={styles.inputGroup}>
+
               <Text style={styles.inputLabel}>
-                Class
+                Register As
               </Text>
 
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="school-outline"
-                  size={19}
-                  color="#6B7280"
-                  style={styles.inputIcon}
-                />
+              <View style={styles.roleContainer}>
 
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your class"
-                  placeholderTextColor="#9CA3AF"
-                  value={studentClass}
-                  onChangeText={setStudentClass}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
+                {/* STUDENT */}
+
+                <Pressable
+                  style={[
+                    styles.roleOption,
+                    role === "student" &&
+                      styles.roleOptionSelected,
+                  ]}
+                  onPress={() =>
+                    setRole("student")
+                  }
+                  disabled={loading}
+                >
+
+                  <Ionicons
+                    name="school-outline"
+                    size={20}
+                    color={
+                      role === "student"
+                        ? "#4338CA"
+                        : "#6B7280"
+                    }
+                  />
+
+                  <Text
+                    style={[
+                      styles.roleText,
+                      role === "student" &&
+                        styles.roleTextSelected,
+                    ]}
+                  >
+                    Student
+                  </Text>
+
+                  {role === "student" && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={19}
+                      color="#4338CA"
+                    />
+                  )}
+
+                </Pressable>
+
+                {/* GUIDE */}
+
+                <Pressable
+                  style={[
+                    styles.roleOption,
+                    role === "guide" &&
+                      styles.roleOptionSelected,
+                  ]}
+                  onPress={() =>
+                    setRole("guide")
+                  }
+                  disabled={loading}
+                >
+
+                  <Ionicons
+                    name="person-outline"
+                    size={20}
+                    color={
+                      role === "guide"
+                        ? "#4338CA"
+                        : "#6B7280"
+                    }
+                  />
+
+                  <Text
+                    style={[
+                      styles.roleText,
+                      role === "guide" &&
+                        styles.roleTextSelected,
+                    ]}
+                  >
+                    Guide
+                  </Text>
+
+                  {role === "guide" && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={19}
+                      color="#4338CA"
+                    />
+                  )}
+
+                </Pressable>
+
               </View>
+
             </View>
 
-            {/* EMAIL */}
+            {/* =================================================
+                CLASS
+                ONLY FOR STUDENT
+            ================================================= */}
+
+            {role === "student" && (
+              <View style={styles.inputGroup}>
+
+                <Text style={styles.inputLabel}>
+                  Class
+                </Text>
+
+                <View
+                  style={styles.inputContainer}
+                >
+
+                  <Ionicons
+                    name="school-outline"
+                    size={19}
+                    color="#6B7280"
+                    style={styles.inputIcon}
+                  />
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your class"
+                    placeholderTextColor="#9CA3AF"
+                    value={studentClass}
+                    onChangeText={setStudentClass}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+
+                </View>
+
+              </View>
+            )}
+
+            {/* =================================================
+                EMAIL
+            ================================================= */}
 
             <View style={styles.inputGroup}>
+
               <Text style={styles.inputLabel}>
                 Email Address
               </Text>
 
               <View style={styles.inputContainer}>
+
                 <Ionicons
                   name="mail-outline"
                   size={19}
@@ -389,17 +591,23 @@ export default function RegisterScreen() {
                   autoCorrect={false}
                   editable={!loading}
                 />
+
               </View>
+
             </View>
 
-            {/* PASSWORD */}
+            {/* =================================================
+                PASSWORD
+            ================================================= */}
 
             <View style={styles.inputGroup}>
+
               <Text style={styles.inputLabel}>
                 Password
               </Text>
 
               <View style={styles.inputContainer}>
+
                 <Ionicons
                   name="lock-closed-outline"
                   size={19}
@@ -422,10 +630,13 @@ export default function RegisterScreen() {
                 <Pressable
                   style={styles.passwordToggle}
                   onPress={() =>
-                    setShowPassword(!showPassword)
+                    setShowPassword(
+                      !showPassword
+                    )
                   }
                   disabled={loading}
                 >
+
                   <Ionicons
                     name={
                       showPassword
@@ -435,18 +646,25 @@ export default function RegisterScreen() {
                     size={20}
                     color="#6B7280"
                   />
+
                 </Pressable>
+
               </View>
+
             </View>
 
-            {/* CONFIRM PASSWORD */}
+            {/* =================================================
+                CONFIRM PASSWORD
+            ================================================= */}
 
             <View style={styles.inputGroup}>
+
               <Text style={styles.inputLabel}>
                 Confirm Password
               </Text>
 
               <View style={styles.inputContainer}>
+
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={19}
@@ -459,8 +677,12 @@ export default function RegisterScreen() {
                   placeholder="Confirm your password"
                   placeholderTextColor="#9CA3AF"
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
+                  onChangeText={
+                    setConfirmPassword
+                  }
+                  secureTextEntry={
+                    !showConfirmPassword
+                  }
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!loading}
@@ -470,11 +692,12 @@ export default function RegisterScreen() {
                   style={styles.passwordToggle}
                   onPress={() =>
                     setShowConfirmPassword(
-                      !showConfirmPassword,
+                      !showConfirmPassword
                     )
                   }
                   disabled={loading}
                 >
+
                   <Ionicons
                     name={
                       showConfirmPassword
@@ -484,26 +707,35 @@ export default function RegisterScreen() {
                     size={20}
                     color="#6B7280"
                   />
+
                 </Pressable>
+
               </View>
+
             </View>
 
-            {/* REGISTER BUTTON */}
+            {/* =================================================
+                REGISTER BUTTON
+            ================================================= */}
 
             <Pressable
               style={({ pressed }) => [
                 styles.registerButton,
+
                 pressed &&
                   !loading &&
                   styles.buttonPressed,
+
                 loading &&
                   styles.registerButtonDisabled,
               ]}
               onPress={handleRegister}
               disabled={loading}
             >
+
               {loading ? (
                 <>
+
                   <ActivityIndicator
                     size="small"
                     color="#FFFFFF"
@@ -512,9 +744,11 @@ export default function RegisterScreen() {
                   <Text style={styles.buttonText}>
                     Creating Account...
                   </Text>
+
                 </>
               ) : (
                 <>
+
                   <Ionicons
                     name="person-add-outline"
                     size={20}
@@ -530,9 +764,12 @@ export default function RegisterScreen() {
                     size={18}
                     color="#FFFFFF"
                   />
+
                 </>
               )}
+
             </Pressable>
+
           </View>
 
           {/* =================================================
@@ -540,30 +777,41 @@ export default function RegisterScreen() {
           ================================================= */}
 
           <View style={styles.loginSection}>
+
             <Text style={styles.loginPrompt}>
               Already have an account?
             </Text>
 
             <Pressable
-              onPress={() => router.replace("/login")}
+              onPress={() =>
+                router.replace("/login")
+              }
               disabled={loading}
             >
+
               <Text style={styles.loginLink}>
                 Login
               </Text>
+
             </Pressable>
+
           </View>
+
         </View>
+
       </ScrollView>
+
     </View>
   );
 }
+
 
 // ========================================================
 // STYLES
 // ========================================================
 
 const styles = StyleSheet.create({
+
   // ======================================================
   // CONTAINER
   // ======================================================
@@ -686,10 +934,12 @@ const styles = StyleSheet.create({
     borderColor: "#E0E4EC",
 
     shadowColor: "#1F2937",
+
     shadowOffset: {
       width: 0,
       height: 5,
     },
+
     shadowOpacity: 0.06,
     shadowRadius: 10,
 
@@ -746,6 +996,53 @@ const styles = StyleSheet.create({
   },
 
   // ======================================================
+  // ROLE SELECTION
+  // ======================================================
+
+  roleContainer: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  roleOption: {
+    flex: 1,
+
+    minHeight: 50,
+
+    flexDirection: "row",
+    alignItems: "center",
+
+    backgroundColor: "#F8F9FB",
+
+    borderWidth: 1,
+    borderColor: "#DDE2EA",
+
+    borderRadius: 12,
+
+    paddingHorizontal: 12,
+  },
+
+  roleOptionSelected: {
+    backgroundColor: "#F0F1FF",
+    borderColor: "#4338CA",
+  },
+
+  roleText: {
+    flex: 1,
+
+    marginLeft: 8,
+
+    fontSize: 13,
+    fontWeight: "600",
+
+    color: "#6B7280",
+  },
+
+  roleTextSelected: {
+    color: "#4338CA",
+  },
+
+  // ======================================================
   // REGISTER BUTTON
   // ======================================================
 
@@ -766,10 +1063,12 @@ const styles = StyleSheet.create({
     marginTop: 3,
 
     shadowColor: "#4338CA",
+
     shadowOffset: {
       width: 0,
       height: 4,
     },
+
     shadowOpacity: 0.16,
     shadowRadius: 7,
 

@@ -39,9 +39,7 @@ export default function RootLayout() {
 
       try {
         // Get user's Firestore profile
-        const userDoc = await getDoc(
-          doc(db, "users", user.uid)
-        );
+        const userDoc = await getDoc(doc(db, "users", user.uid));
 
         if (!userDoc.exists()) {
           console.log("❌ User profile not found");
@@ -64,18 +62,18 @@ export default function RootLayout() {
           console.log("👨‍🏫 Redirecting to Guide Dashboard");
 
           router.replace("/guide");
+        } 
+        
+        else if (userData.role === "admin") {
+          console.log("👑 Admin session restored");
+          router.replace("/admin");
         }
-
         // Unknown role
         else {
           console.log("❌ Unknown role:", userData.role);
         }
-
       } catch (error) {
-        console.log(
-          "Error loading user profile:",
-          error
-        );
+        console.log("Error loading user profile:", error);
       }
     });
 
@@ -83,15 +81,8 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider
-      value={
-        colorScheme === "dark"
-          ? DarkTheme
-          : DefaultTheme
-      }
-    >
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
-
         {/* Main Index Page */}
         <Stack.Screen
           name="index"
@@ -140,7 +131,6 @@ export default function RootLayout() {
             title: "Modal",
           }}
         />
-
       </Stack>
 
       <StatusBar style="auto" />

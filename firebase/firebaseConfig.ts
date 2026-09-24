@@ -1,17 +1,22 @@
-// Import the functions you need from the SDKs you need
+// =========================================================
+// FIREBASE CONFIGURATION
+// =========================================================
+
 import { initializeApp } from "firebase/app";
+
 import {
   initializeAuth,
-  getReactNativePersistence,
 } from "firebase/auth";
 
-import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { getFirestore } from "firebase/firestore";
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
+// =========================================================
+// FIREBASE CONFIG
+// =========================================================
+
 const firebaseConfig = {
   apiKey: "AIzaSyAqzzJF_DLYeF-zFSFvUJrMZ5hD9fkeJJ0",
   authDomain: "projectverse7.firebaseapp.com",
@@ -21,9 +26,41 @@ const firebaseConfig = {
   appId: "1:729205101493:web:f5b6da0ae19d1b7516bffc",
 };
 
-// Initialize Firebase
+
+// =========================================================
+// INITIALIZE FIREBASE
+// =========================================================
+
 const app = initializeApp(firebaseConfig);
+
+
+// =========================================================
+// REACT NATIVE AUTH PERSISTENCE
+// =========================================================
+
+// Firebase 12.x does not expose this correctly
+// through TypeScript's firebase/auth definition.
+//
+// We access the function from the Firebase Auth module
+// at runtime.
+
+import * as firebaseAuth from "firebase/auth";
+
+const getReactNativePersistence =
+  (firebaseAuth as any).getReactNativePersistence;
+
+
+// =========================================================
+// INITIALIZE AUTH
+// =========================================================
+
 export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  persistence: getReactNativePersistence(AsyncStorage),
 });
+
+
+// =========================================================
+// FIRESTORE
+// =========================================================
+
 export const db = getFirestore(app);

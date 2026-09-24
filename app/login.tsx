@@ -21,8 +21,11 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
 
   // =====================================================
   // LOGIN
@@ -44,16 +47,19 @@ export default function LoginScreen() {
         "Missing Information",
         "Please enter your email and password.",
       );
+
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
       Alert.alert(
         "Invalid Email",
         "Please enter a valid email address.",
       );
+
       return;
     }
 
@@ -75,9 +81,13 @@ export default function LoginScreen() {
       // 2. GET UID
       // =================================================
 
-      const uid = userCredential.user.uid;
+      const uid =
+        userCredential.user.uid;
 
-      console.log("Logged in UID:", uid);
+      console.log(
+        "Logged in UID:",
+        uid,
+      );
 
       // =================================================
       // 3. GET USER PROFILE
@@ -108,59 +118,203 @@ export default function LoginScreen() {
 
       const userData = userDoc.data();
 
-      console.log("User role:", userData.role);
+      const role = userData.role;
+      const approvalStatus =
+        userData.approvalStatus;
+
+      console.log(
+        "User role:",
+        role,
+      );
+
+      console.log(
+        "Approval status:",
+        approvalStatus,
+      );
 
       // =================================================
-      // 6. ROLE-BASED NAVIGATION
+      // 6. STUDENT LOGIN
       // =================================================
 
-      if (userData.role === "student") {
-        router.replace("/student");
-      } else if (userData.role === "guide") {
-        router.replace("/guide");
-      } else if (userData.role === "admin") {
-        router.replace("/admin");
-      } else {
-        Alert.alert(
-          "Invalid Account",
-          "Your account does not have a valid role.",
+      if (role === "student") {
+        console.log(
+          "Student login successful",
         );
 
-        await auth.signOut();
+        router.replace("/student");
+
+        return;
       }
+
+      // =================================================
+      // 7. GUIDE LOGIN
+      // =================================================
+
+      if (role === "guide") {
+        // -----------------------------------------------
+        // GUIDE APPROVED
+        // -----------------------------------------------
+
+        if (
+          approvalStatus === "approved"
+        ) {
+          console.log(
+            "Guide approved - login successful",
+          );
+
+          router.replace("/guide");
+
+          return;
+        }
+
+        // -----------------------------------------------
+        // GUIDE PENDING
+        // -----------------------------------------------
+
+        if (
+          approvalStatus === "pending"
+        ) {
+          console.log(
+            "Guide approval pending",
+          );
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Approval Pending",
+            "Your guide account is waiting for admin approval. You can login after your account has been approved.",
+          );
+
+          return;
+        }
+
+        // -----------------------------------------------
+        // GUIDE REJECTED
+        // -----------------------------------------------
+
+        if (
+          approvalStatus === "rejected"
+        ) {
+          console.log(
+            "Guide registration rejected",
+          );
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Registration Rejected",
+            "Your guide registration was rejected by the administrator.",
+          );
+
+          return;
+        }
+
+        // -----------------------------------------------
+        // UNKNOWN GUIDE STATUS
+        // -----------------------------------------------
+
+        await auth.signOut();
+
+        Alert.alert(
+          "Account Not Approved",
+          "Your guide account has not been approved yet. Please contact the administrator.",
+        );
+
+        return;
+      }
+
+      // =================================================
+      // 8. ADMIN LOGIN
+      // =================================================
+
+      if (role === "admin") {
+        console.log(
+          "Admin login successful",
+        );
+
+        router.replace("/admin");
+
+        return;
+      }
+
+      // =================================================
+      // 9. INVALID ROLE
+      // =================================================
+
+      console.log(
+        "Unknown role:",
+        role,
+      );
+
+      Alert.alert(
+        "Invalid Account",
+        "Your account does not have a valid role.",
+      );
+
+      await auth.signOut();
+
     } catch (error: any) {
-      console.log("Login error:", error);
+      console.log(
+        "Login error:",
+        error,
+      );
 
       // =================================================
       // FIREBASE ERROR HANDLING
       // =================================================
 
-      if (error?.code === "auth/invalid-credential") {
+      if (
+        error?.code ===
+        "auth/invalid-credential"
+      ) {
         Alert.alert(
           "Login Failed",
           "The email or password is incorrect.",
         );
-      } else if (error?.code === "auth/user-not-found") {
+
+      } else if (
+        error?.code ===
+        "auth/user-not-found"
+      ) {
         Alert.alert(
           "Login Failed",
           "No account was found with this email.",
         );
-      } else if (error?.code === "auth/wrong-password") {
+
+      } else if (
+        error?.code ===
+        "auth/wrong-password"
+      ) {
         Alert.alert(
           "Login Failed",
           "The password is incorrect.",
         );
-      } else if (error?.code === "auth/too-many-requests") {
+
+      } else if (
+        error?.code ===
+        "auth/too-many-requests"
+      ) {
         Alert.alert(
           "Too Many Attempts",
           "Too many login attempts. Please try again later.",
         );
+
+      } else if (
+        error?.code ===
+        "auth/network-request-failed"
+      ) {
+        Alert.alert(
+          "Network Error",
+          "Please check your internet connection and try again.",
+        );
+
       } else {
         Alert.alert(
           "Login Failed",
           "Something went wrong while logging in. Please try again.",
         );
       }
+
     } finally {
       setLoading(false);
     }
@@ -172,6 +326,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+
       {/* =================================================
           BACK BUTTON
       ================================================= */}
@@ -179,6 +334,7 @@ export default function LoginScreen() {
       <Pressable
         style={styles.backButton}
         onPress={() => router.back()}
+        disabled={loading}
       >
         <Ionicons
           name="arrow-back"
@@ -196,13 +352,17 @@ export default function LoginScreen() {
       ================================================= */}
 
       <View style={styles.content}>
+
         {/* =================================================
             BRAND
         ================================================= */}
 
         <View style={styles.brandSection}>
+
           <Image
-            source={require("../assets/images/logo.png")}
+            source={require(
+              "../assets/images/logo.png"
+            )}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -214,6 +374,7 @@ export default function LoginScreen() {
           <Text style={styles.tagline}>
             Discover. Learn. Innovate.
           </Text>
+
         </View>
 
         {/* =================================================
@@ -221,6 +382,7 @@ export default function LoginScreen() {
         ================================================= */}
 
         <View style={styles.headingSection}>
+
           <Text style={styles.title}>
             Welcome Back
           </Text>
@@ -228,6 +390,7 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>
             Login to continue exploring projects
           </Text>
+
         </View>
 
         {/* =================================================
@@ -235,14 +398,17 @@ export default function LoginScreen() {
         ================================================= */}
 
         <View style={styles.formCard}>
+
           {/* EMAIL */}
 
           <View style={styles.inputGroup}>
+
             <Text style={styles.inputLabel}>
               Email Address
             </Text>
 
             <View style={styles.inputContainer}>
+
               <Ionicons
                 name="mail-outline"
                 size={19}
@@ -261,17 +427,21 @@ export default function LoginScreen() {
                 autoCorrect={false}
                 editable={!loading}
               />
+
             </View>
+
           </View>
 
           {/* PASSWORD */}
 
           <View style={styles.inputGroup}>
+
             <Text style={styles.inputLabel}>
               Password
             </Text>
 
             <View style={styles.inputContainer}>
+
               <Ionicons
                 name="lock-closed-outline"
                 size={19}
@@ -294,7 +464,9 @@ export default function LoginScreen() {
               <Pressable
                 style={styles.passwordToggle}
                 onPress={() =>
-                  setShowPassword(!showPassword)
+                  setShowPassword(
+                    !showPassword,
+                  )
                 }
                 disabled={loading}
               >
@@ -308,7 +480,9 @@ export default function LoginScreen() {
                   color="#6B7280"
                 />
               </Pressable>
+
             </View>
+
           </View>
 
           {/* LOGIN BUTTON */}
@@ -316,15 +490,18 @@ export default function LoginScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.loginButton,
+
               pressed &&
                 !loading &&
                 styles.buttonPressed,
+
               loading &&
                 styles.loginButtonDisabled,
             ]}
             onPress={handleLogin}
             disabled={loading}
           >
+
             {loading ? (
               <>
                 <ActivityIndicator
@@ -355,7 +532,9 @@ export default function LoginScreen() {
                 />
               </>
             )}
+
           </Pressable>
+
         </View>
 
         {/* =================================================
@@ -363,32 +542,36 @@ export default function LoginScreen() {
         ================================================= */}
 
         <View style={styles.registerSection}>
+
           <Text style={styles.registerPrompt}>
             Don't have an account?
           </Text>
 
           <Pressable
-            onPress={() => router.push("/register")}
+            onPress={() =>
+              router.push("/register")
+            }
             disabled={loading}
           >
             <Text style={styles.registerLink}>
               Create an Account
             </Text>
           </Pressable>
+
         </View>
+
       </View>
+
     </View>
   );
 }
+
 
 // ========================================================
 // STYLES
 // ========================================================
 
 const styles = StyleSheet.create({
-  // ======================================================
-  // CONTAINER
-  // ======================================================
 
   container: {
     flex: 1,
@@ -426,6 +609,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: "center",
+
     paddingHorizontal: 24,
     paddingTop: 45,
     paddingBottom: 25,
@@ -489,6 +673,7 @@ const styles = StyleSheet.create({
   formCard: {
     width: "100%",
     backgroundColor: "#FFFFFF",
+
     borderRadius: 20,
     padding: 19,
 
@@ -496,10 +681,12 @@ const styles = StyleSheet.create({
     borderColor: "#E0E4EC",
 
     shadowColor: "#1F2937",
+
     shadowOffset: {
       width: 0,
       height: 5,
     },
+
     shadowOpacity: 0.06,
     shadowRadius: 10,
 
@@ -575,10 +762,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
 
     shadowColor: "#4338CA",
+
     shadowOffset: {
       width: 0,
       height: 4,
     },
+
     shadowOpacity: 0.16,
     shadowRadius: 7,
 
@@ -598,6 +787,7 @@ const styles = StyleSheet.create({
 
   buttonPressed: {
     opacity: 0.8,
+
     transform: [
       {
         scale: 0.985,
@@ -613,6 +803,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+
     marginTop: 19,
   },
 
