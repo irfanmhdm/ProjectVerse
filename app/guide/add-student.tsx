@@ -1,7 +1,6 @@
 import { router } from "expo-router";
 import {
   collection,
-    deleteDoc,
   getDocs,
   doc,
   query,
@@ -207,84 +206,7 @@ export default function AddStudent() {
     }
   };
 
-  // =====================================================
-// REMOVE STUDENT
-// =====================================================
-
-const removeStudent = async (studentId: string) => {
-  const guide = auth.currentUser;
-
-  if (!guide) {
-    Alert.alert(
-      "Authentication Error",
-      "Guide is not logged in.",
-    );
-    return;
-  }
-
-  Alert.alert(
-    "Remove Student",
-    "Are you sure you want to remove this student from your students?",
-    [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Remove",
-        style: "destructive",
-
-        onPress: async () => {
-          try {
-            // -----------------------------------------
-            // Assignment document ID
-            // -----------------------------------------
-
-            const assignmentId =
-              `${guide.uid}_${studentId}`;
-
-            // -----------------------------------------
-            // Delete assignment
-            // -----------------------------------------
-
-            await deleteDoc(
-              doc(
-                db,
-                "guideStudents",
-                assignmentId,
-              ),
-            );
-
-            Alert.alert(
-              "Student Removed",
-              "The student has been removed from your students.",
-            );
-
-            // -----------------------------------------
-            // Reload assigned students
-            // -----------------------------------------
-
-            await loadStudents();
-
-          } catch (error: any) {
-
-            console.log(
-              "Error removing student:",
-              error,
-            );
-
-            Alert.alert(
-              "Remove Failed",
-              error.message ||
-                "Something went wrong while removing the student.",
-            );
-          }
-        },
-      },
-    ],
-  );
-};
-
+  
   // =====================================================
   // UI
   // =====================================================
