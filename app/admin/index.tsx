@@ -1,47 +1,54 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 
 export default function AdminDashboard() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Admin Dashboard</Text>
       <Text style={styles.subtitle}>
-        Manage ProjectVerse overview and guide approvals
+        Manage ProjectVerse users and guide approvals
       </Text>
 
+      {/* Statistics */}
+
       <View style={styles.statsContainer}>
-
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Students</Text>
-          <Text style={styles.count}>0</Text>
+          <Text style={styles.cardNumber}>0</Text>
+          <Text style={styles.cardLabel}>Students</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Guides</Text>
-          <Text style={styles.count}>0</Text>
+          <Text style={styles.cardNumber}>0</Text>
+          <Text style={styles.cardLabel}>Guides</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Submitted Projects</Text>
-          <Text style={styles.count}>0</Text>
+          <Text style={styles.cardNumber}>0</Text>
+          <Text style={styles.cardLabel}>Submitted Projects</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Approved Projects</Text>
-          <Text style={styles.count}>0</Text>
+          <Text style={styles.cardNumber}>0</Text>
+          <Text style={styles.cardLabel}>Approved Projects</Text>
         </View>
-
       </View>
 
-      <View style={styles.approvalCard}>
-        <Text style={styles.approvalTitle}>
-          Guide Approvals
+      {/* Guide Approval */}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>
+          Guide Approval
         </Text>
 
-        <Text style={styles.approvalText}>
-          Review and approve registered guides.
+        <Text style={styles.emptyText}>
+          No pending guide approvals.
         </Text>
       </View>
-
     </ScrollView>
   );
 }
@@ -76,43 +83,42 @@ const styles = StyleSheet.create({
   card: {
     width: "48%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 18,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 14,
+    elevation: 2,
   },
 
-  cardTitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 10,
-  },
-
-  count: {
+  cardNumber: {
     fontSize: 28,
     fontWeight: "700",
     color: "#4338CA",
   },
 
-  approvalCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#D5F5F2",
+  cardLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 6,
   },
 
-  approvalTitle: {
+  section: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 20,
+    marginTop: 10,
+    marginBottom: 30,
+    elevation: 2,
+  },
+
+  sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#1F2937",
+    marginBottom: 16,
   },
 
-  approvalText: {
+  emptyText: {
     fontSize: 14,
     color: "#6B7280",
-    marginTop: 8,
   },
 });

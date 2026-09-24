@@ -119,7 +119,7 @@ export default function LoginScreen() {
       } else if (userData.role === "guide") {
         router.replace("/guide");
       } else if (userData.role === "admin") {
-        router.replace("/");
+        router.replace("/admin");
       } else {
         Alert.alert(
           "Invalid Account",
