@@ -27,6 +27,7 @@ export type Guide = {
 
 export const getAdminDashboardCounts = async () => {
   try {
+
     // =================================================
     // GET ALL USERS
     // =================================================
@@ -38,8 +39,11 @@ export const getAdminDashboardCounts = async () => {
     let totalStudents = 0;
     let totalGuides = 0;
 
+
     usersSnapshot.forEach((userDoc) => {
+
       const user = userDoc.data();
+
 
       // -----------------------------------------------
       // STUDENTS
@@ -49,32 +53,30 @@ export const getAdminDashboardCounts = async () => {
         totalStudents++;
       }
 
+
       // -----------------------------------------------
       // GUIDES
       // -----------------------------------------------
       //
-      // Only APPROVED guides should be counted.
+      // ONLY APPROVED GUIDES COUNT.
       //
-      // New records:
+      // The guide must have:
+      //
+      // role: "guide"
       // approvalStatus: "approved"
       //
-      // Older records may have:
-      // status: "approved"
-      //
-      // We support both so existing approved guides
-      // don't disappear.
+      // pending and rejected guides are NOT counted.
       // -----------------------------------------------
-
-      const guideApprovalStatus =
-        user.approvalStatus ?? user.status;
 
       if (
         user.role === "guide" &&
-        guideApprovalStatus === "approved"
+        user.approvalStatus === "approved"
       ) {
         totalGuides++;
       }
+
     });
+
 
     // =================================================
     // GET PROJECTS
@@ -87,34 +89,73 @@ export const getAdminDashboardCounts = async () => {
     let submittedProjects = 0;
     let approvedProjects = 0;
 
+
     projectsSnapshot.forEach((projectDoc) => {
+
       const project = projectDoc.data();
 
-      // Submitted projects
+
+      // -----------------------------------------------
+      // SUBMITTED PROJECTS
+      // -----------------------------------------------
+
       if (project.status === "submitted") {
         submittedProjects++;
       }
 
-      // Approved projects
-      if (project.approvalStatus === "approved") {
+
+      // -----------------------------------------------
+      // APPROVED PROJECTS
+      // -----------------------------------------------
+
+      if (
+        project.approvalStatus === "approved"
+      ) {
         approvedProjects++;
       }
+
     });
+
 
     // =================================================
     // DEBUG LOG
     // =================================================
 
-    console.log("=================================");
-    console.log("ADMIN DASHBOARD COUNTS");
-    console.log("Students:", totalStudents);
-    console.log("Approved Guides:", totalGuides);
-    console.log("Submitted Projects:", submittedProjects);
-    console.log("Approved Projects:", approvedProjects);
-    console.log("=================================");
+    console.log(
+      "================================="
+    );
+
+    console.log(
+      "ADMIN DASHBOARD COUNTS"
+    );
+
+    console.log(
+      "Students:",
+      totalStudents
+    );
+
+    console.log(
+      "Approved Guides:",
+      totalGuides
+    );
+
+    console.log(
+      "Submitted Projects:",
+      submittedProjects
+    );
+
+    console.log(
+      "Approved Projects:",
+      approvedProjects
+    );
+
+    console.log(
+      "================================="
+    );
+
 
     // =================================================
-    // RETURN
+    // RETURN COUNTS
     // =================================================
 
     return {
@@ -125,6 +166,7 @@ export const getAdminDashboardCounts = async () => {
     };
 
   } catch (error) {
+
     console.error(
       "Error fetching admin dashboard counts:",
       error
@@ -133,7 +175,6 @@ export const getAdminDashboardCounts = async () => {
     throw error;
   }
 };
-
 
 // =====================================================
 // GET PENDING GUIDE REQUESTS
