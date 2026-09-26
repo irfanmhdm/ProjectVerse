@@ -4,12 +4,18 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 
-import { Stack, router } from "expo-router";
+import { Stack, router, usePathname } from "expo-router";
+
 import { StatusBar } from "expo-status-bar";
+
 import { useEffect } from "react";
+
+import { BackHandler } from "react-native";
+
 import "react-native-reanimated";
 
 import { onAuthStateChanged, signOut } from "firebase/auth";
+
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebaseConfig";
@@ -23,41 +29,74 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  const pathname = usePathname();
+
+  // =====================================================
+  // PREVENT BACK NAVIGATION FROM DASHBOARDS
+  // =====================================================
+
+  useEffect(() => {
+    // Protect only dashboard pages
+    const isProtectedPage =
+      pathname === "/admin" || pathname === "/student" || pathname === "/guide";
+
+    if (!isProtectedPage) {
+      return;
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        console.log("Back navigation blocked on dashboard");
+
+        return true;
+      },
+    );
+
+    return () => {
+      backHandler.remove();
+    };
+  }, [pathname]);
+
+  // =====================================================
+  // SESSION RESTORATION
+  // =====================================================
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // =====================================================
+      // =================================================
       // NO LOGGED-IN USER
-      // =====================================================
+      // =================================================
 
       if (!user) {
-        console.log("❌ No saved session");
+        console.log("No saved session");
 
         return;
       }
 
-      // =====================================================
+      // =================================================
       // SESSION RESTORED
-      // =====================================================
+      // =================================================
 
-      console.log("🔥 SESSION RESTORED");
+      console.log("SESSION RESTORED");
 
       console.log("UID:", user.uid);
 
       console.log("Email:", user.email);
 
       try {
-        // ===================================================
+        // ===============================================
         // GET USER PROFILE
-        // ===================================================
+        // ===============================================
 
         const userDoc = await getDoc(doc(db, "users", user.uid));
 
-        // ===================================================
+        // ===============================================
         // PROFILE NOT FOUND
-        // ===================================================
+        // ===============================================
 
         if (!userDoc.exists()) {
-          console.log("❌ User profile not found");
+          console.log("User profile not found");
 
           await signOut(auth);
 
@@ -72,57 +111,59 @@ export default function RootLayout() {
 
         console.log("Approval Status:", userData.approvalStatus);
 
-        // ===================================================
+        // =================================================
         // STUDENT
-        // ===================================================
+        // =================================================
 
         if (userData.role === "student") {
-          console.log("🎓 Redirecting to Student Dashboard");
+          console.log("Student session restored");
+
+          console.log("Redirecting to Student Dashboard");
 
           router.replace("/student");
 
           return;
         }
 
-        // ===================================================
+        // =================================================
         // ADMIN
-        // ===================================================
+        // =================================================
 
         if (userData.role === "admin") {
-          console.log("👑 Admin session restored");
+          console.log("Admin session restored");
 
           router.replace("/admin");
 
           return;
         }
 
-        // ===================================================
+        // =================================================
         // GUIDE
-        // ===================================================
+        // =================================================
 
         if (userData.role === "guide") {
-          // -----------------------------------------------
+          // ---------------------------------------------
           // APPROVED GUIDE
-          // -----------------------------------------------
+          // ---------------------------------------------
 
           if (userData.approvalStatus === "approved") {
-            console.log("✅ Approved guide session restored");
+            console.log("Approved guide session restored");
 
-            console.log("👨‍🏫 Redirecting to Guide Dashboard");
+            console.log("Redirecting to Guide Dashboard");
 
             router.replace("/guide");
 
             return;
           }
 
-          // -----------------------------------------------
+          // ---------------------------------------------
           // PENDING GUIDE
-          // -----------------------------------------------
+          // ---------------------------------------------
 
           if (userData.approvalStatus === "pending") {
-            console.log("⏳ Guide approval is still pending");
+            console.log("Guide approval is still pending");
 
-            console.log("🚫 Guide session blocked");
+            console.log("Guide session blocked");
 
             await signOut(auth);
 
@@ -131,14 +172,14 @@ export default function RootLayout() {
             return;
           }
 
-          // -----------------------------------------------
+          // ---------------------------------------------
           // REJECTED GUIDE
-          // -----------------------------------------------
+          // ---------------------------------------------
 
           if (userData.approvalStatus === "rejected") {
-            console.log("❌ Guide approval was rejected");
+            console.log("Guide approval was rejected");
 
-            console.log("🚫 Guide session blocked");
+            console.log("Guide session blocked");
 
             await signOut(auth);
 
@@ -147,12 +188,12 @@ export default function RootLayout() {
             return;
           }
 
-          // -----------------------------------------------
-          // UNKNOWN / MISSING APPROVAL STATUS
-          // -----------------------------------------------
+          // ---------------------------------------------
+          // INVALID / MISSING STATUS
+          // ---------------------------------------------
 
           console.log(
-            "❌ Guide has invalid approval status:",
+            "Guide has invalid approval status:",
             userData.approvalStatus,
           );
 
@@ -163,11 +204,11 @@ export default function RootLayout() {
           return;
         }
 
-        // ===================================================
+        // =================================================
         // UNKNOWN ROLE
-        // ===================================================
+        // =================================================
 
-        console.log("❌ Unknown role:", userData.role);
+        console.log("Unknown role:", userData.role);
 
         await signOut(auth);
 
@@ -177,46 +218,23 @@ export default function RootLayout() {
       }
     });
 
-    // =========================================================
+    // =====================================================
     // CLEANUP
-    // =========================================================
+    // =====================================================
 
     return unsubscribe;
   }, []);
 
-  // ===========================================================
+  // =====================================================
   // UI
-  // ===========================================================
+  // =====================================================
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
-
-        <Stack.Screen
-  name="admin/index"
-  options={{
-    title: "Admin",
-    headerShown: true,
-
-    headerStyle: {
-      backgroundColor: "#FFFFFF",
-    },
-
-    headerTintColor: "#111827",
-
-    headerTitleStyle: {
-      color: "#111827",
-      fontWeight: "700",
-      fontSize: 18,
-    },
-
-    headerShadowVisible: false,
-  }}
-/>
-
-        {/* ===================================================
-            MAIN INDEX
-        =================================================== */}
+        {/* =================================================
+            HOME
+        ================================================= */}
 
         <Stack.Screen
           name="index"
@@ -225,9 +243,9 @@ export default function RootLayout() {
           }}
         />
 
-        {/* ===================================================
+        {/* =================================================
             LOGIN
-        =================================================== */}
+        ================================================= */}
 
         <Stack.Screen
           name="login"
@@ -236,9 +254,9 @@ export default function RootLayout() {
           }}
         />
 
-        {/* ===================================================
+        {/* =================================================
             REGISTER
-        =================================================== */}
+        ================================================= */}
 
         <Stack.Screen
           name="register"
@@ -247,31 +265,72 @@ export default function RootLayout() {
           }}
         />
 
-        {/* ===================================================
-            STUDENT
-        =================================================== */}
+        {/* =================================================
+    STUDENT
+================================================= */}
 
         <Stack.Screen
           name="student"
           options={{
+            // No header above the drawer
             headerShown: false,
+
+            // Prevent swipe-back
+            gestureEnabled: false,
           }}
         />
 
-        {/* ===================================================
-            GUIDE
-        =================================================== */}
+        {/* =================================================
+    GUIDE
+================================================= */}
 
         <Stack.Screen
           name="guide"
           options={{
+            // No header above the drawer
             headerShown: false,
+
+            // Prevent swipe-back
+            gestureEnabled: false,
           }}
         />
 
-        {/* ===================================================
+        {/* =================================================
+            ADMIN
+        ================================================= */}
+
+        <Stack.Screen
+          name="admin/index"
+          options={{
+            headerShown: true,
+
+            title: "Admin",
+
+            // Remove native back arrow
+            headerBackVisible: false,
+
+            // Prevent swipe-back
+            gestureEnabled: false,
+
+            headerStyle: {
+              backgroundColor: "#FFFFFF",
+            },
+
+            headerTintColor: "#111827",
+
+            headerTitleStyle: {
+              color: "#111827",
+              fontWeight: "700",
+              fontSize: 24,
+            },
+
+            headerShadowVisible: false,
+          }}
+        />
+
+        {/* =================================================
             MODAL
-        =================================================== */}
+        ================================================= */}
 
         <Stack.Screen
           name="modal"
@@ -282,7 +341,11 @@ export default function RootLayout() {
         />
       </Stack>
 
-      <StatusBar style="auto" />
+      {/* ===================================================
+          STATUS BAR
+      =================================================== */}
+
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }

@@ -23,21 +23,42 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { db } from "../../firebase/firebaseConfig";
 
+// =====================================================
+// TYPES
+// =====================================================
+
 type Project = {
   id: string;
+
   title: string;
   description: string;
   domain: string;
   technologies: string;
   studentId: string;
 
-  // GitHub
+  // ===================================================
+  // PROCESSED REPORT TEXT
+  // ===================================================
+
+  reportText?: string;
+
+  // ===================================================
+  // GITHUB
+  // ===================================================
+
   githubUrl?: string;
 
-  // Report
+  // ===================================================
+  // REPORT
+  // ===================================================
+
   reportUrl?: string;
   reportName?: string;
 };
+
+// =====================================================
+// EXPLORE PROJECTS
+// =====================================================
 
 export default function ExploreProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -52,42 +73,167 @@ export default function ExploreProjects() {
     try {
       setLoading(true);
 
+      // =================================================
+      // LOAD PROJECTS
+      // =================================================
+
       const projectsQuery = query(
         collection(db, "projects"),
         orderBy("createdAt", "desc")
       );
 
-      const snapshot = await getDocs(
+      const projectsSnapshot = await getDocs(
         projectsQuery
       );
 
+      console.log(
+        "Projects collection loaded:",
+        projectsSnapshot.size
+      );
+
+      // =================================================
+      // LOAD PROCESSED REPORT DATA
+      // =================================================
+      //
+      // IMPORTANT:
+      //
+      // Firestore collection name is:
+      //
+      // processed_projects
+      //
+      // NOT:
+      //
+      // processedProjects
+      //
+      // =================================================
+
+      const processedSnapshot = await getDocs(
+        collection(db, "processed_projects")
+      );
+
+      console.log(
+        "Processed projects loaded:",
+        processedSnapshot.size
+      );
+
+      // =================================================
+      // CREATE MAP OF PROCESSED REPORT TEXT
+      // =================================================
+
+      const processedReportMap: Record<
+        string,
+        string
+      > = {};
+
+      processedSnapshot.docs.forEach(
+        (processedDoc) => {
+          const processedData =
+            processedDoc.data();
+
+          const projectId =
+            processedData.projectId;
+
+          if (projectId) {
+            processedReportMap[projectId] =
+              processedData.processedText || "";
+          }
+        }
+      );
+
+      // =================================================
+      // DEBUG PROCESSED PROJECTS
+      // =================================================
+
+      console.log(
+        "Processed report map:",
+        Object.keys(processedReportMap)
+      );
+
+      // =================================================
+      // CREATE PROJECT LIST
+      // =================================================
+
       const projectList: Project[] =
-        snapshot.docs.map((projectDoc) => {
-          const data = projectDoc.data();
+        projectsSnapshot.docs.map(
+          (projectDoc) => {
+            const data =
+              projectDoc.data();
 
-          return {
-            id: projectDoc.id,
+            const projectId =
+              projectDoc.id;
 
-            title: data.title || "",
-            description: data.description || "",
-            domain: data.domain || "",
-            technologies:
-              data.technologies || "",
-            studentId:
-              data.studentId || "",
+            const processedText =
+              processedReportMap[
+                projectId
+              ] || "";
 
-            githubUrl:
-              data.githubUrl || "",
+            console.log(
+              "Project:",
+              projectId,
+              "Processed text length:",
+              processedText.length
+            );
 
-            reportUrl:
-              data.reportUrl || "",
+            return {
+              id: projectId,
 
-            reportName:
-              data.reportName || "",
-          };
-        });
+              title:
+                data.title || "",
+
+              description:
+                data.description || "",
+
+              domain:
+                data.domain || "",
+
+              technologies:
+                data.technologies || "",
+
+              studentId:
+                data.studentId || "",
+
+              // =================================================
+              // PROCESSED REPORT TEXT
+              // =================================================
+
+              reportText:
+                processedText,
+
+              // =================================================
+              // GITHUB
+              // =================================================
+
+              githubUrl:
+                data.githubUrl || "",
+
+              // =================================================
+              // REPORT
+              // =================================================
+
+              reportUrl:
+                data.reportUrl || "",
+
+              reportName:
+                data.reportName || "",
+            };
+          }
+        );
+
+      // =================================================
+      // DEBUG
+      // =================================================
+
+      console.log(
+        "Total projects loaded:",
+        projectList.length
+      );
+
+      // =================================================
+      // SAVE PROJECTS
+      // =================================================
 
       setProjects(projectList);
+
     } catch (error) {
       console.log(
         "Error loading projects:",
@@ -98,6 +244,7 @@ export default function ExploreProjects() {
         "Unable to Load",
         "Unable to load projects. Please try again."
       );
+
     } finally {
       setLoading(false);
     }
@@ -117,31 +264,70 @@ export default function ExploreProjects() {
 
   const filteredProjects =
     projects.filter((project) => {
-      const searchText = search
-        .trim()
-        .toLowerCase();
+      const searchText =
+        search
+          .trim()
+          .toLowerCase();
+
+      // =================================================
+      // NO SEARCH
+      // =================================================
 
       if (!searchText) {
         return true;
       }
 
-      return (
-        project.title
-          .toLowerCase()
-          .includes(searchText) ||
+      // =================================================
+      // SEARCHABLE PROJECT CONTENT
+      // =================================================
 
-        project.description
-          .toLowerCase()
-          .includes(searchText) ||
+      const title =
+        String(
+          project.title || ""
+        ).toLowerCase();
 
-        project.domain
-          .toLowerCase()
-          .includes(searchText) ||
+      const description =
+        String(
+          project.description || ""
+        ).toLowerCase();
 
-        project.technologies
-          .toLowerCase()
-          .includes(searchText)
-      );
+      const domain =
+        String(
+          project.domain || ""
+        ).toLowerCase();
+
+      const technologies =
+        String(
+          project.technologies || ""
+        ).toLowerCase();
+
+      const reportText =
+        String(
+          project.reportText || ""
+        ).toLowerCase();
+
+      // =================================================
+      // SEARCH
+      // =================================================
+      //
+      // Search works across:
+      //
+      // 1. Project title
+      // 2. Description
+      // 3. Domain
+      // 4. Technologies
+      // 5. Uploaded PDF processed text
+      //
+      // =================================================
+
+      const matched =
+        title.includes(searchText) ||
+        description.includes(searchText) ||
+        domain.includes(searchText) ||
+        technologies.includes(searchText) ||
+        reportText.includes(searchText);
+
+      return matched;
     });
 
   // =====================================================
@@ -173,6 +359,7 @@ export default function ExploreProjects() {
           errorMessage
         );
       }
+
     } catch (error) {
       console.log(
         "Error opening URL:",
@@ -215,7 +402,9 @@ export default function ExploreProjects() {
 
             <View style={styles.domainBadge}>
 
-              <Text style={styles.domainText}>
+              <Text
+                style={styles.domainText}
+              >
                 {item.domain ||
                   "Domain not specified"}
               </Text>
@@ -259,7 +448,9 @@ export default function ExploreProjects() {
             Technologies
           </Text>
 
-          <View style={styles.technologyBox}>
+          <View
+            style={styles.technologyBox}
+          >
 
             <Ionicons
               name="code-slash-outline"
@@ -288,6 +479,7 @@ export default function ExploreProjects() {
           {/* REPORT */}
 
           {item.reportUrl ? (
+
             <Pressable
               style={styles.secondaryButton}
               onPress={() =>
@@ -313,7 +505,9 @@ export default function ExploreProjects() {
               </Text>
 
             </Pressable>
+
           ) : (
+
             <View
               style={styles.unavailableButton}
             >
@@ -325,17 +519,21 @@ export default function ExploreProjects() {
               />
 
               <Text
-                style={styles.unavailableText}
+                style={
+                  styles.unavailableText
+                }
               >
                 No Report
               </Text>
 
             </View>
+
           )}
 
           {/* GITHUB */}
 
           {item.githubUrl ? (
+
             <Pressable
               style={styles.githubButton}
               onPress={() =>
@@ -361,7 +559,9 @@ export default function ExploreProjects() {
               </Text>
 
             </Pressable>
+
           ) : (
+
             <View
               style={styles.unavailableButton}
             >
@@ -373,12 +573,15 @@ export default function ExploreProjects() {
               />
 
               <Text
-                style={styles.unavailableText}
+                style={
+                  styles.unavailableText
+                }
               >
                 No GitHub
               </Text>
 
             </View>
+
           )}
 
         </View>
@@ -398,7 +601,9 @@ export default function ExploreProjects() {
           SEARCH
       ================================================= */}
 
-      <View style={styles.searchContainer}>
+      <View
+        style={styles.searchContainer}
+      >
 
         <Ionicons
           name="search-outline"
@@ -408,7 +613,7 @@ export default function ExploreProjects() {
 
         <TextInput
           style={styles.searchInput}
-          placeholder="Search projects..."
+          placeholder="Search projects, technologies, keywords..."
           placeholderTextColor="#9CA3AF"
           value={search}
           onChangeText={setSearch}
@@ -417,15 +622,19 @@ export default function ExploreProjects() {
         />
 
         {search.length > 0 && (
+
           <Pressable
             onPress={() => setSearch("")}
           >
+
             <Ionicons
               name="close-circle"
               size={19}
               color="#9CA3AF"
             />
+
           </Pressable>
+
         )}
 
       </View>
@@ -435,24 +644,33 @@ export default function ExploreProjects() {
       ================================================= */}
 
       {!loading && (
+
         <View style={styles.countRow}>
 
           <Text style={styles.count}>
+
             {filteredProjects.length}{" "}
+
             {filteredProjects.length === 1
               ? "Project"
               : "Projects"}
+
           </Text>
 
           {search.length > 0 && (
+
             <Text
-              style={styles.searchResultText}
+              style={
+                styles.searchResultText
+              }
             >
               Results for "{search}"
             </Text>
+
           )}
 
         </View>
+
       )}
 
       {/* =================================================
@@ -460,14 +678,19 @@ export default function ExploreProjects() {
       ================================================= */}
 
       {loading ? (
-        <View style={styles.loadingContainer}>
+
+        <View
+          style={styles.loadingContainer}
+        >
 
           <ActivityIndicator
             size="large"
             color="#4338CA"
           />
 
-          <Text style={styles.loadingText}>
+          <Text
+            style={styles.loadingText}
+          >
             Loading projects...
           </Text>
 
@@ -479,9 +702,13 @@ export default function ExploreProjects() {
             EMPTY STATE
         ================================================= */
 
-        <View style={styles.emptyContainer}>
+        <View
+          style={styles.emptyContainer}
+        >
 
-          <View style={styles.emptyIcon}>
+          <View
+            style={styles.emptyIcon}
+          >
 
             <Ionicons
               name="search-outline"
@@ -491,27 +718,37 @@ export default function ExploreProjects() {
 
           </View>
 
-          <Text style={styles.emptyTitle}>
+          <Text
+            style={styles.emptyTitle}
+          >
             No Projects Found
           </Text>
 
-          <Text style={styles.emptyText}>
+          <Text
+            style={styles.emptyText}
+          >
             {search
               ? "Try searching with a different keyword."
               : "There are no projects available to explore yet."}
           </Text>
 
           {search && (
+
             <Pressable
               style={styles.clearButton}
               onPress={() => setSearch("")}
             >
+
               <Text
-                style={styles.clearButtonText}
+                style={
+                  styles.clearButtonText
+                }
               >
                 Clear Search
               </Text>
+
             </Pressable>
+
           )}
 
         </View>
@@ -620,10 +857,12 @@ const styles = StyleSheet.create({
     borderColor: "#E0E4EC",
 
     shadowColor: "#4338CA",
+
     shadowOffset: {
       width: 0,
       height: 2,
     },
+
     shadowOpacity: 0.04,
     shadowRadius: 7,
 
