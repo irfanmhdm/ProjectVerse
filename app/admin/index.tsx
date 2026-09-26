@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,14 +16,14 @@ import { useRouter } from "expo-router";
 
 import {
   collection,
+  doc,
   getDocs,
   query,
-  where,
-  doc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 
-import { db, auth } from "../../firebase/firebaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
 
 
 // =====================================================
@@ -40,10 +41,9 @@ type Guide = {
   email?: string;
   role?: string;
 
-  // New field
   approvalStatus?: ApprovalStatus;
 
-  // Old field - kept only for compatibility
+  // Kept for compatibility with older records
   status?: ApprovalStatus;
 };
 
@@ -56,13 +56,16 @@ export default function AdminDashboard() {
 
   const router = useRouter();
 
+
   // =====================================================
   // DASHBOARD COUNTS
   // =====================================================
 
-  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalStudents, setTotalStudents] =
+    useState(0);
 
-  const [totalGuides, setTotalGuides] = useState(0);
+  const [totalGuides, setTotalGuides] =
+    useState(0);
 
   const [submittedProjects, setSubmittedProjects] =
     useState(0);
@@ -80,11 +83,14 @@ export default function AdminDashboard() {
 
 
   // =====================================================
-  // LOADING STATES
+  // LOADING
   // =====================================================
 
   const [loading, setLoading] =
     useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
 
   const [processingGuide, setProcessingGuide] =
     useState<string | null>(null);
@@ -98,7 +104,9 @@ export default function AdminDashboard() {
 
     try {
 
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
 
 
       // =================================================
@@ -110,10 +118,6 @@ export default function AdminDashboard() {
           collection(db, "users")
         );
 
-
-      // =================================================
-      // COUNTERS
-      // =================================================
 
       let students = 0;
 
@@ -133,10 +137,12 @@ export default function AdminDashboard() {
 
 
         // -----------------------------------------------
-        // STUDENT
+        // STUDENTS
         // -----------------------------------------------
 
-        if (user.role === "student") {
+        if (
+          user.role === "student"
+        ) {
 
           students++;
 
@@ -144,23 +150,21 @@ export default function AdminDashboard() {
 
 
         // -----------------------------------------------
-        // GUIDE
+        // GUIDES
         // -----------------------------------------------
 
-        if (user.role === "guide") {
+        if (
+          user.role === "guide"
+        ) {
 
           /*
-           * IMPORTANT
-           *
-           * New system uses:
+           * Current system:
            *
            * approvalStatus
            *
-           * Older records may still have:
+           * Older records:
            *
            * status
-           *
-           * So we use approvalStatus first.
            */
 
           const approvalStatus =
@@ -173,7 +177,8 @@ export default function AdminDashboard() {
           // ---------------------------------------------
 
           if (
-            approvalStatus === "approved"
+            approvalStatus ===
+            "approved"
           ) {
 
             approvedGuides++;
@@ -186,7 +191,8 @@ export default function AdminDashboard() {
           // ---------------------------------------------
 
           if (
-            approvalStatus === "pending"
+            approvalStatus ===
+            "pending"
           ) {
 
             pendingGuideList.push({
@@ -208,9 +214,13 @@ export default function AdminDashboard() {
       // SET USER COUNTS
       // =================================================
 
-      setTotalStudents(students);
+      setTotalStudents(
+        students
+      );
 
-      setTotalGuides(approvedGuides);
+      setTotalGuides(
+        approvedGuides
+      );
 
 
       // =================================================
@@ -331,6 +341,7 @@ export default function AdminDashboard() {
     } finally {
 
       setLoading(false);
+      setRefreshing(false);
 
     }
 
@@ -338,7 +349,7 @@ export default function AdminDashboard() {
 
 
   // =====================================================
-  // LOAD WHEN SCREEN OPENS
+  // INITIAL LOAD
   // =====================================================
 
   useEffect(() => {
@@ -346,6 +357,19 @@ export default function AdminDashboard() {
     loadDashboard();
 
   }, []);
+
+
+  // =====================================================
+  // PULL TO REFRESH
+  // =====================================================
+
+  const handleRefresh = () => {
+
+    setRefreshing(true);
+
+    loadDashboard();
+
+  };
 
 
   // =====================================================
@@ -363,10 +387,6 @@ export default function AdminDashboard() {
       );
 
 
-      // -----------------------------------------------
-      // UPDATE GUIDE
-      // -----------------------------------------------
-
       await updateDoc(
         doc(
           db,
@@ -375,19 +395,10 @@ export default function AdminDashboard() {
         ),
         {
 
-          /*
-           * Main field used by the
-           * current system.
-           */
-
           approvalStatus:
             "approved",
 
-          /*
-           * Keep old status field synchronized
-           * so old code does not cause problems.
-           */
-
+          // Keep old field synchronized
           status:
             "approved",
 
@@ -395,10 +406,7 @@ export default function AdminDashboard() {
       );
 
 
-      // -----------------------------------------------
-      // UPDATE UI IMMEDIATELY
-      // -----------------------------------------------
-
+      // Remove immediately from pending list
       setPendingGuides(
         (currentGuides) =>
           currentGuides.filter(
@@ -408,10 +416,7 @@ export default function AdminDashboard() {
       );
 
 
-      // -----------------------------------------------
-      // RELOAD COUNTS
-      // -----------------------------------------------
-
+      // Refresh counts
       await loadDashboard();
 
 
@@ -459,10 +464,6 @@ export default function AdminDashboard() {
       );
 
 
-      // -----------------------------------------------
-      // UPDATE GUIDE
-      // -----------------------------------------------
-
       await updateDoc(
         doc(
           db,
@@ -471,18 +472,10 @@ export default function AdminDashboard() {
         ),
         {
 
-          /*
-           * Rejected guides must NOT
-           * count as guides.
-           */
-
           approvalStatus:
             "rejected",
 
-          /*
-           * Keep old field synchronized.
-           */
-
+          // Keep old field synchronized
           status:
             "rejected",
 
@@ -490,10 +483,7 @@ export default function AdminDashboard() {
       );
 
 
-      // -----------------------------------------------
-      // REMOVE FROM PENDING UI
-      // -----------------------------------------------
-
+      // Remove immediately from pending list
       setPendingGuides(
         (currentGuides) =>
           currentGuides.filter(
@@ -503,10 +493,7 @@ export default function AdminDashboard() {
       );
 
 
-      // -----------------------------------------------
-      // RELOAD COUNTS
-      // -----------------------------------------------
-
+      // Refresh counts
       await loadDashboard();
 
 
@@ -566,7 +553,7 @@ export default function AdminDashboard() {
 
 
   // =====================================================
-  // LOADING
+  // LOADING SCREEN
   // =====================================================
 
   if (loading) {
@@ -579,17 +566,33 @@ export default function AdminDashboard() {
         }
       >
 
+        <View
+          style={
+            styles.loadingIcon
+          }
+        >
+
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={30}
+            color="#4338CA"
+          />
+
+        </View>
+
+
         <ActivityIndicator
-          size="large"
+          size="small"
           color="#4338CA"
         />
+
 
         <Text
           style={
             styles.loadingText
           }
         >
-          Loading dashboard...
+          Loading admin dashboard...
         </Text>
 
       </View>
@@ -600,13 +603,15 @@ export default function AdminDashboard() {
 
 
   // =====================================================
-  // UI
+  // MAIN UI
   // =====================================================
 
   return (
 
     <View
-      style={styles.container}
+      style={
+        styles.container
+      }
     >
 
       <ScrollView
@@ -616,6 +621,18 @@ export default function AdminDashboard() {
         contentContainerStyle={
           styles.content
         }
+
+        refreshControl={
+          <RefreshControl
+            refreshing={
+              refreshing
+            }
+            onRefresh={
+              handleRefresh
+            }
+            tintColor="#4338CA"
+          />
+        }
       >
 
 
@@ -624,22 +641,52 @@ export default function AdminDashboard() {
         ================================================= */}
 
         <View
-          style={styles.header}
+          style={
+            styles.header
+          }
         >
 
-          <View>
+          <View
+            style={
+              styles.headerLeft
+            }
+          >
 
-            <Text
-              style={styles.title}
+            <View
+              style={
+                styles.headerIcon
+              }
             >
-              Admin Dashboard
-            </Text>
 
-            <Text
-              style={styles.subtitle}
-            >
-              Manage ProjectVerse
-            </Text>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={25}
+                color="#4338CA"
+              />
+
+            </View>
+
+
+            <View>
+
+              <Text
+                style={
+                  styles.title
+                }
+              >
+                Admin Dashboard
+              </Text>
+
+
+              <Text
+                style={
+                  styles.subtitle
+                }
+              >
+                Manage ProjectVerse
+              </Text>
+
+            </View>
 
           </View>
 
@@ -648,6 +695,7 @@ export default function AdminDashboard() {
             style={
               styles.logoutButton
             }
+            activeOpacity={0.7}
             onPress={
               handleLogout
             }
@@ -665,18 +713,47 @@ export default function AdminDashboard() {
 
 
         {/* =================================================
-            OVERVIEW
+            OVERVIEW HEADER
         ================================================= */}
 
-        <Text
-          style={styles.sectionTitle}
+        <View
+          style={
+            styles.sectionHeader
+          }
         >
-          Overview
-        </Text>
 
+          <View>
+
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Overview
+            </Text>
+
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Current ProjectVerse statistics
+            </Text>
+
+          </View>
+
+        </View>
+
+
+        {/* =================================================
+            STATISTICS
+        ================================================= */}
 
         <View
-          style={styles.statsGrid}
+          style={
+            styles.statsGrid
+          }
         >
 
 
@@ -685,19 +762,21 @@ export default function AdminDashboard() {
           =============================================== */}
 
           <View
-            style={styles.statCard}
+            style={
+              styles.statCard
+            }
           >
 
             <View
               style={[
-                styles.iconContainer,
+                styles.statIcon,
                 styles.mintIcon,
               ]}
             >
 
               <Ionicons
                 name="people-outline"
-                size={25}
+                size={23}
                 color="#0F766E"
               />
 
@@ -705,39 +784,69 @@ export default function AdminDashboard() {
 
 
             <Text
-              style={styles.statNumber}
+              style={
+                styles.statNumber
+              }
             >
               {totalStudents}
             </Text>
 
 
             <Text
-              style={styles.statLabel}
+              style={
+                styles.statLabel
+              }
             >
               Students
             </Text>
+
+
+            <View
+              style={
+                styles.statFooter
+              }
+            >
+
+              <Ionicons
+                name="person-outline"
+                size={13}
+                color="#0F766E"
+              />
+
+
+              <Text
+                style={
+                  styles.statFooterText
+                }
+              >
+                Registered
+              </Text>
+
+            </View>
 
           </View>
 
 
           {/* ===============================================
-              APPROVED GUIDES
+              GUIDES
           =============================================== */}
 
           <View
-            style={styles.statCard}
+            style={
+              styles.statCard
+            }
           >
 
             <View
               style={[
-                styles.iconContainer,
+                styles.statIcon,
                 styles.indigoIcon,
               ]}
             >
 
               <Ionicons
                 name="school-outline"
-                size={25}
+                size={23}
                 color="#4338CA"
               />
 
@@ -745,17 +854,45 @@ export default function AdminDashboard() {
 
 
             <Text
-              style={styles.statNumber}
+              style={
+                styles.statNumber
+              }
             >
               {totalGuides}
             </Text>
 
 
             <Text
-              style={styles.statLabel}
+              style={
+                styles.statLabel
+              }
             >
               Guides
             </Text>
+
+
+            <View
+              style={
+                styles.statFooter
+              }
+            >
+
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={13}
+                color="#4338CA"
+              />
+
+
+              <Text
+                style={
+                  styles.statFooterText
+                }
+              >
+                Approved
+              </Text>
+
+            </View>
 
           </View>
 
@@ -765,37 +902,67 @@ export default function AdminDashboard() {
           =============================================== */}
 
           <View
-            style={styles.statCard}
+            style={
+              styles.statCard
+            }
           >
 
             <View
               style={[
-                styles.iconContainer,
-                styles.orangeIcon,
+                styles.statIcon,
+                styles.amberIcon,
               ]}
             >
 
               <Ionicons
                 name="document-text-outline"
-                size={25}
-                color="#C2410C"
+                size={23}
+                color="#B45309"
               />
 
             </View>
 
 
             <Text
-              style={styles.statNumber}
+              style={
+                styles.statNumber
+              }
             >
               {submittedProjects}
             </Text>
 
 
             <Text
-              style={styles.statLabel}
+              style={
+                styles.statLabel
+              }
             >
-              Submitted Projects
+              Submitted
             </Text>
+
+
+            <View
+              style={
+                styles.statFooter
+              }
+            >
+
+              <Ionicons
+                name="time-outline"
+                size={13}
+                color="#B45309"
+              />
+
+
+              <Text
+                style={
+                  styles.statFooterText
+                }
+              >
+                Projects
+              </Text>
+
+            </View>
 
           </View>
 
@@ -805,19 +972,21 @@ export default function AdminDashboard() {
           =============================================== */}
 
           <View
-            style={styles.statCard}
+            style={
+              styles.statCard
+            }
           >
 
             <View
               style={[
-                styles.iconContainer,
+                styles.statIcon,
                 styles.greenIcon,
               ]}
             >
 
               <Ionicons
-                name="checkmark-circle-outline"
-                size={25}
+                name="checkmark-done-outline"
+                size={23}
                 color="#15803D"
               />
 
@@ -825,17 +994,45 @@ export default function AdminDashboard() {
 
 
             <Text
-              style={styles.statNumber}
+              style={
+                styles.statNumber
+              }
             >
               {approvedProjects}
             </Text>
 
 
             <Text
-              style={styles.statLabel}
+              style={
+                styles.statLabel
+              }
             >
-              Approved Projects
+              Approved
             </Text>
+
+
+            <View
+              style={
+                styles.statFooter
+              }
+            >
+
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={13}
+                color="#15803D"
+              />
+
+
+              <Text
+                style={
+                  styles.statFooterText
+                }
+              >
+                Projects
+              </Text>
+
+            </View>
 
           </View>
 
@@ -843,30 +1040,70 @@ export default function AdminDashboard() {
 
 
         {/* =================================================
-            GUIDE APPROVAL
+            GUIDE APPROVAL SECTION
         ================================================= */}
 
         <View
-          style={styles.sectionHeader}
+          style={
+            styles.approvalHeader
+          }
         >
 
-          <Text
-            style={styles.sectionTitle}
-          >
-            Guide Approval
-          </Text>
-
-
-          <View
-            style={styles.pendingBadge}
-          >
+          <View>
 
             <Text
               style={
-                styles.pendingBadgeText
+                styles.sectionTitle
               }
             >
-              {pendingGuides.length} Pending
+              Guide Approval
+            </Text>
+
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Review new guide registrations
+            </Text>
+
+          </View>
+
+
+          <View
+            style={
+              pendingGuides.length > 0
+                ? styles.pendingBadge
+                : styles.approvedBadge
+            }
+          >
+
+            <Ionicons
+              name={
+                pendingGuides.length > 0
+                  ? "time-outline"
+                  : "checkmark-circle-outline"
+              }
+              size={14}
+              color={
+                pendingGuides.length > 0
+                  ? "#B45309"
+                  : "#15803D"
+              }
+            />
+
+
+            <Text
+              style={
+                pendingGuides.length > 0
+                  ? styles.pendingBadgeText
+                  : styles.approvedBadgeText
+              }
+            >
+              {pendingGuides.length > 0
+                ? `${pendingGuides.length} Pending`
+                : "All Clear"}
             </Text>
 
           </View>
@@ -875,31 +1112,45 @@ export default function AdminDashboard() {
 
 
         {/* =================================================
-            NO PENDING REQUESTS
+            EMPTY STATE
         ================================================= */}
 
         {pendingGuides.length === 0 ? (
 
           <View
-            style={styles.emptyCard}
+            style={
+              styles.emptyCard
+            }
           >
 
-            <Ionicons
-              name="checkmark-done-outline"
-              size={42}
-              color="#0F766E"
-            />
+            <View
+              style={
+                styles.emptyIcon
+              }
+            >
+
+              <Ionicons
+                name="checkmark-done-outline"
+                size={30}
+                color="#0F766E"
+              />
+
+            </View>
 
 
             <Text
-              style={styles.emptyTitle}
+              style={
+                styles.emptyTitle
+              }
             >
               No Pending Requests
             </Text>
 
 
             <Text
-              style={styles.emptyText}
+              style={
+                styles.emptyText
+              }
             >
               There are no guide approval
               requests at the moment.
@@ -917,8 +1168,12 @@ export default function AdminDashboard() {
             (guide) => (
 
               <View
-                key={guide.id}
-                style={styles.guideCard}
+                key={
+                  guide.id
+                }
+                style={
+                  styles.guideCard
+                }
               >
 
 
@@ -927,16 +1182,20 @@ export default function AdminDashboard() {
                 ========================================= */}
 
                 <View
-                  style={styles.guideInfo}
+                  style={
+                    styles.guideInfo
+                  }
                 >
 
                   <View
-                    style={styles.guideIcon}
+                    style={
+                      styles.guideAvatar
+                    }
                   >
 
                     <Ionicons
                       name="person-outline"
-                      size={24}
+                      size={23}
                       color="#4338CA"
                     />
 
@@ -944,7 +1203,9 @@ export default function AdminDashboard() {
 
 
                   <View
-                    style={styles.guideDetails}
+                    style={
+                      styles.guideDetails
+                    }
                   >
 
                     <Text
@@ -957,14 +1218,29 @@ export default function AdminDashboard() {
                     </Text>
 
 
-                    <Text
+                    <View
                       style={
-                        styles.guideEmail
+                        styles.emailRow
                       }
                     >
-                      {guide.email ||
-                        "No email"}
-                    </Text>
+
+                      <Ionicons
+                        name="mail-outline"
+                        size={14}
+                        color="#6B7280"
+                      />
+
+
+                      <Text
+                        style={
+                          styles.guideEmail
+                        }
+                      >
+                        {guide.email ||
+                          "No email"}
+                      </Text>
+
+                    </View>
 
 
                     <View
@@ -976,7 +1252,7 @@ export default function AdminDashboard() {
                       <Ionicons
                         name="time-outline"
                         size={14}
-                        color="#C2410C"
+                        color="#B45309"
                       />
 
 
@@ -985,7 +1261,7 @@ export default function AdminDashboard() {
                           styles.pendingStatusText
                         }
                       >
-                        Pending approval
+                        Waiting for admin approval
                       </Text>
 
                     </View>
@@ -996,11 +1272,24 @@ export default function AdminDashboard() {
 
 
                 {/* =========================================
+                    DIVIDER
+                ========================================= */}
+
+                <View
+                  style={
+                    styles.divider
+                  }
+                />
+
+
+                {/* =========================================
                     ACTION BUTTONS
                 ========================================= */}
 
                 <View
-                  style={styles.actionRow}
+                  style={
+                    styles.actionRow
+                  }
                 >
 
 
@@ -1012,6 +1301,7 @@ export default function AdminDashboard() {
                     style={
                       styles.rejectButton
                     }
+                    activeOpacity={0.75}
                     disabled={
                       processingGuide ===
                       guide.id
@@ -1024,10 +1314,11 @@ export default function AdminDashboard() {
                   >
 
                     <Ionicons
-                      name="close-outline"
+                      name="close-circle-outline"
                       size={19}
                       color="#DC2626"
                     />
+
 
                     <Text
                       style={
@@ -1048,6 +1339,7 @@ export default function AdminDashboard() {
                     style={
                       styles.approveButton
                     }
+                    activeOpacity={0.8}
                     disabled={
                       processingGuide ===
                       guide.id
@@ -1070,7 +1362,7 @@ export default function AdminDashboard() {
                     ) : (
 
                       <Ionicons
-                        name="checkmark-outline"
+                        name="checkmark-circle-outline"
                         size={19}
                         color="#FFFFFF"
                       />
@@ -1093,9 +1385,39 @@ export default function AdminDashboard() {
               </View>
 
             )
+
           )
 
         )}
+
+
+        {/* =================================================
+            FOOTER INFORMATION
+        ================================================= */}
+
+        <View
+          style={
+            styles.securityNote
+          }
+        >
+
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={16}
+            color="#6B7280"
+          />
+
+
+          <Text
+            style={
+              styles.securityText
+            }
+          >
+            Only approved guides can access
+            the Guide module.
+          </Text>
+
+        </View>
 
       </ScrollView>
 
@@ -1112,15 +1434,26 @@ export default function AdminDashboard() {
 
 const styles = StyleSheet.create({
 
+  // ===================================================
+  // CONTAINER
+  // ===================================================
+
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
   },
 
+
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 50,
   },
+
+
+  // ===================================================
+  // LOADING
+  // ===================================================
 
   loadingContainer: {
     flex: 1,
@@ -1129,35 +1462,74 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F7FB",
   },
 
+
+  loadingIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    backgroundColor: "#E0E7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+
+
   loadingText: {
     marginTop: 12,
     fontSize: 14,
     color: "#6B7280",
   },
 
+
+  // ===================================================
+  // HEADER
+  // ===================================================
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 28,
+    marginBottom: 30,
   },
+
+
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+
+
+  headerIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: "#E0E7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
 
   title: {
-    fontSize: 26,
+    fontSize: 25,
     fontWeight: "700",
     color: "#1F2937",
+    letterSpacing: -0.3,
   },
 
+
   subtitle: {
-    marginTop: 5,
-    fontSize: 14,
+    marginTop: 4,
+    fontSize: 13,
     color: "#6B7280",
   },
+
 
   logoutButton: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 13,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -1165,12 +1537,33 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
 
+
+  // ===================================================
+  // SECTION
+  // ===================================================
+
+  sectionHeader: {
+    marginBottom: 15,
+  },
+
+
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "700",
     color: "#1F2937",
-    marginBottom: 14,
   },
+
+
+  sectionSubtitle: {
+    marginTop: 4,
+    fontSize: 12.5,
+    color: "#6B7280",
+  },
+
+
+  // ===================================================
+  // STATISTICS
+  // ===================================================
 
   statsGrid: {
     flexDirection: "row",
@@ -1179,124 +1572,202 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
+
   statCard: {
-    width: "48%",
+    width: "48.3%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 17,
     padding: 16,
-    marginBottom: 14,
+    marginBottom: 13,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E7EAF0",
   },
 
-  iconContainer: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+
+  statIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 14,
   },
+
 
   mintIcon: {
     backgroundColor: "#D5F5F2",
   },
 
+
   indigoIcon: {
     backgroundColor: "#E0E7FF",
   },
 
-  orangeIcon: {
-    backgroundColor: "#FFEDD5",
+
+  amberIcon: {
+    backgroundColor: "#FEF3C7",
   },
+
 
   greenIcon: {
     backgroundColor: "#DCFCE7",
   },
 
+
   statNumber: {
-    fontSize: 25,
+    fontSize: 27,
     fontWeight: "700",
     color: "#1F2937",
   },
 
+
   statLabel: {
-    marginTop: 4,
+    marginTop: 2,
     fontSize: 13,
+    fontWeight: "500",
     color: "#6B7280",
   },
 
-  sectionHeader: {
+
+  statFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 11,
+  },
+
+
+  statFooterText: {
+    marginLeft: 4,
+    fontSize: 11,
+    color: "#6B7280",
+  },
+
+
+  // ===================================================
+  // GUIDE APPROVAL HEADER
+  // ===================================================
+
+  approvalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 15,
   },
 
+
   pendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FEF3C7",
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
   },
 
+
   pendingBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#92400E",
+    marginLeft: 4,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#B45309",
   },
+
+
+  approvedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+
+
+  approvedBadgeText: {
+    marginLeft: 4,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#15803D",
+  },
+
+
+  // ===================================================
+  // EMPTY STATE
+  // ===================================================
 
   emptyCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 30,
+    borderRadius: 17,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E7EAF0",
   },
 
+
+  emptyIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 17,
+    backgroundColor: "#D5F5F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 13,
+  },
+
+
   emptyTitle: {
-    marginTop: 12,
     fontSize: 17,
     fontWeight: "700",
     color: "#1F2937",
   },
 
+
   emptyText: {
-    marginTop: 6,
+    marginTop: 7,
     fontSize: 13,
+    lineHeight: 20,
     color: "#6B7280",
     textAlign: "center",
-    lineHeight: 20,
   },
+
+
+  // ===================================================
+  // GUIDE CARD
+  // ===================================================
 
   guideCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    borderRadius: 17,
+    padding: 17,
+    marginBottom: 13,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E7EAF0",
   },
+
 
   guideInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
 
-  guideIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+
+  guideAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
     backgroundColor: "#E0E7FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 13,
   },
+
 
   guideDetails: {
     flex: 1,
   },
+
 
   guideName: {
     fontSize: 16,
@@ -1304,11 +1775,21 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
 
-  guideEmail: {
-    marginTop: 3,
-    fontSize: 13,
-    color: "#6B7280",
+
+  emailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
   },
+
+
+  guideEmail: {
+    marginLeft: 5,
+    fontSize: 12.5,
+    color: "#6B7280",
+    flexShrink: 1,
+  },
+
 
   pendingStatus: {
     flexDirection: "row",
@@ -1316,22 +1797,37 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
 
+
   pendingStatusText: {
     marginLeft: 4,
-    fontSize: 12,
-    color: "#C2410C",
+    fontSize: 11.5,
+    fontWeight: "500",
+    color: "#B45309",
   },
+
+
+  divider: {
+    height: 1,
+    backgroundColor: "#EEF0F4",
+    marginTop: 16,
+    marginBottom: 14,
+  },
+
+
+  // ===================================================
+  // ACTION BUTTONS
+  // ===================================================
 
   actionRow: {
     flexDirection: "row",
-    marginTop: 16,
     gap: 10,
   },
 
+
   rejectButton: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
+    height: 44,
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: "#FECACA",
     backgroundColor: "#FEF2F2",
@@ -1340,28 +1836,52 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+
   rejectText: {
-    marginLeft: 5,
-    fontSize: 14,
+    marginLeft: 6,
+    fontSize: 13.5,
     fontWeight: "600",
     color: "#DC2626",
   },
 
+
   approveButton: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
+    height: 44,
+    borderRadius: 11,
     backgroundColor: "#4338CA",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
 
+
   approveText: {
-    marginLeft: 5,
-    fontSize: 14,
+    marginLeft: 6,
+    fontSize: 13.5,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+
+
+  // ===================================================
+  // SECURITY NOTE
+  // ===================================================
+
+  securityNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    paddingHorizontal: 15,
+  },
+
+
+  securityText: {
+    marginLeft: 6,
+    fontSize: 11.5,
+    color: "#6B7280",
+    textAlign: "center",
   },
 
 });
