@@ -1,6 +1,7 @@
 from services.firebase_service import db
 
 from google.cloud.firestore_v1.base_query import FieldFilter
+from sklearn.metrics.pairwise import cosine_similarity
 
 from services.pdf_extractor import extract_text_from_pdf
 from services.text_processor import preprocess_text
@@ -376,7 +377,7 @@ def process_approved_project(
 
     processed_ref = (
         db.collection(
-            "processedProjects"
+            "processed_projects"
         )
         .document(
             project_id
@@ -451,4 +452,268 @@ def process_approved_project(
 
         "message":
             "Project processed and stored successfully"
+    }
+
+# =========================================================
+# ANALYZE NEW REPORT AGAINST APPROVED PROJECTS
+# =========================================================
+
+def analyze_similarity(
+    new_pdf_path: str
+):
+    """
+    Compare a new project report against
+    all approved projects using TF-IDF
+    and cosine similarity.
+    """
+
+    print(
+        "\n===== STARTING SIMILARITY ANALYSIS ====="
+    )
+
+    # -----------------------------------------------------
+    # STEP 1: EXTRACT NEW REPORT TEXT
+    # -----------------------------------------------------
+
+    print(
+        "Extracting new report text..."
+    )
+
+    raw_text = extract_text_from_pdf(
+        new_pdf_path
+    )
+
+    if not raw_text.strip():
+
+        raise ValueError(
+            "No text could be extracted from the uploaded PDF."
+        )
+
+    print(
+        "New report raw characters:",
+        len(raw_text)
+    )
+
+    # -----------------------------------------------------
+    # STEP 2: PREPROCESS NEW REPORT
+    # -----------------------------------------------------
+
+    print(
+        "Preprocessing new report..."
+    )
+
+    new_processed_text = preprocess_text(
+        raw_text
+    )
+
+    if not new_processed_text.strip():
+
+        raise ValueError(
+            "No usable text remains after preprocessing."
+        )
+
+    print(
+        "New report processed characters:",
+        len(new_processed_text)
+    )
+
+    # -----------------------------------------------------
+    # STEP 3: GET APPROVED PROJECTS
+    # -----------------------------------------------------
+
+    print(
+        "Getting approved projects..."
+    )
+
+    approved_projects = get_approved_projects()
+
+    print(
+        "Approved projects found:",
+        len(approved_projects)
+    )
+
+    if not approved_projects:
+
+        raise ValueError(
+            "No approved projects are available for comparison."
+        )
+
+    # -----------------------------------------------------
+    # STEP 4: GET PROCESSED TEXT
+    # -----------------------------------------------------
+
+    documents = [
+        new_processed_text
+    ]
+
+    project_information = []
+
+    for project in approved_projects:
+
+        processed_ref = (
+            db.collection(
+                "processed_projects"
+            )
+            .document(
+                project["id"]
+            )
+        )
+
+        processed_snapshot = (
+            processed_ref.get()
+        )
+
+        if not processed_snapshot.exists:
+
+            print(
+                "⚠️ No processed data for:",
+                project["title"]
+            )
+
+            continue
+
+        processed_data = (
+            processed_snapshot.to_dict()
+        )
+
+        processed_text = (
+            processed_data.get(
+                "processedText",
+                ""
+            )
+        )
+
+        if not processed_text.strip():
+
+            print(
+                "⚠️ Empty processed text for:",
+                project["title"]
+            )
+
+            continue
+
+        documents.append(
+            processed_text
+        )
+
+        project_information.append(
+            project
+        )
+
+    if not project_information:
+
+        raise ValueError(
+            "No processed approved projects are available for comparison."
+        )
+
+    print(
+        "Projects ready for comparison:",
+        len(project_information)
+    )
+
+    # -----------------------------------------------------
+    # STEP 5: GENERATE COMMON TF-IDF SPACE
+    # -----------------------------------------------------
+
+    print(
+        "Generating common TF-IDF matrix..."
+    )
+
+    vectorizer, tfidf_matrix = (
+        generate_tfidf(
+            documents
+        )
+    )
+
+    print(
+        "TF-IDF matrix shape:",
+        tfidf_matrix.shape
+    )
+
+    # -----------------------------------------------------
+    # STEP 6: CALCULATE COSINE SIMILARITY
+    # -----------------------------------------------------
+
+    print(
+        "Calculating cosine similarity..."
+    )
+
+    similarity_scores = (
+        cosine_similarity(
+            tfidf_matrix[0:1],
+            tfidf_matrix[1:]
+        )[0]
+    )
+
+    # -----------------------------------------------------
+    # STEP 7: CREATE RESULTS
+    # -----------------------------------------------------
+
+    results = []
+
+    for index, project in enumerate(
+        project_information
+    ):
+
+        similarity_percentage = (
+            float(
+                similarity_scores[index]
+            ) * 100
+        )
+
+        results.append({
+
+            "projectId":
+                project["id"],
+
+            "title":
+                project["title"],
+
+            "domain":
+                project["domain"],
+
+            "technologies":
+                project["technologies"],
+
+            "similarity":
+                round(
+                    similarity_percentage,
+                    2
+                ),
+
+        })
+
+    # -----------------------------------------------------
+    # STEP 8: SORT RESULTS
+    # -----------------------------------------------------
+
+    results.sort(
+        key=lambda item:
+            item["similarity"],
+        reverse=True
+    )
+
+    print(
+        "\n===== SIMILARITY RESULTS ====="
+    )
+
+    for result in results:
+
+        print(
+            f'{result["title"]}: '
+            f'{result["similarity"]}%'
+        )
+
+    print(
+        "\n===== SIMILARITY ANALYSIS COMPLETE ====="
+    )
+
+    return {
+
+        "totalCompared":
+            len(results),
+
+        "results":
+            results
+
     }

@@ -11,46 +11,101 @@ import {
 
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+
+// =====================================================
+// FASTAPI URL
+// =====================================================
+
+// IMPORTANT:
+// Replace this with your computer's IPv4 address.
+//
+// Example:
+// http://192.168.1.5:8000
+//
+// Do NOT use localhost when testing from a physical phone.
+
+const API_URL = "http://192.168.1.11:8000";
+
+// =====================================================
+// TYPES
+// =====================================================
+
+type SimilarityResult = {
+  projectId: string;
+  title: string;
+  domain: string;
+  technologies: string;
+  similarity: number;
+};
+
+type AnalysisData = {
+  uploadedCharacters: number;
+  totalApprovedProjects: number;
+  processedProjects: number;
+  results: SimilarityResult[];
+  report?: string;
+};
+
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 export default function SimilarityScreen() {
-  // =====================================================
+
+  // ===================================================
   // STATE
-  // =====================================================
+  // ===================================================
 
   const [selectedFile, setSelectedFile] =
     useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
-  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzing, setAnalyzing] =
+    useState(false);
 
-  // =====================================================
+
+  // ===================================================
   // SELECT PDF
-  // =====================================================
+  // ===================================================
 
   const selectReport = async () => {
+
     try {
+
       const result =
         await DocumentPicker.getDocumentAsync({
+
           type: "application/pdf",
+
           copyToCacheDirectory: true,
+
           multiple: false,
+
         });
 
-      // User cancelled picker
+
+      // User cancelled
+
       if (result.canceled) {
         return;
       }
 
+
       const file = result.assets[0];
 
-      // -------------------------------------------------
-      // Validate PDF
-      // -------------------------------------------------
+
+      // =================================================
+      // PDF VALIDATION
+      // =================================================
 
       const isPdf =
         file.mimeType === "application/pdf" ||
         file.name.toLowerCase().endsWith(".pdf");
 
+
       if (!isPdf) {
+
         Alert.alert(
           "Invalid File",
           "Only PDF project reports are allowed."
@@ -59,13 +114,20 @@ export default function SimilarityScreen() {
         return;
       }
 
-      // -------------------------------------------------
-      // Validate file size
-      // -------------------------------------------------
 
-      const maxSize = 10 * 1024 * 1024; // 10 MB
+      // =================================================
+      // FILE SIZE VALIDATION
+      // =================================================
 
-      if (file.size && file.size > maxSize) {
+      const maxSize =
+        10 * 1024 * 1024;
+
+
+      if (
+        file.size &&
+        file.size > maxSize
+      ) {
+
         Alert.alert(
           "File Too Large",
           "The project report must be smaller than 10 MB."
@@ -74,9 +136,10 @@ export default function SimilarityScreen() {
         return;
       }
 
-      // -------------------------------------------------
-      // Store selected file
-      // -------------------------------------------------
+
+      // =================================================
+      // SAVE FILE
+      // =================================================
 
       setSelectedFile(file);
 
@@ -85,7 +148,10 @@ export default function SimilarityScreen() {
         file.name
       );
 
-    } catch (error) {
+    }
+
+    catch (error) {
+
       console.error(
         "Error selecting PDF:",
         error
@@ -95,18 +161,24 @@ export default function SimilarityScreen() {
         "Error",
         "Unable to select the report."
       );
+
     }
+
   };
+
 
   // =====================================================
   // REMOVE PDF
   // =====================================================
 
   const removeReport = () => {
+
     Alert.alert(
       "Remove Report",
       "Are you sure you want to remove this PDF?",
+
       [
+
         {
           text: "Cancel",
           style: "cancel",
@@ -117,23 +189,28 @@ export default function SimilarityScreen() {
           style: "destructive",
 
           onPress: () => {
+
             setSelectedFile(null);
 
-            console.log(
-              "PDF removed."
-            );
           },
+
         },
+
       ]
+
     );
+
   };
+
 
   // =====================================================
   // ANALYZE REPORT
   // =====================================================
 
   const analyzeReport = async () => {
+
     if (!selectedFile) {
+
       Alert.alert(
         "Report Required",
         "Please upload your project report first."
@@ -142,11 +219,14 @@ export default function SimilarityScreen() {
       return;
     }
 
+
     try {
+
       setAnalyzing(true);
 
+
       console.log(
-        "================================="
+        "\n================================="
       );
 
       console.log(
@@ -159,81 +239,209 @@ export default function SimilarityScreen() {
       );
 
       console.log(
-        "URI:",
-        selectedFile.uri
-      );
-
-      console.log(
         "================================="
       );
 
+
       // =================================================
-      // FASTAPI CONNECTION
-      // =================================================
-      //
-      // We will connect this after confirming
-      // the upload UI works correctly.
-      //
-      // Example:
-      //
-      // const formData = new FormData();
-      //
-      // formData.append(
-      //   "file",
-      //   {
-      //     uri: selectedFile.uri,
-      //     name: selectedFile.name,
-      //     type: "application/pdf",
-      //   } as any
-      // );
-      //
-      // const response = await axios.post(
-      //   "http://YOUR_IP:8000/analyze-similarity",
-      //   formData,
-      //   {
-      //     headers: {
-      //       "Content-Type":
-      //         "multipart/form-data",
-      //     },
-      //   }
-      // );
-      //
-      // const results = response.data.results;
-      //
+      // CREATE FORM DATA
       // =================================================
 
-      await new Promise(
-        (resolve) =>
-          setTimeout(resolve, 1500)
+      const formData = new FormData();
+
+
+      formData.append(
+        "file",
+        {
+          uri: selectedFile.uri,
+          name: selectedFile.name,
+          type: "application/pdf",
+        } as any
       );
 
-      Alert.alert(
-        "Ready",
-        "The report is ready for similarity analysis."
+
+      // =================================================
+      // SEND TO FASTAPI
+      // =================================================
+
+      console.log(
+        "Sending PDF to:",
+        `${API_URL}/analyze-similarity`
       );
 
-    } catch (error) {
+
+      const response =
+        await fetch(
+          `${API_URL}/analyze-similarity`,
+          {
+            method: "POST",
+
+            body: formData,
+
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+
+
+      // =================================================
+      // CHECK HTTP RESPONSE
+      // =================================================
+
+      console.log(
+        "HTTP Status:",
+        response.status
+      );
+
+
+      const responseData =
+        await response.json();
+
+
+      console.log(
+        "FastAPI response:",
+        responseData
+      );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          responseData?.detail ||
+          "Similarity analysis failed."
+        );
+
+      }
+
+
+      // =================================================
+      // GET BACKEND DATA
+      // =================================================
+
+      const analysisData: AnalysisData =
+        responseData.data;
+
+
+      if (!analysisData) {
+
+        throw new Error(
+          "Invalid response received from similarity backend."
+        );
+
+      }
+
+
+      // =================================================
+      // CHECK RESULTS
+      // =================================================
+
+      console.log(
+        "Approved projects:",
+        analysisData.totalApprovedProjects
+      );
+
+      console.log(
+        "Processed projects:",
+        analysisData.processedProjects
+      );
+
+      console.log(
+        "Similarity results:",
+        analysisData.results
+      );
+
+
+      // =================================================
+      // CONVERT RESULTS FOR ROUTER
+      // =================================================
+
+      const resultsParam =
+        encodeURIComponent(
+          JSON.stringify(
+            analysisData.results || []
+          )
+        );
+
+
+      const reportParam =
+        analysisData.report
+          ? encodeURIComponent(
+              analysisData.report
+            )
+          : "";
+
+
+      // =================================================
+      // NAVIGATE TO RESULTS PAGE
+      // =================================================
+
+      router.push({
+        pathname: "/student/similarity-results",
+
+        params: {
+
+          results: resultsParam,
+
+          totalApprovedProjects:
+            String(
+              analysisData.totalApprovedProjects
+            ),
+
+          processedProjects:
+            String(
+              analysisData.processedProjects
+            ),
+
+          uploadedCharacters:
+            String(
+              analysisData.uploadedCharacters
+            ),
+
+          report:
+            reportParam,
+
+        },
+
+      });
+
+    }
+
+    catch (error) {
+
       console.error(
         "Similarity analysis error:",
         error
       );
 
+
       Alert.alert(
         "Analysis Failed",
-        "Unable to analyze the report."
+        error instanceof Error
+          ? error.message
+          : "Unable to analyze the report."
       );
 
-    } finally {
-      setAnalyzing(false);
     }
+
+    finally {
+
+      setAnalyzing(false);
+
+    }
+
   };
+
 
   // =====================================================
   // UI
   // =====================================================
 
   return (
-    <SafeAreaView style={styles.container}>
+
+    <SafeAreaView
+      style={styles.container}
+    >
 
       <View style={styles.content}>
 
@@ -249,21 +457,17 @@ export default function SimilarityScreen() {
 
           <Text style={styles.subtitle}>
             Compare your project report with
-            existing ProjectVerse projects.
+            existing approved ProjectVerse projects.
           </Text>
 
         </View>
 
 
         {/* =================================================
-            UPLOAD / SELECTED PDF
+            UPLOAD CARD
         ================================================= */}
 
         {!selectedFile ? (
-
-          // -------------------------------------------------
-          // NO PDF SELECTED
-          // -------------------------------------------------
 
           <TouchableOpacity
             style={styles.uploadCard}
@@ -288,8 +492,7 @@ export default function SimilarityScreen() {
 
 
             <Text style={styles.uploadDescription}>
-              Select your project report in PDF
-              format.
+              Select your project report in PDF format.
             </Text>
 
 
@@ -311,13 +514,7 @@ export default function SimilarityScreen() {
 
         ) : (
 
-          // -------------------------------------------------
-          // PDF SELECTED
-          // -------------------------------------------------
-
           <View style={styles.fileCard}>
-
-            {/* PDF ICON */}
 
             <View style={styles.fileIcon}>
 
@@ -329,8 +526,6 @@ export default function SimilarityScreen() {
 
             </View>
 
-
-            {/* FILE DETAILS */}
 
             <View style={styles.fileInfo}>
 
@@ -350,19 +545,18 @@ export default function SimilarityScreen() {
               {selectedFile.size ? (
 
                 <Text style={styles.fileSize}>
+
                   {(
                     selectedFile.size /
                     (1024 * 1024)
-                  ).toFixed(2)}{" "}
-                  MB
+                  ).toFixed(2)} MB
+
                 </Text>
 
               ) : null}
 
             </View>
 
-
-            {/* CHANGE PDF */}
 
             <TouchableOpacity
               onPress={selectReport}
@@ -378,8 +572,6 @@ export default function SimilarityScreen() {
 
             </TouchableOpacity>
 
-
-            {/* REMOVE PDF */}
 
             <TouchableOpacity
               onPress={removeReport}
@@ -421,7 +613,8 @@ export default function SimilarityScreen() {
 
 
             <Text style={styles.infoText}>
-              Your report will be processed using
+              Your report will be compared with
+              approved ProjectVerse reports using
               text extraction, preprocessing,
               TF-IDF and cosine similarity.
             </Text>
@@ -436,23 +629,29 @@ export default function SimilarityScreen() {
         ================================================= */}
 
         <TouchableOpacity
+
           style={[
             styles.analyzeButton,
 
             !selectedFile &&
               styles.disabledButton,
           ]}
+
           onPress={analyzeReport}
+
           disabled={
             !selectedFile ||
             analyzing
           }
+
           activeOpacity={0.8}
+
         >
 
           {analyzing ? (
 
             <>
+
               <ActivityIndicator
                 color="#FFFFFF"
               />
@@ -460,11 +659,13 @@ export default function SimilarityScreen() {
               <Text style={styles.analyzeText}>
                 Analyzing...
               </Text>
+
             </>
 
           ) : (
 
             <>
+
               <Ionicons
                 name="analytics-outline"
                 size={21}
@@ -474,6 +675,7 @@ export default function SimilarityScreen() {
               <Text style={styles.analyzeText}>
                 Analyze Report
               </Text>
+
             </>
 
           )}
@@ -483,7 +685,9 @@ export default function SimilarityScreen() {
       </View>
 
     </SafeAreaView>
+
   );
+
 }
 
 
@@ -505,10 +709,6 @@ const styles = StyleSheet.create({
   },
 
 
-  // ===================================================
-  // HEADER
-  // ===================================================
-
   header: {
     marginBottom: 24,
   },
@@ -528,10 +728,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-
-  // ===================================================
-  // UPLOAD CARD
-  // ===================================================
 
   uploadCard: {
     backgroundColor: "#FFFFFF",
@@ -588,10 +784,6 @@ const styles = StyleSheet.create({
   },
 
 
-  // ===================================================
-  // SELECTED FILE CARD
-  // ===================================================
-
   fileCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -640,10 +832,6 @@ const styles = StyleSheet.create({
   },
 
 
-  // ===================================================
-  // CHANGE BUTTON
-  // ===================================================
-
   changeButton: {
     width: 40,
     height: 40,
@@ -653,10 +841,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-
-  // ===================================================
-  // REMOVE BUTTON
-  // ===================================================
 
   removeButton: {
     width: 40,
@@ -668,10 +852,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-
-  // ===================================================
-  // INFORMATION CARD
-  // ===================================================
 
   infoCard: {
     marginTop: 20,
@@ -704,10 +884,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-
-  // ===================================================
-  // ANALYZE BUTTON
-  // ===================================================
 
   analyzeButton: {
     marginTop: 24,
