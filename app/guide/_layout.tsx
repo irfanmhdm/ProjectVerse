@@ -1,6 +1,7 @@
 import { Drawer } from "expo-router/drawer";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
+
 import {
   Alert,
   Image,
@@ -18,6 +19,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { auth } from "../../firebase/firebaseConfig";
+
+// =====================================================
+// CUSTOM DRAWER
+// =====================================================
 
 function CustomDrawerContent(props: any) {
   const handleLogout = async () => {
@@ -37,15 +42,24 @@ function CustomDrawerContent(props: any) {
 
   return (
     <View style={styles.drawerContainer}>
+
+      {/* =================================================
+          DRAWER CONTENT
+      ================================================= */}
+
       <DrawerContentScrollView
         {...props}
         contentContainerStyle={styles.drawerContent}
       >
-        {/* Drawer Header */}
+
+        {/* =================================================
+            DRAWER HEADER
+        ================================================= */}
+
         <View style={styles.drawerHeader}>
+
           <View style={styles.logoContainer}>
 
-            {/* ProjectVerse Logo */}
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.logo}
@@ -61,19 +75,30 @@ function CustomDrawerContent(props: any) {
                 Guide Portal
               </Text>
             </View>
+
           </View>
+
         </View>
 
-        {/* Drawer Pages */}
+        {/* =================================================
+            DRAWER PAGES
+        ================================================= */}
+
         <DrawerItemList {...props} />
+
       </DrawerContentScrollView>
 
-      {/* Logout */}
+      {/* =================================================
+          LOGOUT
+      ================================================= */}
+
       <View style={styles.logoutContainer}>
+
         <Pressable
           style={styles.logoutButton}
           onPress={handleLogout}
         >
+
           <Ionicons
             name="log-out-outline"
             size={21}
@@ -83,11 +108,18 @@ function CustomDrawerContent(props: any) {
           <Text style={styles.logoutText}>
             Logout
           </Text>
+
         </Pressable>
+
       </View>
+
     </View>
   );
 }
+
+// =====================================================
+// GUIDE LAYOUT
+// =====================================================
 
 export default function GuideLayout() {
   return (
@@ -95,11 +127,15 @@ export default function GuideLayout() {
       drawerContent={(props) => (
         <CustomDrawerContent {...props} />
       )}
+
       backBehavior="history"
+
       screenOptions={{
+        // Normal Drawer pages have header
         headerShown: true,
 
         drawerActiveTintColor: "#4338CA",
+
         drawerInactiveTintColor: "#374151",
 
         drawerLabelStyle: {
@@ -128,7 +164,11 @@ export default function GuideLayout() {
         },
       }}
     >
-      {/* Dashboard */}
+
+      {/* =================================================
+          HOME
+      ================================================= */}
+
       <Drawer.Screen
         name="index"
         options={{
@@ -145,7 +185,10 @@ export default function GuideLayout() {
         }}
       />
 
-      {/* My Students */}
+      {/* =================================================
+          MY STUDENTS
+      ================================================= */}
+
       <Drawer.Screen
         name="students"
         options={{
@@ -162,7 +205,10 @@ export default function GuideLayout() {
         }}
       />
 
-      {/* Add Student */}
+      {/* =================================================
+          ADD STUDENT
+      ================================================= */}
+
       <Drawer.Screen
         name="add-student"
         options={{
@@ -179,7 +225,10 @@ export default function GuideLayout() {
         }}
       />
 
-      {/* Projects */}
+      {/* =================================================
+          PROJECTS
+      ================================================= */}
+
       <Drawer.Screen
         name="projects"
         options={{
@@ -196,8 +245,10 @@ export default function GuideLayout() {
         }}
       />
 
-     
-      {/* Chat */}
+      {/* =================================================
+          CHAT LIST
+      ================================================= */}
+
       <Drawer.Screen
         name="chat"
         options={{
@@ -214,7 +265,35 @@ export default function GuideLayout() {
         }}
       />
 
-      {/* Profile */}
+      {/* =================================================
+          CHAT CONVERSATION
+          
+          IMPORTANT:
+          This hides the MAIN DRAWER HEADER.
+
+          The actual conversation page has
+          its own custom header containing:
+          - Back button
+          - Student avatar
+          - Student name
+          - Student role
+      ================================================= */}
+
+      <Drawer.Screen
+        name="chat/[studentId]"
+        options={{
+          headerShown: false,
+
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+      />
+
+      {/* =================================================
+          PROFILE
+      ================================================= */}
+
       <Drawer.Screen
         name="profile"
         options={{
@@ -231,21 +310,36 @@ export default function GuideLayout() {
         }}
       />
 
-      {/* Project Details - Hidden from Drawer */}
+      {/* =================================================
+          PROJECT DETAILS
+          HIDDEN FROM DRAWER
+      ================================================= */}
+
       <Drawer.Screen
         name="project-details"
         options={{
-          title:"Project Details",
+          title: "Project Details",
+
           drawerItemStyle: {
             display: "none",
           },
         }}
       />
+
     </Drawer>
   );
 }
 
+// =======================================================
+// STYLES
+// =======================================================
+
 const styles = StyleSheet.create({
+
+  // =====================================================
+  // DRAWER
+  // =====================================================
+
   drawerContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -255,15 +349,19 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
 
+  // =====================================================
+  // DRAWER HEADER
+  // =====================================================
+
   drawerHeader: {
     paddingHorizontal: 20,
 
-    // Header moved slightly lower
     paddingTop: 65,
 
     paddingBottom: 24,
 
     borderBottomWidth: 1,
+
     borderBottomColor: "#E5E7EB",
 
     marginBottom: 8,
@@ -271,46 +369,68 @@ const styles = StyleSheet.create({
 
   logoContainer: {
     flexDirection: "row",
+
     alignItems: "center",
   },
 
   logo: {
     width: 48,
+
     height: 48,
+
     marginRight: 12,
   },
 
   appName: {
     fontSize: 21,
+
     fontWeight: "700",
+
     color: "#4338CA",
   },
 
   role: {
     fontSize: 13,
+
     color: "#6B7280",
+
     marginTop: 3,
   },
 
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
   logoutContainer: {
     borderTopWidth: 1,
+
     borderTopColor: "#E5E7EB",
+
     paddingHorizontal: 15,
+
     paddingVertical: 12,
   },
 
   logoutButton: {
     flexDirection: "row",
+
     alignItems: "center",
+
     paddingVertical: 13,
+
     paddingHorizontal: 15,
+
     borderRadius: 10,
   },
 
   logoutText: {
     fontSize: 15,
+
     fontWeight: "600",
+
     color: "#DC2626",
+
     marginLeft: 12,
   },
+
 });
