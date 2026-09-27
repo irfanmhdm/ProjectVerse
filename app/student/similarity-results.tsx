@@ -480,7 +480,7 @@ export default function SimilarityResultsScreen() {
                   />
 
                   <Text style={styles.downloadText}>
-                    Download Evidence PDF
+                    Download Similarity Analysis Report
                   </Text>
 
                 </TouchableOpacity>

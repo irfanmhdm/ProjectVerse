@@ -331,3 +331,26 @@ def download_similarity_report(
         media_type="application/pdf",
         filename=filename
     )
+
+@app.get("/download-similarity-report/{filename}")
+def download_similarity_report(filename: str):
+
+    reports_directory = "generated_reports"
+
+    file_path = os.path.join(
+        reports_directory,
+        filename
+    )
+
+    if not os.path.exists(file_path):
+
+        raise HTTPException(
+            status_code=404,
+            detail="Similarity report not found."
+        )
+
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=filename
+    )
