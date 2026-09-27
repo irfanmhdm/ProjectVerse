@@ -1,14 +1,8 @@
 import { Drawer } from "expo-router/drawer";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
-import {
-  Alert,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   DrawerContentScrollView,
@@ -19,6 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { auth } from "../../firebase/firebaseConfig";
 
+// =====================================================
+// CUSTOM DRAWER
+// =====================================================
+
 function CustomDrawerContent(props: any) {
   const handleLogout = async () => {
     try {
@@ -28,24 +26,28 @@ function CustomDrawerContent(props: any) {
     } catch (error) {
       console.log("Logout error:", error);
 
-      Alert.alert(
-        "Logout Failed",
-        "Something went wrong while logging out."
-      );
+      Alert.alert("Logout Failed", "Something went wrong while logging out.");
     }
   };
 
   return (
     <View style={styles.drawerContainer}>
+      {/* =================================================
+          DRAWER CONTENT
+      ================================================= */}
+
       <DrawerContentScrollView
         {...props}
         contentContainerStyle={styles.drawerContent}
       >
-        {/* Drawer Header */}
+        {/* =================================================
+            DRAWER HEADER
+        ================================================= */}
+
         <View style={styles.drawerHeader}>
           <View style={styles.logoContainer}>
-
             {/* ProjectVerse Logo */}
+
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.logo}
@@ -53,54 +55,49 @@ function CustomDrawerContent(props: any) {
             />
 
             <View>
-              <Text style={styles.appName}>
-                ProjectVerse
-              </Text>
+              <Text style={styles.appName}>ProjectVerse</Text>
 
-              <Text style={styles.role}>
-                Student Portal
-              </Text>
+              <Text style={styles.role}>Student Portal</Text>
             </View>
-
           </View>
         </View>
 
-        {/* Drawer Pages */}
+        {/* =================================================
+            DRAWER PAGES
+        ================================================= */}
+
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
 
-      {/* Logout */}
-      <View style={styles.logoutContainer}>
-        <Pressable
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={21}
-            color="#DC2626"
-          />
+      {/* =================================================
+          LOGOUT
+      ================================================= */}
 
-          <Text style={styles.logoutText}>
-            Logout
-          </Text>
+      <View style={styles.logoutContainer}>
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={21} color="#DC2626" />
+
+          <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
+// =====================================================
+// STUDENT LAYOUT
+// =====================================================
+
 export default function StudentLayout() {
   return (
     <Drawer
       backBehavior="history"
-      drawerContent={(props) => (
-        <CustomDrawerContent {...props} />
-      )}
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: true,
 
         drawerActiveTintColor: "#4338CA",
+
         drawerInactiveTintColor: "#374151",
 
         drawerLabelStyle: {
@@ -129,94 +126,135 @@ export default function StudentLayout() {
         headerTintColor: "#4338CA",
       }}
     >
-      {/* Home */}
+      {/* =================================================
+          HOME
+      ================================================= */}
+
       <Drawer.Screen
         name="index"
         options={{
           drawerLabel: "Home",
+
           title: "ProjectVerse",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="home-outline"
-              size={size}
-              color={color}
-            />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* My Projects */}
+      {/* =================================================
+          MY PROJECTS
+      ================================================= */}
+
       <Drawer.Screen
         name="my-projects"
         options={{
           drawerLabel: "My Projects",
+
           title: "My Projects",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="folder-open-outline"
-              size={size}
-              color={color}
-            />
+            <Ionicons name="folder-open-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* Upload Project */}
+      {/* =================================================
+          UPLOAD PROJECT
+      ================================================= */}
+
       <Drawer.Screen
         name="add-project"
         options={{
           drawerLabel: "Upload Project",
+
           title: "Upload Project",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="cloud-upload-outline"
-              size={size}
-              color={color}
-            />
+            <Ionicons name="cloud-upload-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* Explore */}
+      {/* =================================================
+          EXPLORE
+      ================================================= */}
+
       <Drawer.Screen
         name="explore"
         options={{
-          drawerLabel: "Explore",
-          title: "Explore",
+          drawerLabel: "Explore Projects",
+
+          title: "Explore Projects",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="compass-outline"
-              size={size}
-              color={color}
-            />
-          )}
-        }
+            <Ionicons name="compass-outline" size={size} color={color} />
+          ),
+        }}
       />
 
-      {/* Profile */}
+      {/* =================================================
+          SIMILARITY ANALYSIS
+      ================================================= */}
+
+      <Drawer.Screen
+        name="similarity"
+        options={{
+          drawerLabel: "Similarity Analysis",
+
+          title: "Similarity Analysis",
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="analytics-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* =================================================
+          PROFILE
+      ================================================= */}
+
       <Drawer.Screen
         name="profile"
         options={{
           drawerLabel: "Profile",
+
           title: "Profile",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="person-circle-outline"
-              size={size}
-              color={color}
-            />
+            <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* Project Stack */}
+      {/* =================================================
+          PROJECT STACK
+          
+          Hidden from drawer.
+          
+          Flow:
+          My Projects
+              ↓
+          Project Details
+              ↓
+          Revise Project
+      ================================================= */}
+
       <Drawer.Screen
         name="project"
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+
+          headerShown: true,
+        }}
+      />
+
+      {/* Similarity Results */}
+      <Drawer.Screen
+        name="similarity-results"
         options={{
           drawerItemStyle: {
             display: "none",
@@ -228,6 +266,10 @@ export default function StudentLayout() {
     </Drawer>
   );
 }
+
+// =====================================================
+// STYLES
+// =====================================================
 
 const styles = StyleSheet.create({
   drawerContainer: {
@@ -242,57 +284,76 @@ const styles = StyleSheet.create({
   drawerHeader: {
     paddingHorizontal: 20,
 
-    // Moved the header slightly lower
     paddingTop: 65,
 
     paddingBottom: 24,
+
     borderBottomWidth: 1,
+
     borderBottomColor: "#E5E7EB",
+
     marginBottom: 8,
   },
 
   logoContainer: {
     flexDirection: "row",
+
     alignItems: "center",
   },
 
   logo: {
     width: 48,
+
     height: 48,
+
     marginRight: 12,
   },
 
   appName: {
     fontSize: 21,
+
     fontWeight: "700",
+
     color: "#4338CA",
   },
 
   role: {
     fontSize: 13,
+
     color: "#6B7280",
+
     marginTop: 3,
   },
 
   logoutContainer: {
     borderTopWidth: 1,
+
     borderTopColor: "#E5E7EB",
+
     paddingHorizontal: 15,
+
     paddingVertical: 12,
   },
 
   logoutButton: {
     flexDirection: "row",
+
     alignItems: "center",
+
     paddingVertical: 13,
+
     paddingHorizontal: 15,
+
     borderRadius: 10,
   },
 
   logoutText: {
     fontSize: 15,
+
     fontWeight: "600",
+
     color: "#DC2626",
+
     marginLeft: 12,
   },
 });

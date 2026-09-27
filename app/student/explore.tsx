@@ -37,6 +37,12 @@ type Project = {
   studentId: string;
 
   // ===================================================
+  // PROJECT STATUS
+  // ===================================================
+
+  status?: string;
+
+  // ===================================================
   // PROCESSED REPORT TEXT
   // ===================================================
 
@@ -154,83 +160,131 @@ export default function ExploreProjects() {
       // =================================================
 
       const projectList: Project[] =
-        projectsSnapshot.docs.map(
-          (projectDoc) => {
+        projectsSnapshot.docs
+
+          // =================================================
+          // ONLY APPROVED PROJECTS
+          // =================================================
+          //
+          // Projects that are:
+          //
+          // pending
+          // revision_required
+          // rejected
+          // or any other status
+          //
+          // will NOT appear in Explore.
+          //
+          // =================================================
+
+          .filter((projectDoc) => {
+
             const data =
               projectDoc.data();
 
-            const projectId =
-              projectDoc.id;
-
-            const processedText =
-              processedReportMap[
-                projectId
-              ] || "";
+            const projectStatus =
+              String(
+                data.status || ""
+              )
+                .trim()
+                .toLowerCase();
 
             console.log(
               "Project:",
-              projectId,
-              "Processed text length:",
-              processedText.length
+              projectDoc.id,
+              "Status:",
+              projectStatus
             );
 
-            return {
-              id: projectId,
+            return (
+              projectStatus === "approved"
+            );
+          })
 
-              title:
-                data.title || "",
+          .map(
+            (projectDoc) => {
+              const data =
+                projectDoc.data();
 
-              description:
-                data.description || "",
+              const projectId =
+                projectDoc.id;
 
-              domain:
-                data.domain || "",
+              const processedText =
+                processedReportMap[
+                  projectId
+                ] || "";
 
-              technologies:
-                data.technologies || "",
+              console.log(
+                "Approved Project:",
+                projectId,
+                "Processed text length:",
+                processedText.length
+              );
 
-              studentId:
-                data.studentId || "",
+              return {
+                id: projectId,
 
-              // =================================================
-              // PROCESSED REPORT TEXT
-              // =================================================
+                title:
+                  data.title || "",
 
-              reportText:
-                processedText,
+                description:
+                  data.description || "",
 
-              // =================================================
-              // GITHUB
-              // =================================================
+                domain:
+                  data.domain || "",
 
-              githubUrl:
-                data.githubUrl || "",
+                technologies:
+                  data.technologies || "",
 
-              // =================================================
-              // REPORT
-              // =================================================
+                studentId:
+                  data.studentId || "",
 
-              reportUrl:
-                data.reportUrl || "",
+                // =================================================
+                // PROJECT STATUS
+                // =================================================
 
-              reportName:
-                data.reportName || "",
-            };
-          }
-        );
+                status:
+                  data.status || "",
 
-      // =================================================
+                // =================================================
+                // PROCESSED REPORT TEXT
+                // =================================================
+
+                reportText:
+                  processedText,
+
+                // =================================================
+                // GITHUB
+                // =================================================
+
+                githubUrl:
+                  data.githubUrl || "",
+
+                // =================================================
+                // REPORT
+                // =================================================
+
+                reportUrl:
+                  data.reportUrl || "",
+
+                reportName:
+                  data.reportName || "",
+              };
+            }
+          );
+
+      // =====================================================
       // DEBUG
-      // =================================================
+      // =====================================================
 
       console.log(
-        "Total projects loaded:",
+        "Total approved projects loaded:",
         projectList.length
       );
 
-      // =================================================
+      // =====================================================
       // SAVE PROJECTS
-      // =================================================
+      // =====================================================
 
       setProjects(projectList);
 
@@ -729,7 +783,7 @@ export default function ExploreProjects() {
           >
             {search
               ? "Try searching with a different keyword."
-              : "There are no projects available to explore yet."}
+              : "There are no approved projects available to explore yet."}
           </Text>
 
           {search && (

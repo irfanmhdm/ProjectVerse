@@ -302,8 +302,7 @@ export default function SimilarityScreen() {
         ================================================= */}
 
         <View style={styles.header}>
-          <Text style={styles.title}>Similarity Analysis</Text>
-
+          
           <Text style={styles.subtitle}>
             Compare your project report with existing approved ProjectVerse
             projects.
@@ -458,7 +457,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#6B7280",
+    color: "#000000",
   },
 
   uploadCard: {
