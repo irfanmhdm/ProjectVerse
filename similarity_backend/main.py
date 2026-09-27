@@ -4,8 +4,12 @@ from fastapi import (
     UploadFile,
     File
 )
+
+from urllib.parse import unquote
+
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from services.project_processor import (
     process_approved_project
@@ -20,6 +24,29 @@ import uuid
 
 
 # =========================================================
+# DIRECTORIES
+# =========================================================
+
+TEMP_REPORTS_DIRECTORY = "temp_reports"
+SIMILARITY_REPORTS_DIRECTORY = "similarity_reports"
+
+
+# =========================================================
+# MAKE SURE REQUIRED DIRECTORIES EXIST
+# =========================================================
+
+os.makedirs(
+    TEMP_REPORTS_DIRECTORY,
+    exist_ok=True
+)
+
+os.makedirs(
+    SIMILARITY_REPORTS_DIRECTORY,
+    exist_ok=True
+)
+
+
+# =========================================================
 # FASTAPI APP
 # =========================================================
 
@@ -31,14 +58,37 @@ app = FastAPI(
 
 
 # =========================================================
+# STATIC SIMILARITY REPORTS
+# =========================================================
+#
+# Generated reports can also be accessed through:
+#
+# http://YOUR_IP:8000/similarity-reports/<filename>
+#
+# =========================================================
+
+app.mount(
+    "/similarity-reports",
+    StaticFiles(
+        directory=SIMILARITY_REPORTS_DIRECTORY
+    ),
+    name="similarity-reports"
+)
+
+
+# =========================================================
 # CORS
 # =========================================================
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=["*"],
+
     allow_credentials=True,
+
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
 
@@ -154,9 +204,9 @@ async def analyze_project_similarity(
     )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # CHECK FILE
-    # -----------------------------------------------------
+    # =====================================================
 
     if not file.filename:
 
@@ -166,11 +216,40 @@ async def analyze_project_similarity(
         )
 
 
-    # -----------------------------------------------------
-    # CHECK PDF
-    # -----------------------------------------------------
+    # =====================================================
+    # DECODE FILENAME
+    # =====================================================
+    #
+    # Example:
+    #
+    # Muhammed%20Irfan%20S%20Synopsis.pdf
+    #
+    # becomes:
+    #
+    # Muhammed Irfan S Synopsis.pdf
+    #
+    # =====================================================
 
-    if not file.filename.lower().endswith(
+    decoded_filename = unquote(
+        file.filename
+    )
+
+    print(
+        "Original filename:",
+        file.filename
+    )
+
+    print(
+        "Decoded filename:",
+        decoded_filename
+    )
+
+
+    # =====================================================
+    # CHECK PDF
+    # =====================================================
+
+    if not decoded_filename.lower().endswith(
         ".pdf"
     ):
 
@@ -180,26 +259,16 @@ async def analyze_project_similarity(
         )
 
 
-    # -----------------------------------------------------
-    # CREATE TEMP DIRECTORY
-    # -----------------------------------------------------
-
-    os.makedirs(
-        "temp_reports",
-        exist_ok=True
-    )
-
-
-    # -----------------------------------------------------
+    # =====================================================
     # CREATE UNIQUE TEMP FILE
-    # -----------------------------------------------------
+    # =====================================================
 
     temporary_filename = (
         f"similarity_{uuid.uuid4().hex}.pdf"
     )
 
     pdf_path = os.path.join(
-        "temp_reports",
+        TEMP_REPORTS_DIRECTORY,
         temporary_filename
     )
 
@@ -222,7 +291,6 @@ async def analyze_project_similarity(
                 )
 
                 if not chunk:
-
                     break
 
                 buffer.write(
@@ -242,9 +310,54 @@ async def analyze_project_similarity(
 
         result = analyze_similarity(
             pdf_path,
-            file.filename
-
+            decoded_filename
         )
+
+
+        # =================================================
+        # CHECK GENERATED REPORT
+        # =================================================
+
+        report = result.get(
+            "report"
+        )
+
+
+        if report:
+
+            report_filename = report.get(
+                "filename"
+            )
+
+
+            if report_filename:
+
+                report_path = os.path.join(
+                    SIMILARITY_REPORTS_DIRECTORY,
+                    report_filename
+                )
+
+
+                print(
+                    "Generated similarity report:"
+                )
+
+                print(
+                    "Filename:",
+                    report_filename
+                )
+
+                print(
+                    "Path:",
+                    report_path
+                )
+
+                print(
+                    "Exists:",
+                    os.path.exists(
+                        report_path
+                    )
+                )
 
 
         # =================================================
@@ -281,7 +394,17 @@ async def analyze_project_similarity(
     finally:
 
         # =================================================
-        # DELETE TEMPORARY PDF
+        # DELETE ONLY TEMPORARY UPLOAD
+        # =================================================
+        #
+        # IMPORTANT:
+        #
+        # This deletes only the student's temporary
+        # uploaded PDF.
+        #
+        # The generated similarity evidence PDF
+        # remains inside similarity_reports.
+        #
         # =================================================
 
         try:
@@ -295,15 +418,16 @@ async def analyze_project_similarity(
                 )
 
                 print(
-                    "Temporary similarity PDF removed."
+                    "Temporary uploaded PDF removed."
                 )
 
         except Exception as cleanup_error:
 
             print(
-                "⚠️ Could not remove temporary PDF:",
+                "⚠️ Could not remove temporary uploaded PDF:",
                 cleanup_error
             )
+
 
 # =========================================================
 # DOWNLOAD SIMILARITY REPORT
@@ -314,40 +438,90 @@ def download_similarity_report(
     filename: str
 ):
 
-    file_path = os.path.join(
-        "similarity_reports",
+    print(
+        "\n=========================================="
+    )
+
+    print(
+        "Similarity report download requested"
+    )
+
+    print(
+        "Filename:",
         filename
     )
 
-    if not os.path.exists(file_path):
-
-        raise HTTPException(
-            status_code=404,
-            detail="Similarity report not found."
-        )
-
-    return FileResponse(
-        path=file_path,
-        media_type="application/pdf",
-        filename=filename
+    print(
+        "=========================================="
     )
 
-@app.get("/download-similarity-report/{filename}")
-def download_similarity_report(filename: str):
 
-    reports_directory = "generated_reports"
+    # =====================================================
+    # DECODE FILENAME
+    # =====================================================
+    #
+    # This handles URLs such as:
+    #
+    # similarity_report_123.pdf
+    #
+    # and also safely handles encoded filenames.
+    #
+    # =====================================================
 
-    file_path = os.path.join(
-        reports_directory,
+    filename = unquote(
         filename
     )
 
-    if not os.path.exists(file_path):
+
+    # =====================================================
+    # SECURITY
+    # =====================================================
+
+    filename = os.path.basename(
+        filename
+    )
+
+
+    # =====================================================
+    # BUILD FILE PATH
+    # =====================================================
+
+    file_path = os.path.join(
+        SIMILARITY_REPORTS_DIRECTORY,
+        filename
+    )
+
+
+    print(
+        "File path:",
+        file_path
+    )
+
+    print(
+        "File exists:",
+        os.path.exists(
+            file_path
+        )
+    )
+
+
+    # =====================================================
+    # CHECK FILE
+    # =====================================================
+
+    if not os.path.exists(
+        file_path
+    ):
 
         raise HTTPException(
             status_code=404,
-            detail="Similarity report not found."
+            detail="Similarity evidence report not found."
         )
+
+
+    # =====================================================
+    # RETURN PDF
+    # =====================================================
 
     return FileResponse(
         path=file_path,

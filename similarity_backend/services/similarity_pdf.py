@@ -13,7 +13,7 @@ from reportlab.lib.styles import (
 )
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import inch
-
+from urllib.parse import unquote
 import os
 import uuid
 from datetime import datetime
@@ -171,10 +171,51 @@ def generate_similarity_pdf(
         "%d %B %Y, %I:%M %p"
     )
 
+    # =====================================================
+    # FIX PROJECT NAME ENCODING
+    # =====================================================
+    #
+    # Example:
+    #
+    # Muhammed%20Irfan%20S%20Synopsis.pdf
+    #
+    # becomes:
+    #
+    # Muhammed Irfan S Synopsis.pdf
+    #
+    # The loop also handles the case where the value
+    # has been URL-encoded more than once.
+    #
+    # =====================================================
+
+    clean_project_name = str(
+        project_name
+    )
+
+    while "%" in clean_project_name:
+
+        decoded_project_name = unquote(
+            clean_project_name
+        )
+
+        if (
+            decoded_project_name
+            == clean_project_name
+        ):
+            break
+
+        clean_project_name = (
+            decoded_project_name
+        )
+
+    # =====================================================
+    # PROJECT DATA
+    # =====================================================
+
     project_data = [
         [
             "Project",
-            str(project_name)
+            clean_project_name
         ],
         [
             "Analysis Date",
@@ -290,6 +331,7 @@ def generate_similarity_pdf(
     ]
 
     for method in methods:
+
         content.append(
             Paragraph(
                 method,
@@ -342,13 +384,16 @@ def generate_similarity_pdf(
             )
 
             try:
+
                 similarity_value = float(
                     similarity
                 )
+
             except (
                 TypeError,
                 ValueError
             ):
+
                 similarity_value = 0.0
 
             table_data.append(
