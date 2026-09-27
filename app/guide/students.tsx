@@ -249,9 +249,9 @@ export default function Students() {
       showsVerticalScrollIndicator={false}
     >
 
-      {/* =================================================
+      {/* {/* =================================================
           HEADER
-      ================================================= */}
+      ================================================= 
 
       <View style={styles.header}>
 
@@ -267,7 +267,7 @@ export default function Students() {
           Students assigned under your guidance
         </Text>
 
-      </View>
+      </View> */}
 
 
       {/* =================================================
@@ -493,9 +493,9 @@ export default function Students() {
               </View>
 
 
-              {/* =================================================
+              {/* {/* =================================================
                   VIEW PROJECTS
-              ================================================= */}
+              ================================================= 
 
               <Pressable
                 style={({ pressed }) => [
@@ -527,7 +527,7 @@ export default function Students() {
                   color="#FFFFFF"
                 />
 
-              </Pressable>
+              </Pressable> */}
 
 
               {/* =================================================
