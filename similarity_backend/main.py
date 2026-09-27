@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
 from services.project_processor import process_approved_project
 
@@ -30,14 +29,6 @@ app.add_middleware(
 
 
 # =========================================================
-# REQUEST MODEL
-# =========================================================
-
-class ProcessProjectRequest(BaseModel):
-    projectId: str
-
-
-# =========================================================
 # ROOT
 # =========================================================
 
@@ -63,8 +54,8 @@ def health_check():
 # PROCESS APPROVED PROJECT
 # =========================================================
 
-@app.post("/process-project")
-def process_project(request: ProcessProjectRequest):
+@app.post("/process-project/{project_id}")
+def process_project(project_id: str):
 
     print(
         "\n=========================================="
@@ -76,7 +67,7 @@ def process_project(request: ProcessProjectRequest):
 
     print(
         "Project ID:",
-        request.projectId
+        project_id
     )
 
     print(
@@ -86,7 +77,7 @@ def process_project(request: ProcessProjectRequest):
     try:
 
         result = process_approved_project(
-            request.projectId
+            project_id
         )
 
         return {

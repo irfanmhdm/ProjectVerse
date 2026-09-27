@@ -1,6 +1,7 @@
 import {
   collection,
   getDocs,
+  onSnapshot,
   query,
   where,
 } from "firebase/firestore";
@@ -77,145 +78,208 @@ export default function Projects() {
         where("guideId", "==", guide.uid),
       );
 
-      const studentSnapshot =
-        await getDocs(studentQuery);
+      const studentSnapshot = await getDocs(studentQuery);
 
       if (studentSnapshot.empty) {
-        console.log(
-          "No students assigned to this guide.",
-        );
+        console.log("No students assigned to this guide.");
 
         setProjects([]);
         setLoading(false);
         return;
       }
 
-      const studentIds =
-        studentSnapshot.docs.map(
-          (studentDoc) =>
-            studentDoc.data().studentId,
-        );
-
-      console.log(
-        "Guide's students:",
-        studentIds,
+      const studentIds = studentSnapshot.docs.map(
+        (studentDoc) => studentDoc.data().studentId,
       );
+
+      console.log("Guide's students:", studentIds);
 
       // =================================================
       // 2. GET PROJECTS
       // =================================================
 
-      const projectSnapshot = await getDocs(
-        collection(db, "projects"),
-      );
+      const projectSnapshot = await getDocs(collection(db, "projects"));
 
       const projectList: Project[] = [];
 
-      projectSnapshot.docs.forEach(
-        (projectDoc) => {
-          const data = projectDoc.data();
+      projectSnapshot.docs.forEach((projectDoc) => {
+        const data = projectDoc.data();
 
-          // Only projects belonging to
-          // students assigned to this guide
-          if (
-            studentIds.includes(
-              data.studentId,
-            )
-          ) {
-            projectList.push({
-              id: projectDoc.id,
+        // Only projects belonging to
+        // students assigned to this guide
+        if (studentIds.includes(data.studentId)) {
+          projectList.push({
+            id: projectDoc.id,
 
-              title:
-                data.title ||
-                "Untitled Project",
+            title: data.title || "Untitled Project",
 
-              description:
-                data.description ||
-                "No description available.",
+            description: data.description || "No description available.",
 
-              domain:
-                data.domain ||
-                "Not specified",
+            domain: data.domain || "Not specified",
 
-              technologies:
-                data.technologies ||
-                "Not specified",
+            technologies: data.technologies || "Not specified",
 
-              studentId:
-                data.studentId ||
-                "",
+            studentId: data.studentId || "",
 
-              studentName:
-                data.studentName ||
-                "Unknown Student",
+            studentName: data.studentName || "Unknown Student",
 
-              studentEmail:
-                data.studentEmail ||
-                "",
+            studentEmail: data.studentEmail || "",
 
-              liveDemoUrl:
-                data.liveDemoUrl ||
-                "",
+            liveDemoUrl: data.liveDemoUrl || "",
 
-              videoUrl:
-                data.videoUrl ||
-                "",
+            videoUrl: data.videoUrl || "",
 
-              videoName:
-                data.videoName ||
-                "",
+            videoName: data.videoName || "",
 
-              screenshotUrls:
-                data.screenshotUrls ||
-                [],
+            screenshotUrls: data.screenshotUrls || [],
 
-              reportUrl:
-                data.reportUrl ||
-                "",
+            reportUrl: data.reportUrl || "",
 
-              reportName:
-                data.reportName ||
-                "",
+            reportName: data.reportName || "",
 
-              githubUrl:
-                data.githubUrl ||
-                "",
+            githubUrl: data.githubUrl || "",
 
-              status:
-                data.status ||
-                "pending",
-            });
-          }
-        },
-      );
+            status: data.status || "pending",
+          });
+        }
+      });
 
-      console.log(
-        "Guide projects found:",
-        projectList.length,
-      );
+      console.log("Guide projects found:", projectList.length);
 
       setProjects(projectList);
     } catch (error) {
-      console.log(
-        "Error loading guide projects:",
-        error,
-      );
+      console.log("Error loading guide projects:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadProjects();
+    let unsubscribeProjects: (() => void) | null = null;
+
+    const setupProjectListener = async () => {
+      try {
+        const guide = auth.currentUser;
+
+        if (!guide) {
+          console.log("Guide not logged in");
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
+
+        // =================================================
+        // 1. GET STUDENTS ASSIGNED TO GUIDE
+        // =================================================
+
+        const studentQuery = query(
+          collection(db, "guideStudents"),
+          where("guideId", "==", guide.uid),
+        );
+
+        const studentSnapshot = await getDocs(studentQuery);
+
+        if (studentSnapshot.empty) {
+          console.log("No students assigned to this guide.");
+
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
+
+        const studentIds = studentSnapshot.docs.map(
+          (studentDoc) => studentDoc.data().studentId,
+        );
+
+        console.log("Guide's students:", studentIds);
+
+        // =================================================
+        // 2. LISTEN TO PROJECT CHANGES
+        // =================================================
+
+        unsubscribeProjects = onSnapshot(
+          collection(db, "projects"),
+          (projectSnapshot) => {
+            const projectList: Project[] = [];
+
+            projectSnapshot.docs.forEach((projectDoc) => {
+              const data = projectDoc.data();
+
+              // Only projects belonging to
+              // students assigned to this guide
+              if (studentIds.includes(data.studentId)) {
+                projectList.push({
+                  id: projectDoc.id,
+
+                  title: data.title || "Untitled Project",
+
+                  description: data.description || "No description available.",
+
+                  domain: data.domain || "Not specified",
+
+                  technologies: data.technologies || "Not specified",
+
+                  studentId: data.studentId || "",
+
+                  studentName: data.studentName || "Unknown Student",
+
+                  studentEmail: data.studentEmail || "",
+
+                  liveDemoUrl: data.liveDemoUrl || "",
+
+                  videoUrl: data.videoUrl || "",
+
+                  videoName: data.videoName || "",
+
+                  screenshotUrls: data.screenshotUrls || [],
+
+                  reportUrl: data.reportUrl || "",
+
+                  reportName: data.reportName || "",
+
+                  githubUrl: data.githubUrl || "",
+
+                  status: data.status || "pending",
+                });
+              }
+            });
+
+            console.log("Guide projects updated:", projectList.length);
+
+            setProjects(projectList);
+            setLoading(false);
+          },
+          (error) => {
+            console.log("Error listening to guide projects:", error);
+
+            setLoading(false);
+          },
+        );
+      } catch (error) {
+        console.log("Error setting up project listener:", error);
+
+        setLoading(false);
+      }
+    };
+
+    setupProjectListener();
+
+    // =================================================
+    // CLEANUP LISTENER
+    // =================================================
+
+    return () => {
+      if (unsubscribeProjects) {
+        unsubscribeProjects();
+      }
+    };
   }, []);
 
   // =====================================================
   // STATUS
   // =====================================================
 
-  const getStatusStyle = (
-    status?: string,
-  ) => {
+  const getStatusStyle = (status?: string) => {
     switch (status?.toLowerCase()) {
       case "approved":
         return styles.approved;
@@ -232,9 +296,7 @@ export default function Projects() {
     }
   };
 
-  const getStatusIcon = (
-    status?: string,
-  ) => {
+  const getStatusIcon = (status?: string) => {
     switch (status?.toLowerCase()) {
       case "approved":
         return "checkmark-circle-outline";
@@ -251,9 +313,7 @@ export default function Projects() {
     }
   };
 
-  const getStatusText = (
-    status?: string,
-  ) => {
+  const getStatusText = (status?: string) => {
     switch (status?.toLowerCase()) {
       case "revision_required":
       case "revision required":
@@ -274,17 +334,12 @@ export default function Projects() {
   // RESOURCE COUNT
   // =====================================================
 
-  const getResourceCount = (
-    project: Project,
-  ) => {
+  const getResourceCount = (project: Project) => {
     let count = 0;
 
     if (project.liveDemoUrl) count++;
     if (project.videoUrl) count++;
-    if (
-      project.screenshotUrls &&
-      project.screenshotUrls.length > 0
-    ) {
+    if (project.screenshotUrls && project.screenshotUrls.length > 0) {
       count++;
     }
     if (project.reportUrl) count++;
@@ -297,13 +352,8 @@ export default function Projects() {
   // PROJECT CARD
   // =====================================================
 
-  const renderProject = ({
-    item,
-  }: {
-    item: Project;
-  }) => {
-    const resourceCount =
-      getResourceCount(item);
+  const renderProject = ({ item }: { item: Project }) => {
+    const resourceCount = getResourceCount(item);
 
     return (
       <Pressable
@@ -313,8 +363,7 @@ export default function Projects() {
         ]}
         onPress={() =>
           router.push({
-            pathname:
-              "/guide/project-details",
+            pathname: "/guide/project-details",
             params: {
               id: item.id,
             },
@@ -327,32 +376,18 @@ export default function Projects() {
 
         <View style={styles.cardTop}>
           <View style={styles.projectIcon}>
-            <Ionicons
-              name="document-text-outline"
-              size={24}
-              color="#4338CA"
-            />
+            <Ionicons name="document-text-outline" size={24} color="#4338CA" />
           </View>
 
           <View style={styles.titleContainer}>
-            <Text
-              style={styles.projectTitle}
-              numberOfLines={2}
-            >
+            <Text style={styles.projectTitle} numberOfLines={2}>
               {item.title}
             </Text>
 
             <View style={styles.studentRow}>
-              <Ionicons
-                name="person-outline"
-                size={13}
-                color="#6B7280"
-              />
+              <Ionicons name="person-outline" size={13} color="#6B7280" />
 
-              <Text
-                style={styles.studentName}
-                numberOfLines={1}
-              >
+              <Text style={styles.studentName} numberOfLines={1}>
                 {item.studentName}
               </Text>
             </View>
@@ -360,21 +395,14 @@ export default function Projects() {
 
           {/* STATUS */}
 
-          <View
-            style={[
-              styles.statusBadge,
-              getStatusStyle(item.status),
-            ]}
-          >
+          <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
             <Ionicons
               name={getStatusIcon(item.status)}
               size={13}
               color="#FFFFFF"
             />
 
-            <Text style={styles.statusText}>
-              {getStatusText(item.status)}
-            </Text>
+            <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
           </View>
         </View>
 
@@ -384,16 +412,9 @@ export default function Projects() {
 
         {item.studentEmail ? (
           <View style={styles.emailRow}>
-            <Ionicons
-              name="mail-outline"
-              size={15}
-              color="#9CA3AF"
-            />
+            <Ionicons name="mail-outline" size={15} color="#9CA3AF" />
 
-            <Text
-              style={styles.email}
-              numberOfLines={1}
-            >
+            <Text style={styles.email} numberOfLines={1}>
               {item.studentEmail}
             </Text>
           </View>
@@ -403,10 +424,7 @@ export default function Projects() {
             DESCRIPTION
         ================================================= */}
 
-        <Text
-          style={styles.description}
-          numberOfLines={3}
-        >
+        <Text style={styles.description} numberOfLines={3}>
           {item.description}
         </Text>
 
@@ -416,22 +434,13 @@ export default function Projects() {
 
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
-            <Ionicons
-              name="layers-outline"
-              size={16}
-              color="#4338CA"
-            />
+            <Ionicons name="layers-outline" size={16} color="#4338CA" />
           </View>
 
           <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>
-              Domain
-            </Text>
+            <Text style={styles.detailLabel}>Domain</Text>
 
-            <Text
-              style={styles.detailValue}
-              numberOfLines={1}
-            >
+            <Text style={styles.detailValue} numberOfLines={1}>
               {item.domain}
             </Text>
           </View>
@@ -443,22 +452,13 @@ export default function Projects() {
 
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
-            <Ionicons
-              name="code-slash-outline"
-              size={16}
-              color="#4338CA"
-            />
+            <Ionicons name="code-slash-outline" size={16} color="#4338CA" />
           </View>
 
           <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>
-              Technologies
-            </Text>
+            <Text style={styles.detailLabel}>Technologies</Text>
 
-            <Text
-              style={styles.detailValue}
-              numberOfLines={2}
-            >
+            <Text style={styles.detailValue} numberOfLines={2}>
               {item.technologies}
             </Text>
           </View>
@@ -471,79 +471,46 @@ export default function Projects() {
         <View style={styles.resourcesSection}>
           <View style={styles.resourcesHeader}>
             <View>
-              <Text style={styles.resourcesTitle}>
-                Project Resources
-              </Text>
+              <Text style={styles.resourcesTitle}>Project Resources</Text>
 
               <Text style={styles.resourcesSubtitle}>
                 {resourceCount === 0
                   ? "No resources uploaded"
                   : `${resourceCount} ${
-                      resourceCount === 1
-                        ? "resource"
-                        : "resources"
+                      resourceCount === 1 ? "resource" : "resources"
                     } available`}
               </Text>
             </View>
 
             <View style={styles.resourceCount}>
-              <Text
-                style={styles.resourceCountText}
-              >
-                {resourceCount}
-              </Text>
+              <Text style={styles.resourceCountText}>{resourceCount}</Text>
             </View>
           </View>
 
           <View style={styles.resourceRow}>
             {item.liveDemoUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons
-                  name="globe-outline"
-                  size={14}
-                  color="#0F766E"
-                />
+                <Ionicons name="globe-outline" size={14} color="#0F766E" />
 
-                <Text
-                  style={styles.resourceText}
-                >
-                  Live Demo
-                </Text>
+                <Text style={styles.resourceText}>Live Demo</Text>
               </View>
             ) : null}
 
             {item.videoUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons
-                  name="videocam-outline"
-                  size={14}
-                  color="#4338CA"
-                />
+                <Ionicons name="videocam-outline" size={14} color="#4338CA" />
 
-                <Text
-                  style={styles.resourceText}
-                >
-                  Video
-                </Text>
+                <Text style={styles.resourceText}>Video</Text>
               </View>
             ) : null}
 
-            {item.screenshotUrls &&
-            item.screenshotUrls.length >
-              0 ? (
+            {item.screenshotUrls && item.screenshotUrls.length > 0 ? (
               <View style={styles.resourceBadge}>
-                <Ionicons
-                  name="images-outline"
-                  size={14}
-                  color="#4338CA"
-                />
+                <Ionicons name="images-outline" size={14} color="#4338CA" />
 
-                <Text
-                  style={styles.resourceText}
-                >
+                <Text style={styles.resourceText}>
                   {item.screenshotUrls.length}{" "}
-                  {item.screenshotUrls.length ===
-                  1
+                  {item.screenshotUrls.length === 1
                     ? "Screenshot"
                     : "Screenshots"}
                 </Text>
@@ -552,33 +519,17 @@ export default function Projects() {
 
             {item.reportUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons
-                  name="document-outline"
-                  size={14}
-                  color="#4338CA"
-                />
+                <Ionicons name="document-outline" size={14} color="#4338CA" />
 
-                <Text
-                  style={styles.resourceText}
-                >
-                  Report
-                </Text>
+                <Text style={styles.resourceText}>Report</Text>
               </View>
             ) : null}
 
             {item.githubUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons
-                  name="logo-github"
-                  size={14}
-                  color="#1F2937"
-                />
+                <Ionicons name="logo-github" size={14} color="#1F2937" />
 
-                <Text
-                  style={styles.resourceText}
-                >
-                  GitHub
-                </Text>
+                <Text style={styles.resourceText}>GitHub</Text>
               </View>
             ) : null}
           </View>
@@ -590,21 +541,13 @@ export default function Projects() {
 
         <View style={styles.reviewRow}>
           <View>
-            <Text style={styles.reviewTitle}>
-              Review Project
-            </Text>
+            <Text style={styles.reviewTitle}>Review Project</Text>
 
-            <Text style={styles.reviewSubtitle}>
-              Open project details
-            </Text>
+            <Text style={styles.reviewSubtitle}>Open project details</Text>
           </View>
 
           <View style={styles.arrowCircle}>
-            <Ionicons
-              name="arrow-forward"
-              size={17}
-              color="#FFFFFF"
-            />
+            <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
           </View>
         </View>
       </Pressable>
@@ -619,21 +562,12 @@ export default function Projects() {
     return (
       <View style={styles.loadingContainer}>
         <View style={styles.loadingIcon}>
-          <Ionicons
-            name="folder-open-outline"
-            size={25}
-            color="#4338CA"
-          />
+          <Ionicons name="folder-open-outline" size={25} color="#4338CA" />
         </View>
 
-        <ActivityIndicator
-          size="small"
-          color="#4338CA"
-        />
+        <ActivityIndicator size="small" color="#4338CA" />
 
-        <Text style={styles.loadingText}>
-          Loading projects...
-        </Text>
+        <Text style={styles.loadingText}>Loading projects...</Text>
       </View>
     );
   }
@@ -651,35 +585,21 @@ export default function Projects() {
       {projects.length > 0 && (
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
-            <Ionicons
-              name="folder-outline"
-              size={24}
-              color="#4338CA"
-            />
+            <Ionicons name="folder-outline" size={24} color="#4338CA" />
           </View>
 
           <View style={styles.summaryContent}>
-            <Text style={styles.summaryNumber}>
-              {projects.length}
-            </Text>
+            <Text style={styles.summaryNumber}>{projects.length}</Text>
 
             <Text style={styles.summaryLabel}>
-              {projects.length === 1
-                ? "Student Project"
-                : "Student Projects"}
+              {projects.length === 1 ? "Student Project" : "Student Projects"}
             </Text>
           </View>
 
           <View style={styles.summaryStatus}>
-            <Ionicons
-              name="people-outline"
-              size={15}
-              color="#0F766E"
-            />
+            <Ionicons name="people-outline" size={15} color="#0F766E" />
 
-            <Text style={styles.summaryStatusText}>
-              Assigned Students
-            </Text>
+            <Text style={styles.summaryStatusText}>Assigned Students</Text>
           </View>
         </View>
       )}
@@ -691,20 +611,13 @@ export default function Projects() {
       {projects.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIcon}>
-            <Ionicons
-              name="folder-open-outline"
-              size={34}
-              color="#4338CA"
-            />
+            <Ionicons name="folder-open-outline" size={34} color="#4338CA" />
           </View>
 
-          <Text style={styles.emptyTitle}>
-            No Projects Yet
-          </Text>
+          <Text style={styles.emptyTitle}>No Projects Yet</Text>
 
           <Text style={styles.emptyText}>
-            Projects submitted by your assigned
-            students will appear here.
+            Projects submitted by your assigned students will appear here.
           </Text>
         </View>
       ) : (
@@ -713,9 +626,7 @@ export default function Projects() {
           renderItem={renderProject}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            styles.list
-          }
+          contentContainerStyle={styles.list}
         />
       )}
     </View>
