@@ -160,8 +160,7 @@ export default function GuideChatConversation() {
         );
 
         // =================================================
-        // IMPORTANT:
-        // Get student directly from USERS collection
+        // GET STUDENT FROM USERS COLLECTION
         // =================================================
 
         const studentRef =
@@ -190,15 +189,6 @@ export default function GuideChatConversation() {
             studentData
           );
 
-          /*
-           * Try the common possible
-           * name field names.
-           *
-           * Change this later if your
-           * users collection uses one
-           * specific field.
-           */
-
           const name =
             studentData.name ||
             studentData.fullName ||
@@ -213,11 +203,6 @@ export default function GuideChatConversation() {
             );
 
           } else {
-
-            /*
-             * If no name field exists,
-             * use email as fallback.
-             */
 
             setStudentName(
               studentData.email ||
@@ -480,12 +465,6 @@ export default function GuideChatConversation() {
           studentId:
             studentId,
 
-          /*
-           * IMPORTANT:
-           * Use the student name loaded
-           * from users/{studentId}
-           */
-
           studentName:
             studentName,
 
@@ -527,14 +506,6 @@ export default function GuideChatConversation() {
 
           text:
             text,
-
-          /*
-           * Use Timestamp.now()
-           * instead of serverTimestamp()
-           *
-           * This guarantees createdAt is immediately
-           * available for orderBy().
-           */
 
           createdAt:
             messageTimestamp,
@@ -601,27 +572,11 @@ export default function GuideChatConversation() {
         >
 
           {/* =================================================
-              SENDER NAME
-          ================================================= */}
-
-          <Text
-            style={[
-              styles.senderName,
-
-              isMine
-                ? styles.guideSenderName
-                : styles.studentSenderName,
-            ]}
-          >
-
-            {isMine
-              ? "Guide"
-              : studentName}
-
-          </Text>
-
-          {/* =================================================
               MESSAGE BUBBLE
+              
+              Sender name removed.
+              Student name is already shown
+              in the chat header.
           ================================================= */}
 
           <View
@@ -1280,40 +1235,6 @@ const styles =
 
     maxWidth:
       "78%",
-  },
-
-  // =====================================================
-  // SENDER NAME
-  // =====================================================
-
-  senderName: {
-
-    fontSize: 10,
-
-    fontWeight:
-      "700",
-
-    marginBottom: 4,
-
-    paddingHorizontal: 3,
-  },
-
-  studentSenderName: {
-
-    color:
-      "#6B7280",
-
-    textAlign:
-      "left",
-  },
-
-  guideSenderName: {
-
-    color:
-      "#4338CA",
-
-    textAlign:
-      "right",
   },
 
   // =====================================================

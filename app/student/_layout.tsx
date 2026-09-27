@@ -2,7 +2,14 @@ import { Drawer } from "expo-router/drawer";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
 
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import {
   DrawerContentScrollView,
@@ -26,27 +33,28 @@ function CustomDrawerContent(props: any) {
     } catch (error) {
       console.log("Logout error:", error);
 
-      Alert.alert("Logout Failed", "Something went wrong while logging out.");
+      Alert.alert(
+        "Logout Failed",
+        "Something went wrong while logging out."
+      );
     }
   };
 
   return (
     <View style={styles.drawerContainer}>
-      {/* =================================================
-          DRAWER CONTENT
-      ================================================= */}
 
       <DrawerContentScrollView
         {...props}
         contentContainerStyle={styles.drawerContent}
       >
+
         {/* =================================================
             DRAWER HEADER
         ================================================= */}
 
         <View style={styles.drawerHeader}>
+
           <View style={styles.logoContainer}>
-            {/* ProjectVerse Logo */}
 
             <Image
               source={require("../../assets/images/logo.png")}
@@ -55,11 +63,19 @@ function CustomDrawerContent(props: any) {
             />
 
             <View>
-              <Text style={styles.appName}>ProjectVerse</Text>
 
-              <Text style={styles.role}>Student Portal</Text>
+              <Text style={styles.appName}>
+                ProjectVerse
+              </Text>
+
+              <Text style={styles.role}>
+                Student Portal
+              </Text>
+
             </View>
+
           </View>
+
         </View>
 
         {/* =================================================
@@ -67,6 +83,7 @@ function CustomDrawerContent(props: any) {
         ================================================= */}
 
         <DrawerItemList {...props} />
+
       </DrawerContentScrollView>
 
       {/* =================================================
@@ -74,12 +91,26 @@ function CustomDrawerContent(props: any) {
       ================================================= */}
 
       <View style={styles.logoutContainer}>
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={21} color="#DC2626" />
 
-          <Text style={styles.logoutText}>Logout</Text>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color="#DC2626"
+          />
+
+          <Text style={styles.logoutText}>
+            Logout
+          </Text>
+
         </Pressable>
+
       </View>
+
     </View>
   );
 }
@@ -92,7 +123,10 @@ export default function StudentLayout() {
   return (
     <Drawer
       backBehavior="history"
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      drawerContent={(props) => (
+        <CustomDrawerContent {...props} />
+      )}
+
       screenOptions={{
         headerShown: true,
 
@@ -126,6 +160,7 @@ export default function StudentLayout() {
         headerTintColor: "#4338CA",
       }}
     >
+
       {/* =================================================
           HOME
       ================================================= */}
@@ -138,7 +173,11 @@ export default function StudentLayout() {
           title: "ProjectVerse",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+            <Ionicons
+              name="home-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -155,7 +194,11 @@ export default function StudentLayout() {
           title: "My Projects",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="folder-open-outline" size={size} color={color} />
+            <Ionicons
+              name="folder-open-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -172,7 +215,11 @@ export default function StudentLayout() {
           title: "Upload Project",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload-outline" size={size} color={color} />
+            <Ionicons
+              name="cloud-upload-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -189,7 +236,11 @@ export default function StudentLayout() {
           title: "Explore Projects",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <Ionicons
+              name="compass-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -206,7 +257,11 @@ export default function StudentLayout() {
           title: "Similarity Analysis",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="analytics-outline" size={size} color={color} />
+            <Ionicons
+              name="analytics-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -223,7 +278,42 @@ export default function StudentLayout() {
           title: "Profile",
 
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" size={size} color={color} />
+            <Ionicons
+              name="person-circle-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+
+      {/* =================================================
+          ⭐ CHAT
+          
+          Chat remains in the MAIN STUDENT DRAWER.
+
+          BUT:
+          Native Drawer header is hidden ONLY here.
+
+          The custom header inside chat.tsx
+          will be displayed instead.
+      ================================================= */}
+
+      <Drawer.Screen
+        name="chat"
+        options={{
+          drawerLabel: "Chat",
+
+          title: "Chat",
+
+          headerShown: false,
+
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="chatbubble-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -232,13 +322,6 @@ export default function StudentLayout() {
           PROJECT STACK
           
           Hidden from drawer.
-          
-          Flow:
-          My Projects
-              ↓
-          Project Details
-              ↓
-          Revise Project
       ================================================= */}
 
       <Drawer.Screen
@@ -252,7 +335,10 @@ export default function StudentLayout() {
         }}
       />
 
-      {/* Similarity Results */}
+      {/* =================================================
+          SIMILARITY RESULTS
+      ================================================= */}
+
       <Drawer.Screen
         name="similarity-results"
         options={{
@@ -263,6 +349,7 @@ export default function StudentLayout() {
           headerShown: true,
         }}
       />
+
     </Drawer>
   );
 }
@@ -272,6 +359,7 @@ export default function StudentLayout() {
 // =====================================================
 
 const styles = StyleSheet.create({
+
   drawerContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -283,13 +371,10 @@ const styles = StyleSheet.create({
 
   drawerHeader: {
     paddingHorizontal: 20,
-
     paddingTop: 65,
-
     paddingBottom: 24,
 
     borderBottomWidth: 1,
-
     borderBottomColor: "#E5E7EB",
 
     marginBottom: 8,
@@ -297,51 +382,40 @@ const styles = StyleSheet.create({
 
   logoContainer: {
     flexDirection: "row",
-
     alignItems: "center",
   },
 
   logo: {
     width: 48,
-
     height: 48,
-
     marginRight: 12,
   },
 
   appName: {
     fontSize: 21,
-
     fontWeight: "700",
-
     color: "#4338CA",
   },
 
   role: {
     fontSize: 13,
-
     color: "#6B7280",
-
     marginTop: 3,
   },
 
   logoutContainer: {
     borderTopWidth: 1,
-
     borderTopColor: "#E5E7EB",
 
     paddingHorizontal: 15,
-
     paddingVertical: 12,
   },
 
   logoutButton: {
     flexDirection: "row",
-
     alignItems: "center",
 
     paddingVertical: 13,
-
     paddingHorizontal: 15,
 
     borderRadius: 10,
@@ -349,11 +423,11 @@ const styles = StyleSheet.create({
 
   logoutText: {
     fontSize: 15,
-
     fontWeight: "600",
 
     color: "#DC2626",
 
     marginLeft: 12,
   },
+
 });

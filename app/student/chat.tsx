@@ -9,7 +9,15 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  router,
+} from "expo-router";
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   ActivityIndicator,
@@ -25,9 +33,13 @@ import {
   StatusBar,
 } from "react-native";
 
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Ionicons,
+} from "@expo/vector-icons";
 
 import {
   auth,
@@ -62,16 +74,18 @@ export default function StudentChat() {
   // SAFE AREA
   // =====================================================
 
-  const insets = useSafeAreaInsets();
+  const insets =
+    useSafeAreaInsets();
 
   // =====================================================
   // CURRENT STUDENT
   // =====================================================
 
-  const student = auth.currentUser;
+  const student =
+    auth.currentUser;
 
   // =====================================================
-  // FLATLIST REF
+  // FLATLIST
   // =====================================================
 
   const flatListRef =
@@ -123,10 +137,6 @@ export default function StudentChat() {
 
         setLoading(true);
 
-        // =================================================
-        // GET GUIDE-STUDENT RELATIONSHIPS
-        // =================================================
-
         const guideStudentsRef =
           collection(
             db,
@@ -138,18 +148,28 @@ export default function StudentChat() {
             guideStudentsRef
           );
 
-        let foundGuideId = "";
+        let foundGuideId =
+          "";
 
-        let foundGuideName = "Guide";
+        let foundGuideName =
+          "Guide";
 
         // =================================================
-        // FIND CURRENT STUDENT
+        // FIND STUDENT'S GUIDE
         // =================================================
 
-        for (const studentDoc of snapshot.docs) {
+        for (
+          const studentDoc of snapshot.docs
+        ) {
 
           const data =
             studentDoc.data();
+
+          console.log(
+            "GuideStudent document:",
+            studentDoc.id,
+            data
+          );
 
           if (
             data.studentId ===
@@ -157,7 +177,8 @@ export default function StudentChat() {
           ) {
 
             foundGuideId =
-              data.guideId || "";
+              data.guideId ||
+              "";
 
             foundGuideName =
               data.guideName ||
@@ -174,16 +195,29 @@ export default function StudentChat() {
 
         if (!foundGuideId) {
 
+          console.log(
+            "No guide found for student:",
+            student.uid
+          );
+
           setGuideId("");
 
-          setGuideName("Guide");
+          setGuideName(
+            "Guide"
+          );
 
           return;
         }
 
-        // =================================================
-        // SAVE GUIDE INFORMATION
-        // =================================================
+        console.log(
+          "Assigned Guide ID:",
+          foundGuideId
+        );
+
+        console.log(
+          "Assigned Guide Name:",
+          foundGuideName
+        );
 
         setGuideId(
           foundGuideId
@@ -208,24 +242,26 @@ export default function StudentChat() {
       } finally {
 
         setLoading(false);
-
       }
     };
 
     loadGuide();
 
-  }, [student?.uid]);
+  }, [
+    student?.uid,
+  ]);
 
   // =====================================================
-  // CHAT LISTENER
+  // LOAD CHAT MESSAGES
   // =====================================================
 
   useEffect(() => {
 
     if (
-      !student ||
+      !student?.uid ||
       !guideId
     ) {
+
       return;
     }
 
@@ -235,6 +271,11 @@ export default function StudentChat() {
 
     const chatId =
       `${guideId}_${student.uid}`;
+
+    console.log(
+      "Student Chat ID:",
+      chatId
+    );
 
     // =================================================
     // CHAT DOCUMENT
@@ -258,7 +299,7 @@ export default function StudentChat() {
       );
 
     // =================================================
-    // REAL-TIME LISTENER
+    // LISTENER
     // =================================================
 
     const unsubscribe =
@@ -268,28 +309,45 @@ export default function StudentChat() {
 
         (snapshot) => {
 
-          const loadedMessages =
+          console.log(
+            "Messages found:",
+            snapshot.docs.length
+          );
+
+          const loadedMessages:
+            Message[] =
             snapshot.docs.map(
               (messageDoc) => {
 
                 const data =
                   messageDoc.data();
 
+                console.log(
+                  "Message:",
+                  messageDoc.id,
+                  data
+                );
+
                 return {
+
                   id:
                     messageDoc.id,
 
                   senderId:
-                    data.senderId || "",
+                    data.senderId ||
+                    "",
 
                   senderName:
-                    data.senderName || "",
+                    data.senderName ||
+                    "",
 
                   senderRole:
-                    data.senderRole || "",
+                    data.senderRole ||
+                    "",
 
                   text:
-                    data.text || "",
+                    data.text ||
+                    "",
 
                   createdAt:
                     data.createdAt,
@@ -298,7 +356,7 @@ export default function StudentChat() {
             );
 
           // =================================================
-          // SORT MESSAGES
+          // SORT MESSAGES SAFELY
           // =================================================
 
           loadedMessages.sort(
@@ -314,12 +372,14 @@ export default function StudentChat() {
                   ? b.createdAt.toMillis()
                   : 0;
 
-              return timeA - timeB;
+              return (
+                timeA - timeB
+              );
             }
           );
 
           // =================================================
-          // UPDATE STATE
+          // UPDATE
           // =================================================
 
           setMessages(
@@ -327,7 +387,7 @@ export default function StudentChat() {
           );
 
           // =================================================
-          // SCROLL TO LATEST MESSAGE
+          // SCROLL TO BOTTOM
           // =================================================
 
           setTimeout(() => {
@@ -337,19 +397,18 @@ export default function StudentChat() {
             ) {
 
               flatListRef.current?.scrollToEnd({
-                animated: true,
+                animated: false,
               });
 
             }
 
-          }, 100);
-
+          }, 150);
         },
 
         (error) => {
 
           console.log(
-            "Chat listener error:",
+            "MESSAGE LISTENER ERROR:",
             error
           );
 
@@ -357,7 +416,6 @@ export default function StudentChat() {
             "Chat Error",
             "Unable to load messages."
           );
-
         }
       );
 
@@ -374,10 +432,6 @@ export default function StudentChat() {
 
   const sendMessage = async () => {
 
-    // =================================================
-    // CHECK LOGIN
-    // =================================================
-
     if (!student) {
 
       Alert.alert(
@@ -387,10 +441,6 @@ export default function StudentChat() {
 
       return;
     }
-
-    // =================================================
-    // CHECK GUIDE
-    // =================================================
 
     if (!guideId) {
 
@@ -402,14 +452,11 @@ export default function StudentChat() {
       return;
     }
 
-    // =================================================
-    // GET TEXT
-    // =================================================
-
     const text =
       messageText.trim();
 
     if (!text) {
+
       return;
     }
 
@@ -423,6 +470,11 @@ export default function StudentChat() {
 
       const chatId =
         `${guideId}_${student.uid}`;
+
+      console.log(
+        "Sending to chat:",
+        chatId
+      );
 
       // =================================================
       // CHAT REFERENCE
@@ -445,11 +497,7 @@ export default function StudentChat() {
         "Student";
 
       // =================================================
-      // MESSAGE TIME
-      //
-      // Timestamp.now() is intentionally used here.
-      // This prevents createdAt from temporarily being
-      // null while Firestore processes serverTimestamp().
+      // MESSAGE TIMESTAMP
       // =================================================
 
       const messageTimestamp =
@@ -464,6 +512,7 @@ export default function StudentChat() {
         chatRef,
 
         {
+
           guideId:
             guideId,
 
@@ -489,37 +538,42 @@ export default function StudentChat() {
         {
           merge: true,
         }
-
       );
 
       // =================================================
       // ADD MESSAGE
       // =================================================
 
-      await addDoc(
+      const messageRef =
+        await addDoc(
 
-        collection(
-          chatRef,
-          "messages"
-        ),
+          collection(
+            chatRef,
+            "messages"
+          ),
 
-        {
-          senderId:
-            student.uid,
+          {
 
-          senderName:
-            studentName,
+            senderId:
+              student.uid,
 
-          senderRole:
-            "student",
+            senderName:
+              studentName,
 
-          text:
-            text,
+            senderRole:
+              "student",
 
-          createdAt:
-            messageTimestamp,
-        }
+            text:
+              text,
 
+            createdAt:
+              messageTimestamp,
+          }
+        );
+
+      console.log(
+        "Message sent:",
+        messageRef.id
       );
 
       // =================================================
@@ -531,7 +585,7 @@ export default function StudentChat() {
     } catch (error) {
 
       console.log(
-        "Send message error:",
+        "SEND MESSAGE ERROR:",
         error
       );
 
@@ -543,7 +597,6 @@ export default function StudentChat() {
     } finally {
 
       setSending(false);
-
     }
   };
 
@@ -556,10 +609,6 @@ export default function StudentChat() {
   }: {
     item: Message;
   }) => {
-
-    // =================================================
-    // CURRENT STUDENT MESSAGE
-    // =================================================
 
     const isMine =
       item.senderId ===
@@ -602,7 +651,6 @@ export default function StudentChat() {
         </View>
 
       </View>
-
     );
   };
 
@@ -634,9 +682,7 @@ export default function StudentChat() {
         </Text>
 
       </View>
-
     );
-
   }
 
   // =====================================================
@@ -685,9 +731,7 @@ export default function StudentChat() {
         </Text>
 
       </View>
-
     );
-
   }
 
   // =====================================================
@@ -709,7 +753,7 @@ export default function StudentChat() {
     >
 
       {/* =================================================
-          ANDROID STATUS BAR
+          STATUS BAR
       ================================================= */}
 
       <StatusBar
@@ -735,7 +779,31 @@ export default function StudentChat() {
         ]}
       >
 
-        {/* GUIDE AVATAR */}
+        {/* =================================================
+            BACK BUTTON
+        ================================================= */}
+
+        <Pressable
+          style={
+            styles.backButton
+          }
+
+          onPress={() =>
+            router.back()
+          }
+        >
+
+          <Ionicons
+            name="arrow-back"
+            size={27}
+            color="#1F2937"
+          />
+
+        </Pressable>
+
+        {/* =================================================
+            GUIDE AVATAR
+        ================================================= */}
 
         <View
           style={
@@ -755,7 +823,9 @@ export default function StudentChat() {
 
         </View>
 
-        {/* GUIDE INFORMATION */}
+        {/* =================================================
+            GUIDE NAME
+        ================================================= */}
 
         <View
           style={
@@ -790,16 +860,21 @@ export default function StudentChat() {
       ================================================= */}
 
       <FlatList
-        ref={flatListRef}
+        ref={
+          flatListRef
+        }
 
-        data={messages}
+        data={
+          messages
+        }
 
         renderItem={
           renderMessage
         }
 
-        keyExtractor={(item) =>
-          item.id
+        keyExtractor={
+          (item) =>
+            item.id
         }
 
         showsVerticalScrollIndicator={
@@ -816,7 +891,7 @@ export default function StudentChat() {
         ]}
 
         // =================================================
-        // CHAT INTRO
+        // INTRO
         // =================================================
 
         ListHeaderComponent={
@@ -859,7 +934,6 @@ export default function StudentChat() {
             </Text>
 
           </View>
-
         }
 
         // =================================================
@@ -891,12 +965,7 @@ export default function StudentChat() {
             </Text>
 
           </View>
-
         }
-
-        // =================================================
-        // KEEP SCROLL AT BOTTOM
-        // =================================================
 
         onContentSizeChange={() => {
 
@@ -911,7 +980,6 @@ export default function StudentChat() {
           }
 
         }}
-
       />
 
       {/* =================================================
@@ -1001,7 +1069,6 @@ export default function StudentChat() {
       </View>
 
     </KeyboardAvoidingView>
-
   );
 }
 
@@ -1017,6 +1084,7 @@ const styles =
   // =====================================================
 
   container: {
+
     flex: 1,
 
     backgroundColor:
@@ -1039,7 +1107,7 @@ const styles =
       "center",
 
     paddingHorizontal:
-      16,
+      8,
 
     borderBottomWidth:
       1,
@@ -1048,13 +1116,38 @@ const styles =
       "#E5E7EB",
   },
 
+  // =====================================================
+  // BACK BUTTON
+  // =====================================================
+
+  backButton: {
+
+    width:
+      44,
+
+    height:
+      44,
+
+    alignItems:
+      "center",
+
+    justifyContent:
+      "center",
+
+    marginRight:
+      2,
+  },
+
   headerAvatar: {
 
-    width: 42,
+    width:
+      42,
 
-    height: 42,
+    height:
+      42,
 
-    borderRadius: 21,
+    borderRadius:
+      21,
 
     backgroundColor:
       "#EEF0FF",
@@ -1065,12 +1158,14 @@ const styles =
     justifyContent:
       "center",
 
-    marginRight: 11,
+    marginRight:
+      11,
   },
 
   headerAvatarText: {
 
-    fontSize: 13,
+    fontSize:
+      13,
 
     fontWeight:
       "700",
@@ -1086,7 +1181,8 @@ const styles =
 
   headerName: {
 
-    fontSize: 17,
+    fontSize:
+      17,
 
     fontWeight:
       "700",
@@ -1097,16 +1193,18 @@ const styles =
 
   headerSubtitle: {
 
-    fontSize: 11,
+    fontSize:
+      11,
 
     color:
       "#9CA3AF",
 
-    marginTop: 2,
+    marginTop:
+      2,
   },
 
   // =====================================================
-  // CHAT INTRO
+  // INTRO
   // =====================================================
 
   chatIntro: {
@@ -1114,18 +1212,23 @@ const styles =
     alignItems:
       "center",
 
-    paddingTop: 18,
+    paddingTop:
+      18,
 
-    paddingBottom: 25,
+    paddingBottom:
+      25,
   },
 
   chatIntroIcon: {
 
-    width: 42,
+    width:
+      42,
 
-    height: 42,
+    height:
+      42,
 
-    borderRadius: 14,
+    borderRadius:
+      14,
 
     backgroundColor:
       "#EEF0FF",
@@ -1136,12 +1239,14 @@ const styles =
     justifyContent:
       "center",
 
-    marginBottom: 9,
+    marginBottom:
+      9,
   },
 
   chatIntroText: {
 
-    fontSize: 16,
+    fontSize:
+      16,
 
     fontWeight:
       "700",
@@ -1155,17 +1260,20 @@ const styles =
 
   chatIntroSubText: {
 
-    fontSize: 11,
+    fontSize:
+      11,
 
     color:
       "#9CA3AF",
 
-    marginTop: 4,
+    marginTop:
+      4,
 
     textAlign:
       "center",
 
-    paddingHorizontal: 30,
+    paddingHorizontal:
+      30,
   },
 
   // =====================================================
@@ -1174,14 +1282,17 @@ const styles =
 
   messagesList: {
 
-    paddingHorizontal: 15,
+    paddingHorizontal:
+      15,
 
-    paddingBottom: 18,
+    paddingBottom:
+      18,
   },
 
   emptyMessagesList: {
 
-    flexGrow: 1,
+    flexGrow:
+      1,
   },
 
   // =====================================================
@@ -1197,19 +1308,11 @@ const styles =
       14,
   },
 
-  // =====================================================
-  // STUDENT MESSAGE
-  // =====================================================
-
   myMessageRow: {
 
     alignItems:
       "flex-end",
   },
-
-  // =====================================================
-  // GUIDE MESSAGE
-  // =====================================================
 
   guideMessageRow: {
 
@@ -1236,10 +1339,6 @@ const styles =
       16,
   },
 
-  // =====================================================
-  // STUDENT BUBBLE
-  // =====================================================
-
   myBubble: {
 
     backgroundColor:
@@ -1248,10 +1347,6 @@ const styles =
     borderBottomRightRadius:
       4,
   },
-
-  // =====================================================
-  // GUIDE BUBBLE
-  // =====================================================
 
   guideBubble: {
 
@@ -1267,10 +1362,6 @@ const styles =
     borderBottomLeftRadius:
       4,
   },
-
-  // =====================================================
-  // MESSAGE TEXT
-  // =====================================================
 
   messageText: {
 
