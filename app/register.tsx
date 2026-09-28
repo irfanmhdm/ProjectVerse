@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 import {
   doc,
+  getDoc,
   setDoc,
 } from "firebase/firestore";
 import { useState } from "react";
@@ -29,7 +30,22 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] =
     useState("");
+
   const [studentClass, setStudentClass] =
+    useState("");
+
+  // =====================================================
+  // STUDENT REGISTER NUMBER
+  // =====================================================
+
+  const [registerNumber, setRegisterNumber] =
+    useState("");
+
+  // =====================================================
+  // GUIDE EMPLOYEE NUMBER
+  // =====================================================
+
+  const [employeeNumber, setEmployeeNumber] =
     useState("");
 
   // =====================================================
@@ -63,8 +79,18 @@ export default function RegisterScreen() {
     // ===================================================
 
     const cleanName = name.trim();
-    const cleanEmail = email.trim();
-    const cleanClass = studentClass.trim();
+
+    const cleanEmail =
+      email.trim().toLowerCase();
+
+    const cleanClass =
+      studentClass.trim();
+
+    const cleanRegisterNumber =
+      registerNumber.trim().toUpperCase();
+
+    const cleanEmployeeNumber =
+      employeeNumber.trim().toUpperCase();
 
     // ===================================================
     // EMPTY FIELD VALIDATION
@@ -75,13 +101,19 @@ export default function RegisterScreen() {
       cleanEmail === "" ||
       password === "" ||
       confirmPassword === "" ||
-      (role === "student" && cleanClass === "")
+      (role === "student" &&
+        (
+          cleanClass === "" ||
+          cleanRegisterNumber === ""
+        )) ||
+      (role === "guide" &&
+        cleanEmployeeNumber === "")
     ) {
       Alert.alert(
         "Missing Information",
         role === "student"
-          ? "Please fill in all fields."
-          : "Please fill in all required fields.",
+          ? "Please fill in all student fields."
+          : "Please fill in all guide fields.",
       );
 
       return;
@@ -98,6 +130,50 @@ export default function RegisterScreen() {
       );
 
       return;
+    }
+
+    // ===================================================
+    // STUDENT REGISTER NUMBER VALIDATION
+    // ===================================================
+
+    if (role === "student") {
+      const registerNumberRegex =
+        /^FIT25MCA-\d{4}$/;
+
+      if (
+        !registerNumberRegex.test(
+          cleanRegisterNumber
+        )
+      ) {
+        Alert.alert(
+          "Invalid Register Number",
+          "Please enter a valid student register number.",
+        );
+
+        return;
+      }
+    }
+
+    // ===================================================
+    // GUIDE EMPLOYEE NUMBER FORMAT VALIDATION
+    // ===================================================
+
+    if (role === "guide") {
+      const employeeNumberRegex =
+        /^EMP\d{3}$/;
+
+      if (
+        !employeeNumberRegex.test(
+          cleanEmployeeNumber
+        )
+      ) {
+        Alert.alert(
+          "Invalid Employee Number",
+          "Please enter a valid employee number.",
+        );
+
+        return;
+      }
     }
 
     // ===================================================
@@ -146,7 +222,87 @@ export default function RegisterScreen() {
 
     try {
       // =================================================
-      // 1. CREATE FIREBASE ACCOUNT
+      // GUIDE AUTHORIZATION CHECK
+      // =================================================
+      //
+      // Firebase Firestore:
+      //
+      // authorizedGuides
+      //      |
+      //      ├── EMP101
+      //      |      active: true
+      //      |
+      //      └── EMP102
+      //             active: true
+      //
+      // The entered employee number is used as the
+      // document ID.
+      //
+      // Example:
+      //
+      // Entered:
+      // EMP101
+      //
+      // Firestore:
+      // authorizedGuides/EMP101
+      //
+      // =================================================
+
+      if (role === "guide") {
+        const guideRef = doc(
+          db,
+          "authorizedGuides",
+          cleanEmployeeNumber,
+        );
+
+        const guideSnapshot =
+          await getDoc(guideRef);
+
+        // -------------------------------------------------
+        // EMPLOYEE NUMBER DOES NOT EXIST
+        // -------------------------------------------------
+
+        if (!guideSnapshot.exists()) {
+          Alert.alert(
+            "Unauthorized Guide",
+            "This employee number is not authorized for guide registration.",
+          );
+
+          setLoading(false);
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // GET AUTHORIZED GUIDE DATA
+        // -------------------------------------------------
+
+        const guideData =
+          guideSnapshot.data();
+
+        // -------------------------------------------------
+        // EMPLOYEE NUMBER EXISTS BUT IS INACTIVE
+        // -------------------------------------------------
+
+        if (guideData.active !== true) {
+          Alert.alert(
+            "Guide Access Disabled",
+            "This employee number is currently inactive. Please contact the administrator.",
+          );
+
+          setLoading(false);
+
+          return;
+        }
+
+        console.log(
+          "Authorized guide verified:",
+          cleanEmployeeNumber,
+        );
+      }
+
+      // =================================================
+      // CREATE FIREBASE AUTH ACCOUNT
       // =================================================
 
       const userCredential =
@@ -157,43 +313,73 @@ export default function RegisterScreen() {
         );
 
       // =================================================
-      // 2. GET USER UID
+      // GET USER UID
       // =================================================
 
-      const uid = userCredential.user.uid;
+      const uid =
+        userCredential.user.uid;
 
-      console.log("New user UID:", uid);
-      console.log("Selected role:", role);
+      console.log(
+        "New user UID:",
+        uid,
+      );
+
+      console.log(
+        "Selected role:",
+        role,
+      );
 
       // =================================================
-      // 3. CREATE FIRESTORE USER PROFILE
+      // CREATE FIRESTORE USER PROFILE
+      // =================================================
+      //
+      // IMPORTANT:
+      //
+      // Both students and guides start as PENDING.
+      //
+      // Student:
+      //     pending -> admin approval
+      //
+      // Guide:
+      //     pending -> admin approval
+      //
       // =================================================
 
       const userData: any = {
         name: cleanName,
+
         email: cleanEmail,
+
         role: role,
 
-        // Students are automatically approved.
-        // Guides need admin approval.
-        approvalStatus:
-          role === "student"
-            ? "approved"
-            : "pending",
+        approvalStatus: "pending",
 
         createdAt: new Date(),
       };
 
       // =================================================
-      // 4. ADD CLASS ONLY FOR STUDENTS
+      // ADD STUDENT DETAILS
       // =================================================
 
       if (role === "student") {
-        userData.class = cleanClass;
+        userData.class =
+          cleanClass;
+
+        userData.registerNumber =
+          cleanRegisterNumber;
       }
 
       // =================================================
-      // 5. SAVE USER PROFILE
+      // ADD GUIDE DETAILS
+      // =================================================
+
+      if (role === "guide") {
+        userData.employeeNumber =
+          cleanEmployeeNumber;
+      }
+
+      // =================================================
+      // SAVE USER PROFILE
       // =================================================
 
       await setDoc(
@@ -208,18 +394,21 @@ export default function RegisterScreen() {
       console.log(
         "Role:",
         role,
+      );
+
+      console.log(
         "Approval:",
         userData.approvalStatus,
       );
 
       // =================================================
-      // 6. SUCCESS MESSAGE
+      // SUCCESS MESSAGE
       // =================================================
 
       if (role === "student") {
         Alert.alert(
-          "Registration Successful",
-          "Your ProjectVerse account has been created. You can now login.",
+          "Registration Submitted",
+          "Your student account has been created and is waiting for admin approval. You can login after your account is approved.",
           [
             {
               text: "Continue",
@@ -243,6 +432,7 @@ export default function RegisterScreen() {
           ],
         );
       }
+
     } catch (error: any) {
       console.log(
         "Registration error:",
@@ -261,6 +451,7 @@ export default function RegisterScreen() {
           "Account Already Exists",
           "An account already exists with this email address.",
         );
+
       } else if (
         error?.code ===
         "auth/invalid-email"
@@ -269,6 +460,7 @@ export default function RegisterScreen() {
           "Invalid Email",
           "Please enter a valid email address.",
         );
+
       } else if (
         error?.code ===
         "auth/weak-password"
@@ -277,6 +469,7 @@ export default function RegisterScreen() {
           "Weak Password",
           "Please choose a stronger password.",
         );
+
       } else if (
         error?.code ===
         "auth/network-request-failed"
@@ -285,12 +478,26 @@ export default function RegisterScreen() {
           "Network Error",
           "Please check your internet connection and try again.",
         );
+
+      } else if (
+        error?.code ===
+        "permission-denied" ||
+        error?.message?.includes(
+          "Missing or insufficient permissions"
+        )
+      ) {
+        Alert.alert(
+          "Permission Error",
+          "The registration request was blocked by Firebase security rules.",
+        );
+
       } else {
         Alert.alert(
           "Registration Failed",
           "Something went wrong while creating your account. Please try again.",
         );
       }
+
     } finally {
       setLoading(false);
     }
@@ -521,6 +728,90 @@ export default function RegisterScreen() {
               </View>
 
             </View>
+
+            {/* =================================================
+                STUDENT REGISTER NUMBER
+            ================================================= */}
+
+            {role === "student" && (
+              <View style={styles.inputGroup}>
+
+                <Text style={styles.inputLabel}>
+                  Register Number
+                </Text>
+
+                <View
+                  style={styles.inputContainer}
+                >
+
+                  <Ionicons
+                    name="card-outline"
+                    size={19}
+                    color="#6B7280"
+                    style={styles.inputIcon}
+                  />
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Student Register Number"
+                    placeholderTextColor="#9CA3AF"
+                    value={registerNumber}
+                    onChangeText={(text) =>
+                      setRegisterNumber(
+                        text.toUpperCase()
+                      )
+                    }
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+
+                </View>
+
+              </View>
+            )}
+
+            {/* =================================================
+                GUIDE EMPLOYEE NUMBER
+            ================================================= */}
+
+            {role === "guide" && (
+              <View style={styles.inputGroup}>
+
+                <Text style={styles.inputLabel}>
+                  Employee Number
+                </Text>
+
+                <View
+                  style={styles.inputContainer}
+                >
+
+                  <Ionicons
+                    name="id-card-outline"
+                    size={19}
+                    color="#6B7280"
+                    style={styles.inputIcon}
+                  />
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Guide Employee Number"
+                    placeholderTextColor="#9CA3AF"
+                    value={employeeNumber}
+                    onChangeText={(text) =>
+                      setEmployeeNumber(
+                        text.toUpperCase()
+                      )
+                    }
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+
+                </View>
+
+              </View>
+            )}
 
             {/* =================================================
                 CLASS
@@ -805,25 +1096,16 @@ export default function RegisterScreen() {
   );
 }
 
-
 // ========================================================
 // STYLES
 // ========================================================
 
 const styles = StyleSheet.create({
 
-  // ======================================================
-  // CONTAINER
-  // ======================================================
-
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
   },
-
-  // ======================================================
-  // BACK BUTTON
-  // ======================================================
 
   backButton: {
     position: "absolute",
@@ -845,18 +1127,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // ======================================================
-  // SCROLL
-  // ======================================================
-
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
   },
-
-  // ======================================================
-  // CONTENT
-  // ======================================================
 
   content: {
     width: "100%",
@@ -864,10 +1138,6 @@ const styles = StyleSheet.create({
     paddingTop: 85,
     paddingBottom: 30,
   },
-
-  // ======================================================
-  // BRAND
-  // ======================================================
 
   brandSection: {
     alignItems: "center",
@@ -894,10 +1164,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // ======================================================
-  // HEADING
-  // ======================================================
-
   headingSection: {
     alignItems: "center",
     marginBottom: 18,
@@ -916,10 +1182,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 15,
   },
-
-  // ======================================================
-  // FORM CARD
-  // ======================================================
 
   formCard: {
     width: "100%",
@@ -945,10 +1207,6 @@ const styles = StyleSheet.create({
 
     elevation: 3,
   },
-
-  // ======================================================
-  // INPUT GROUP
-  // ======================================================
 
   inputGroup: {
     marginBottom: 14,
@@ -995,10 +1253,6 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
-  // ======================================================
-  // ROLE SELECTION
-  // ======================================================
-
   roleContainer: {
     flexDirection: "row",
     gap: 10,
@@ -1041,10 +1295,6 @@ const styles = StyleSheet.create({
   roleTextSelected: {
     color: "#4338CA",
   },
-
-  // ======================================================
-  // REGISTER BUTTON
-  // ======================================================
 
   registerButton: {
     minHeight: 52,
@@ -1095,10 +1345,6 @@ const styles = StyleSheet.create({
       },
     ],
   },
-
-  // ======================================================
-  // LOGIN
-  // ======================================================
 
   loginSection: {
     flexDirection: "row",

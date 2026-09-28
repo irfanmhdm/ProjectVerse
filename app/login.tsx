@@ -21,11 +21,9 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
   // =====================================================
   // LOGIN
@@ -51,14 +49,10 @@ export default function LoginScreen() {
       return;
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
-      Alert.alert(
-        "Invalid Email",
-        "Please enter a valid email address.",
-      );
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
 
       return;
     }
@@ -70,42 +64,32 @@ export default function LoginScreen() {
       // 1. FIREBASE AUTHENTICATION
       // =================================================
 
-      const userCredential =
-        await signInWithEmailAndPassword(
-          auth,
-          cleanEmail,
-          password,
-        );
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        cleanEmail,
+        password,
+      );
 
       // =================================================
       // 2. GET UID
       // =================================================
 
-      const uid =
-        userCredential.user.uid;
+      const uid = userCredential.user.uid;
 
-      console.log(
-        "Logged in UID:",
-        uid,
-      );
+      console.log("Logged in UID:", uid);
 
       // =================================================
       // 3. GET USER PROFILE
       // =================================================
 
-      const userDoc = await getDoc(
-        doc(db, "users", uid),
-      );
+      const userDoc = await getDoc(doc(db, "users", uid));
 
       // =================================================
       // 4. CHECK PROFILE
       // =================================================
 
       if (!userDoc.exists()) {
-        Alert.alert(
-          "Profile Error",
-          "Your user profile could not be found.",
-        );
+        Alert.alert("Profile Error", "Your user profile could not be found.");
 
         await auth.signOut();
 
@@ -119,33 +103,76 @@ export default function LoginScreen() {
       const userData = userDoc.data();
 
       const role = userData.role;
-      const approvalStatus =
-        userData.approvalStatus;
+      const approvalStatus = userData.approvalStatus;
 
-      console.log(
-        "User role:",
-        role,
-      );
+      console.log("User role:", role);
 
-      console.log(
-        "Approval status:",
-        approvalStatus,
-      );
+      console.log("Approval status:", approvalStatus);
 
       // =================================================
       // 6. STUDENT LOGIN
       // =================================================
 
       if (role === "student") {
-        console.log(
-          "Student login successful",
-        );
+        // -----------------------------------------------
+        // STUDENT APPROVED
+        // -----------------------------------------------
 
-        router.replace("/student");
+        if (approvalStatus === "approved") {
+          console.log("Student approved - login successful");
+
+          router.replace("/student");
+
+          return;
+        }
+
+        // -----------------------------------------------
+        // STUDENT PENDING
+        // -----------------------------------------------
+
+        if (approvalStatus === "pending") {
+          console.log("Student approval pending");
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Approval Pending",
+            "Your student account is waiting for admin approval. You can login after your account has been approved.",
+          );
+
+          return;
+        }
+
+        // -----------------------------------------------
+        // STUDENT REJECTED
+        // -----------------------------------------------
+
+        if (approvalStatus === "rejected") {
+          console.log("Student registration rejected");
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Registration Rejected",
+            "Your student registration was rejected by the administrator.",
+          );
+
+          return;
+        }
+
+        // -----------------------------------------------
+        // UNKNOWN STUDENT STATUS
+        // -----------------------------------------------
+
+        await auth.signOut();
+
+        Alert.alert(
+          "Account Not Approved",
+          "Your student account has not been approved yet. Please contact the administrator.",
+        );
 
         return;
       }
-
       // =================================================
       // 7. GUIDE LOGIN
       // =================================================
@@ -155,12 +182,8 @@ export default function LoginScreen() {
         // GUIDE APPROVED
         // -----------------------------------------------
 
-        if (
-          approvalStatus === "approved"
-        ) {
-          console.log(
-            "Guide approved - login successful",
-          );
+        if (approvalStatus === "approved") {
+          console.log("Guide approved - login successful");
 
           router.replace("/guide");
 
@@ -171,12 +194,8 @@ export default function LoginScreen() {
         // GUIDE PENDING
         // -----------------------------------------------
 
-        if (
-          approvalStatus === "pending"
-        ) {
-          console.log(
-            "Guide approval pending",
-          );
+        if (approvalStatus === "pending") {
+          console.log("Guide approval pending");
 
           await auth.signOut();
 
@@ -192,12 +211,8 @@ export default function LoginScreen() {
         // GUIDE REJECTED
         // -----------------------------------------------
 
-        if (
-          approvalStatus === "rejected"
-        ) {
-          console.log(
-            "Guide registration rejected",
-          );
+        if (approvalStatus === "rejected") {
+          console.log("Guide registration rejected");
 
           await auth.signOut();
 
@@ -228,9 +243,7 @@ export default function LoginScreen() {
       // =================================================
 
       if (role === "admin") {
-        console.log(
-          "Admin login successful",
-        );
+        console.log("Admin login successful");
 
         router.replace("/admin");
 
@@ -241,10 +254,7 @@ export default function LoginScreen() {
       // 9. INVALID ROLE
       // =================================================
 
-      console.log(
-        "Unknown role:",
-        role,
-      );
+      console.log("Unknown role:", role);
 
       Alert.alert(
         "Invalid Account",
@@ -252,69 +262,35 @@ export default function LoginScreen() {
       );
 
       await auth.signOut();
-
     } catch (error: any) {
-      console.log(
-        "Login error:",
-        error,
-      );
+      console.log("Login error:", error);
 
       // =================================================
       // FIREBASE ERROR HANDLING
       // =================================================
 
-      if (
-        error?.code ===
-        "auth/invalid-credential"
-      ) {
-        Alert.alert(
-          "Login Failed",
-          "The email or password is incorrect.",
-        );
-
-      } else if (
-        error?.code ===
-        "auth/user-not-found"
-      ) {
-        Alert.alert(
-          "Login Failed",
-          "No account was found with this email.",
-        );
-
-      } else if (
-        error?.code ===
-        "auth/wrong-password"
-      ) {
-        Alert.alert(
-          "Login Failed",
-          "The password is incorrect.",
-        );
-
-      } else if (
-        error?.code ===
-        "auth/too-many-requests"
-      ) {
+      if (error?.code === "auth/invalid-credential") {
+        Alert.alert("Login Failed", "The email or password is incorrect.");
+      } else if (error?.code === "auth/user-not-found") {
+        Alert.alert("Login Failed", "No account was found with this email.");
+      } else if (error?.code === "auth/wrong-password") {
+        Alert.alert("Login Failed", "The password is incorrect.");
+      } else if (error?.code === "auth/too-many-requests") {
         Alert.alert(
           "Too Many Attempts",
           "Too many login attempts. Please try again later.",
         );
-
-      } else if (
-        error?.code ===
-        "auth/network-request-failed"
-      ) {
+      } else if (error?.code === "auth/network-request-failed") {
         Alert.alert(
           "Network Error",
           "Please check your internet connection and try again.",
         );
-
       } else {
         Alert.alert(
           "Login Failed",
           "Something went wrong while logging in. Please try again.",
         );
       }
-
     } finally {
       setLoading(false);
     }
@@ -326,7 +302,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-
       {/* =================================================
           BACK BUTTON
       ================================================= */}
@@ -336,15 +311,9 @@ export default function LoginScreen() {
         onPress={() => router.back()}
         disabled={loading}
       >
-        <Ionicons
-          name="arrow-back"
-          size={20}
-          color="#4338CA"
-        />
+        <Ionicons name="arrow-back" size={20} color="#4338CA" />
 
-        <Text style={styles.backText}>
-          Back
-        </Text>
+        <Text style={styles.backText}>Back</Text>
       </Pressable>
 
       {/* =================================================
@@ -352,29 +321,20 @@ export default function LoginScreen() {
       ================================================= */}
 
       <View style={styles.content}>
-
         {/* =================================================
             BRAND
         ================================================= */}
 
         <View style={styles.brandSection}>
-
           <Image
-            source={require(
-              "../assets/images/logo.png"
-            )}
+            source={require("../assets/images/logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />
 
-          <Text style={styles.appName}>
-            ProjectVerse
-          </Text>
+          <Text style={styles.appName}>ProjectVerse</Text>
 
-          <Text style={styles.tagline}>
-            Discover. Learn. Innovate.
-          </Text>
-
+          <Text style={styles.tagline}>Discover. Learn. Innovate.</Text>
         </View>
 
         {/* =================================================
@@ -382,15 +342,11 @@ export default function LoginScreen() {
         ================================================= */}
 
         <View style={styles.headingSection}>
-
-          <Text style={styles.title}>
-            Welcome Back
-          </Text>
+          <Text style={styles.title}>Welcome Back</Text>
 
           <Text style={styles.subtitle}>
             Login to continue exploring projects
           </Text>
-
         </View>
 
         {/* =================================================
@@ -398,17 +354,12 @@ export default function LoginScreen() {
         ================================================= */}
 
         <View style={styles.formCard}>
-
           {/* EMAIL */}
 
           <View style={styles.inputGroup}>
-
-            <Text style={styles.inputLabel}>
-              Email Address
-            </Text>
+            <Text style={styles.inputLabel}>Email Address</Text>
 
             <View style={styles.inputContainer}>
-
               <Ionicons
                 name="mail-outline"
                 size={19}
@@ -427,21 +378,15 @@ export default function LoginScreen() {
                 autoCorrect={false}
                 editable={!loading}
               />
-
             </View>
-
           </View>
 
           {/* PASSWORD */}
 
           <View style={styles.inputGroup}>
-
-            <Text style={styles.inputLabel}>
-              Password
-            </Text>
+            <Text style={styles.inputLabel}>Password</Text>
 
             <View style={styles.inputContainer}>
-
               <Ionicons
                 name="lock-closed-outline"
                 size={19}
@@ -463,26 +408,16 @@ export default function LoginScreen() {
 
               <Pressable
                 style={styles.passwordToggle}
-                onPress={() =>
-                  setShowPassword(
-                    !showPassword,
-                  )
-                }
+                onPress={() => setShowPassword(!showPassword)}
                 disabled={loading}
               >
                 <Ionicons
-                  name={
-                    showPassword
-                      ? "eye-off-outline"
-                      : "eye-outline"
-                  }
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={20}
                   color="#6B7280"
                 />
               </Pressable>
-
             </View>
-
           </View>
 
           {/* LOGIN BUTTON */}
@@ -491,50 +426,29 @@ export default function LoginScreen() {
             style={({ pressed }) => [
               styles.loginButton,
 
-              pressed &&
-                !loading &&
-                styles.buttonPressed,
+              pressed && !loading && styles.buttonPressed,
 
-              loading &&
-                styles.loginButtonDisabled,
+              loading && styles.loginButtonDisabled,
             ]}
             onPress={handleLogin}
             disabled={loading}
           >
-
             {loading ? (
               <>
-                <ActivityIndicator
-                  size="small"
-                  color="#FFFFFF"
-                />
+                <ActivityIndicator size="small" color="#FFFFFF" />
 
-                <Text style={styles.buttonText}>
-                  Logging in...
-                </Text>
+                <Text style={styles.buttonText}>Logging in...</Text>
               </>
             ) : (
               <>
-                <Ionicons
-                  name="log-in-outline"
-                  size={20}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
 
-                <Text style={styles.buttonText}>
-                  Login
-                </Text>
+                <Text style={styles.buttonText}>Login</Text>
 
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </>
             )}
-
           </Pressable>
-
         </View>
 
         {/* =================================================
@@ -542,37 +456,25 @@ export default function LoginScreen() {
         ================================================= */}
 
         <View style={styles.registerSection}>
-
-          <Text style={styles.registerPrompt}>
-            Don't have an account?
-          </Text>
+          <Text style={styles.registerPrompt}>Don't have an account?</Text>
 
           <Pressable
-            onPress={() =>
-              router.push("/register")
-            }
+            onPress={() => router.push("/register")}
             disabled={loading}
           >
-            <Text style={styles.registerLink}>
-              Create an Account
-            </Text>
+            <Text style={styles.registerLink}>Create an Account</Text>
           </Pressable>
-
         </View>
-
       </View>
-
     </View>
   );
 }
-
 
 // ========================================================
 // STYLES
 // ========================================================
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
