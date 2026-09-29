@@ -34,7 +34,7 @@ export default function LoginScreen() {
       return;
     }
 
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     // ===================================================
     // VALIDATION
@@ -43,203 +43,103 @@ export default function LoginScreen() {
     if (cleanEmail === "" || password === "") {
       Alert.alert(
         "Missing Information",
-        "Please enter your email and password.",
+        "Please enter your email and password."
       );
-
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
-      Alert.alert("Invalid Email", "Please enter a valid email address.");
-
+      Alert.alert(
+        "Invalid Email",
+        "Please enter a valid email address."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      // =================================================
-      // 1. FIREBASE AUTHENTICATION
-      // =================================================
-
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        cleanEmail,
-        password,
-      );
+      console.log("=================================");
+      console.log("LOGIN STARTED");
+      console.log("Email:", cleanEmail);
 
       // =================================================
-      // 2. GET UID
+      // STEP 1: FIREBASE AUTHENTICATION
       // =================================================
+
+      const userCredential =
+        await signInWithEmailAndPassword(
+          auth,
+          cleanEmail,
+          password
+        );
 
       const uid = userCredential.user.uid;
 
-      console.log("Logged in UID:", uid);
+      console.log(
+        "STEP 1 SUCCESS: Firebase Authentication"
+      );
+
+      console.log("UID:", uid);
 
       // =================================================
-      // 3. GET USER PROFILE
+      // STEP 2: GET FIRESTORE USER PROFILE
       // =================================================
 
-      const userDoc = await getDoc(doc(db, "users", uid));
+      console.log(
+        "STEP 2: Checking user profile..."
+      );
+
+      const userRef = doc(db, "users", uid);
+
+      const userDoc = await getDoc(userRef);
 
       // =================================================
-      // 4. CHECK PROFILE
+      // PROFILE DOES NOT EXIST
       // =================================================
 
       if (!userDoc.exists()) {
-        Alert.alert("Profile Error", "Your user profile could not be found.");
+        console.log("User profile not found");
 
         await auth.signOut();
+
+        Alert.alert(
+          "Profile Error",
+          "Your Firebase account exists, but your ProjectVerse user profile could not be found."
+        );
 
         return;
       }
 
+      console.log(
+        "STEP 2 SUCCESS: User profile found"
+      );
+
       // =================================================
-      // 5. USER DATA
+      // STEP 3: GET USER DATA
       // =================================================
 
       const userData = userDoc.data();
 
       const role = userData.role;
-      const approvalStatus = userData.approvalStatus;
+      const status = userData.status;
 
       console.log("User role:", role);
-
-      console.log("Approval status:", approvalStatus);
-
-      // =================================================
-      // 6. STUDENT LOGIN
-      // =================================================
-
-      if (role === "student") {
-        // -----------------------------------------------
-        // STUDENT APPROVED
-        // -----------------------------------------------
-
-        if (approvalStatus === "approved") {
-          console.log("Student approved - login successful");
-
-          router.replace("/student");
-
-          return;
-        }
-
-        // -----------------------------------------------
-        // STUDENT PENDING
-        // -----------------------------------------------
-
-        if (approvalStatus === "pending") {
-          console.log("Student approval pending");
-
-          await auth.signOut();
-
-          Alert.alert(
-            "Approval Pending",
-            "Your student account is waiting for admin approval. You can login after your account has been approved.",
-          );
-
-          return;
-        }
-
-        // -----------------------------------------------
-        // STUDENT REJECTED
-        // -----------------------------------------------
-
-        if (approvalStatus === "rejected") {
-          console.log("Student registration rejected");
-
-          await auth.signOut();
-
-          Alert.alert(
-            "Registration Rejected",
-            "Your student registration was rejected by the administrator.",
-          );
-
-          return;
-        }
-
-        // -----------------------------------------------
-        // UNKNOWN STUDENT STATUS
-        // -----------------------------------------------
-
-        await auth.signOut();
-
-        Alert.alert(
-          "Account Not Approved",
-          "Your student account has not been approved yet. Please contact the administrator.",
-        );
-
-        return;
-      }
-      // =================================================
-      // 7. GUIDE LOGIN
-      // =================================================
-
-      if (role === "guide") {
-        // -----------------------------------------------
-        // GUIDE APPROVED
-        // -----------------------------------------------
-
-        if (approvalStatus === "approved") {
-          console.log("Guide approved - login successful");
-
-          router.replace("/guide");
-
-          return;
-        }
-
-        // -----------------------------------------------
-        // GUIDE PENDING
-        // -----------------------------------------------
-
-        if (approvalStatus === "pending") {
-          console.log("Guide approval pending");
-
-          await auth.signOut();
-
-          Alert.alert(
-            "Approval Pending",
-            "Your guide account is waiting for admin approval. You can login after your account has been approved.",
-          );
-
-          return;
-        }
-
-        // -----------------------------------------------
-        // GUIDE REJECTED
-        // -----------------------------------------------
-
-        if (approvalStatus === "rejected") {
-          console.log("Guide registration rejected");
-
-          await auth.signOut();
-
-          Alert.alert(
-            "Registration Rejected",
-            "Your guide registration was rejected by the administrator.",
-          );
-
-          return;
-        }
-
-        // -----------------------------------------------
-        // UNKNOWN GUIDE STATUS
-        // -----------------------------------------------
-
-        await auth.signOut();
-
-        Alert.alert(
-          "Account Not Approved",
-          "Your guide account has not been approved yet. Please contact the administrator.",
-        );
-
-        return;
-      }
+      console.log("User status:", status);
 
       // =================================================
-      // 8. ADMIN LOGIN
+      // IMPORTANT
+      // ONLY `status` IS USED
+      //
+      // pending
+      // approved
+      // rejected
+      // =================================================
+
+      // =================================================
+      // STEP 4: ADMIN LOGIN
       // =================================================
 
       if (role === "admin") {
@@ -251,46 +151,264 @@ export default function LoginScreen() {
       }
 
       // =================================================
-      // 9. INVALID ROLE
+      // STEP 5: STUDENT LOGIN
+      // =================================================
+
+      if (role === "student") {
+        // -------------------------------------------------
+        // STUDENT PENDING
+        // -------------------------------------------------
+
+        if (status === "pending") {
+          console.log(
+            "Student account is pending approval"
+          );
+
+          // Remove Firebase Auth session
+          await auth.signOut();
+
+          Alert.alert(
+            "Approval Pending",
+            "Your student registration has been submitted successfully. Please wait for admin approval before logging in."
+          );
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // STUDENT APPROVED
+        // -------------------------------------------------
+
+        if (status === "approved") {
+          console.log(
+            "Student account approved"
+          );
+
+          console.log(
+            "Redirecting to Student Dashboard"
+          );
+
+          router.replace("/student");
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // STUDENT REJECTED
+        // -------------------------------------------------
+
+        if (status === "rejected") {
+          console.log(
+            "Student registration rejected"
+          );
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Registration Rejected",
+            "Your student registration was rejected by the administrator. Please contact the administrator for more information."
+          );
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // INVALID / MISSING STATUS
+        // -------------------------------------------------
+
+        console.log(
+          "Invalid student status:",
+          status
+        );
+
+        await auth.signOut();
+
+        Alert.alert(
+          "Account Status Error",
+          "Your student account does not have a valid status. Please contact the administrator."
+        );
+
+        return;
+      }
+
+      // =================================================
+      // STEP 6: GUIDE LOGIN
+      // =================================================
+
+      if (role === "guide") {
+        // -------------------------------------------------
+        // GUIDE PENDING
+        // -------------------------------------------------
+
+        if (status === "pending") {
+          console.log(
+            "Guide account is pending approval"
+          );
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Approval Pending",
+            "Your guide registration has been submitted successfully. Please wait for admin approval before logging in."
+          );
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // GUIDE APPROVED
+        // -------------------------------------------------
+
+        if (status === "approved") {
+          console.log(
+            "Guide account approved"
+          );
+
+          console.log(
+            "Redirecting to Guide Dashboard"
+          );
+
+          router.replace("/guide");
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // GUIDE REJECTED
+        // -------------------------------------------------
+
+        if (status === "rejected") {
+          console.log(
+            "Guide registration rejected"
+          );
+
+          await auth.signOut();
+
+          Alert.alert(
+            "Registration Rejected",
+            "Your guide registration was rejected by the administrator. Please contact the administrator for more information."
+          );
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // INVALID / MISSING STATUS
+        // -------------------------------------------------
+
+        console.log(
+          "Invalid guide status:",
+          status
+        );
+
+        await auth.signOut();
+
+        Alert.alert(
+          "Account Status Error",
+          "Your guide account does not have a valid status. Please contact the administrator."
+        );
+
+        return;
+      }
+
+      // =================================================
+      // STEP 7: INVALID ROLE
       // =================================================
 
       console.log("Unknown role:", role);
 
+      await auth.signOut();
+
       Alert.alert(
         "Invalid Account",
-        "Your account does not have a valid role.",
+        "Your account does not have a valid ProjectVerse role."
       );
 
-      await auth.signOut();
     } catch (error: any) {
-      console.log("Login error:", error);
+      console.log("=================================");
+      console.log(
+        "LOGIN ERROR CODE:",
+        error?.code
+      );
+      console.log(
+        "LOGIN ERROR MESSAGE:",
+        error?.message
+      );
+      console.log(
+        "FULL LOGIN ERROR:",
+        error
+      );
+      console.log("=================================");
 
       // =================================================
-      // FIREBASE ERROR HANDLING
+      // AUTH ERRORS
       // =================================================
 
-      if (error?.code === "auth/invalid-credential") {
-        Alert.alert("Login Failed", "The email or password is incorrect.");
-      } else if (error?.code === "auth/user-not-found") {
-        Alert.alert("Login Failed", "No account was found with this email.");
-      } else if (error?.code === "auth/wrong-password") {
-        Alert.alert("Login Failed", "The password is incorrect.");
-      } else if (error?.code === "auth/too-many-requests") {
+      if (
+        error?.code ===
+        "auth/invalid-credential"
+      ) {
+        Alert.alert(
+          "Login Failed",
+          "The email or password is incorrect."
+        );
+
+      } else if (
+        error?.code ===
+        "auth/user-not-found"
+      ) {
+        Alert.alert(
+          "Login Failed",
+          "No account was found with this email."
+        );
+
+      } else if (
+        error?.code ===
+        "auth/wrong-password"
+      ) {
+        Alert.alert(
+          "Login Failed",
+          "The password is incorrect."
+        );
+
+      } else if (
+        error?.code ===
+        "auth/too-many-requests"
+      ) {
         Alert.alert(
           "Too Many Attempts",
-          "Too many login attempts. Please try again later.",
+          "Too many login attempts. Please try again later."
         );
-      } else if (error?.code === "auth/network-request-failed") {
+
+      } else if (
+        error?.code ===
+        "auth/network-request-failed"
+      ) {
         Alert.alert(
           "Network Error",
-          "Please check your internet connection and try again.",
+          "Please check your internet connection and try again."
         );
+
+      } else if (
+        error?.code ===
+        "permission-denied"
+      ) {
+        try {
+          await auth.signOut();
+        } catch {}
+
+        Alert.alert(
+          "Permission Error",
+          "ProjectVerse could not access your user profile. Please check your Firebase Firestore security rules."
+        );
+
       } else {
         Alert.alert(
           "Login Failed",
-          "Something went wrong while logging in. Please try again.",
+          "Something went wrong while logging in. Please try again."
         );
       }
+
     } finally {
       setLoading(false);
     }
@@ -302,28 +420,30 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* =================================================
-          BACK BUTTON
-      ================================================= */}
+
+      {/* BACK BUTTON */}
 
       <Pressable
         style={styles.backButton}
         onPress={() => router.back()}
         disabled={loading}
       >
-        <Ionicons name="arrow-back" size={20} color="#4338CA" />
+        <Ionicons
+          name="arrow-back"
+          size={20}
+          color="#4338CA"
+        />
 
-        <Text style={styles.backText}>Back</Text>
+        <Text style={styles.backText}>
+          Back
+        </Text>
       </Pressable>
 
-      {/* =================================================
-          CONTENT
-      ================================================= */}
+      {/* CONTENT */}
 
       <View style={styles.content}>
-        {/* =================================================
-            BRAND
-        ================================================= */}
+
+        {/* BRAND */}
 
         <View style={styles.brandSection}>
           <Image
@@ -332,32 +452,37 @@ export default function LoginScreen() {
             resizeMode="contain"
           />
 
-          <Text style={styles.appName}>ProjectVerse</Text>
+          <Text style={styles.appName}>
+            ProjectVerse
+          </Text>
 
-          <Text style={styles.tagline}>Discover. Learn. Innovate.</Text>
+          <Text style={styles.tagline}>
+            Discover. Learn. Innovate.
+          </Text>
         </View>
 
-        {/* =================================================
-            HEADING
-        ================================================= */}
+        {/* HEADING */}
 
         <View style={styles.headingSection}>
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>
+            Welcome Back
+          </Text>
 
           <Text style={styles.subtitle}>
             Login to continue exploring projects
           </Text>
         </View>
 
-        {/* =================================================
-            FORM CARD
-        ================================================= */}
+        {/* FORM CARD */}
 
         <View style={styles.formCard}>
+
           {/* EMAIL */}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email Address</Text>
+            <Text style={styles.inputLabel}>
+              Email Address
+            </Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -384,7 +509,9 @@ export default function LoginScreen() {
           {/* PASSWORD */}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
+            <Text style={styles.inputLabel}>
+              Password
+            </Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -408,11 +535,17 @@ export default function LoginScreen() {
 
               <Pressable
                 style={styles.passwordToggle}
-                onPress={() => setShowPassword(!showPassword)}
+                onPress={() =>
+                  setShowPassword(!showPassword)
+                }
                 disabled={loading}
               >
                 <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  name={
+                    showPassword
+                      ? "eye-off-outline"
+                      : "eye-outline"
+                  }
                   size={20}
                   color="#6B7280"
                 />
@@ -425,46 +558,65 @@ export default function LoginScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.loginButton,
-
-              pressed && !loading && styles.buttonPressed,
-
-              loading && styles.loginButtonDisabled,
+              pressed &&
+                !loading &&
+                styles.buttonPressed,
+              loading &&
+                styles.loginButtonDisabled,
             ]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <>
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                />
 
-                <Text style={styles.buttonText}>Logging in...</Text>
+                <Text style={styles.buttonText}>
+                  Logging in...
+                </Text>
               </>
             ) : (
               <>
-                <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
+                <Ionicons
+                  name="log-in-outline"
+                  size={20}
+                  color="#FFFFFF"
+                />
 
-                <Text style={styles.buttonText}>Login</Text>
+                <Text style={styles.buttonText}>
+                  Login
+                </Text>
 
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                <Ionicons
+                  name="arrow-forward"
+                  size={18}
+                  color="#FFFFFF"
+                />
               </>
             )}
           </Pressable>
         </View>
 
-        {/* =================================================
-            REGISTER
-        ================================================= */}
+        {/* REGISTER */}
 
         <View style={styles.registerSection}>
-          <Text style={styles.registerPrompt}>Don't have an account?</Text>
+          <Text style={styles.registerPrompt}>
+            Don't have an account?
+          </Text>
 
           <Pressable
             onPress={() => router.push("/register")}
             disabled={loading}
           >
-            <Text style={styles.registerLink}>Create an Account</Text>
+            <Text style={styles.registerLink}>
+              Create an Account
+            </Text>
           </Pressable>
         </View>
+
       </View>
     </View>
   );
@@ -480,19 +632,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F7FB",
   },
 
-  // ======================================================
-  // BACK BUTTON
-  // ======================================================
-
   backButton: {
     position: "absolute",
     top: 55,
     left: 22,
     zIndex: 10,
-
     flexDirection: "row",
     alignItems: "center",
-
     paddingVertical: 7,
     paddingHorizontal: 4,
   },
@@ -504,22 +650,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // ======================================================
-  // CONTENT
-  // ======================================================
-
   content: {
     flex: 1,
     justifyContent: "center",
-
     paddingHorizontal: 24,
     paddingTop: 45,
     paddingBottom: 25,
   },
-
-  // ======================================================
-  // BRAND
-  // ======================================================
 
   brandSection: {
     alignItems: "center",
@@ -546,10 +683,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // ======================================================
-  // HEADING
-  // ======================================================
-
   headingSection: {
     alignItems: "center",
     marginBottom: 18,
@@ -568,36 +701,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // ======================================================
-  // FORM CARD
-  // ======================================================
-
   formCard: {
     width: "100%",
     backgroundColor: "#FFFFFF",
-
     borderRadius: 20,
     padding: 19,
-
     borderWidth: 1,
     borderColor: "#E0E4EC",
-
     shadowColor: "#1F2937",
-
     shadowOffset: {
       width: 0,
       height: 5,
     },
-
     shadowOpacity: 0.06,
     shadowRadius: 10,
-
     elevation: 3,
   },
-
-  // ======================================================
-  // INPUT
-  // ======================================================
 
   inputGroup: {
     marginBottom: 15,
@@ -612,17 +731,12 @@ const styles = StyleSheet.create({
 
   inputContainer: {
     minHeight: 50,
-
     flexDirection: "row",
     alignItems: "center",
-
     backgroundColor: "#F8F9FB",
-
     borderWidth: 1,
     borderColor: "#DDE2EA",
-
     borderRadius: 12,
-
     paddingHorizontal: 12,
   },
 
@@ -633,7 +747,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     minHeight: 48,
-
     color: "#1F2937",
     fontSize: 14,
   },
@@ -643,36 +756,23 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
-  // ======================================================
-  // LOGIN BUTTON
-  // ======================================================
-
   loginButton: {
     minHeight: 52,
     width: "100%",
-
     backgroundColor: "#4338CA",
-
     borderRadius: 13,
-
     paddingHorizontal: 15,
-
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-
     marginTop: 4,
-
     shadowColor: "#4338CA",
-
     shadowOffset: {
       width: 0,
       height: 4,
     },
-
     shadowOpacity: 0.16,
     shadowRadius: 7,
-
     elevation: 3,
   },
 
@@ -689,7 +789,6 @@ const styles = StyleSheet.create({
 
   buttonPressed: {
     opacity: 0.8,
-
     transform: [
       {
         scale: 0.985,
@@ -697,15 +796,10 @@ const styles = StyleSheet.create({
     ],
   },
 
-  // ======================================================
-  // REGISTER
-  // ======================================================
-
   registerSection: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-
     marginTop: 19,
   },
 

@@ -1,13 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
+  signOut,
 } from "firebase/auth";
+
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
+  where,
 } from "firebase/firestore";
+
 import { useState } from "react";
 
 import {
@@ -25,51 +34,46 @@ import {
 import { auth, db } from "../firebase/firebaseConfig";
 
 export default function RegisterScreen() {
+
+  // =====================================================
+  // FORM STATES
+  // =====================================================
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [studentClass, setStudentClass] =
-    useState("");
-
-  // =====================================================
-  // STUDENT REGISTER NUMBER
-  // =====================================================
-
-  const [registerNumber, setRegisterNumber] =
-    useState("");
-
-  // =====================================================
-  // GUIDE EMPLOYEE NUMBER
-  // =====================================================
-
-  const [employeeNumber, setEmployeeNumber] =
-    useState("");
+  const [studentClass, setStudentClass] = useState("");
+  const [registerNumber, setRegisterNumber] = useState("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
 
   // =====================================================
   // ROLE
   // =====================================================
 
-  const [role, setRole] = useState<
-    "student" | "guide"
-  >("student");
+  const [role, setRole] = useState<"student" | "guide">("student");
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  // =====================================================
+  // PASSWORD VISIBILITY
+  // =====================================================
 
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  // =====================================================
+  // LOADING
+  // =====================================================
+
+  const [loading, setLoading] = useState(false);
 
   // =====================================================
   // REGISTER
   // =====================================================
 
   const handleRegister = async () => {
+
     if (loading) {
       return;
     }
@@ -80,11 +84,9 @@ export default function RegisterScreen() {
 
     const cleanName = name.trim();
 
-    const cleanEmail =
-      email.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
-    const cleanClass =
-      studentClass.trim();
+    const cleanClass = studentClass.trim();
 
     const cleanRegisterNumber =
       registerNumber.trim().toUpperCase();
@@ -93,7 +95,7 @@ export default function RegisterScreen() {
       employeeNumber.trim().toUpperCase();
 
     // ===================================================
-    // EMPTY FIELD VALIDATION
+    // EMPTY VALIDATION
     // ===================================================
 
     if (
@@ -102,10 +104,8 @@ export default function RegisterScreen() {
       password === "" ||
       confirmPassword === "" ||
       (role === "student" &&
-        (
-          cleanClass === "" ||
-          cleanRegisterNumber === ""
-        )) ||
+        (cleanClass === "" ||
+          cleanRegisterNumber === "")) ||
       (role === "guide" &&
         cleanEmployeeNumber === "")
     ) {
@@ -113,7 +113,7 @@ export default function RegisterScreen() {
         "Missing Information",
         role === "student"
           ? "Please fill in all student fields."
-          : "Please fill in all guide fields.",
+          : "Please fill in all guide fields."
       );
 
       return;
@@ -126,7 +126,7 @@ export default function RegisterScreen() {
     if (cleanName.length < 2) {
       Alert.alert(
         "Invalid Name",
-        "Please enter your full name.",
+        "Please enter your full name."
       );
 
       return;
@@ -137,6 +137,7 @@ export default function RegisterScreen() {
     // ===================================================
 
     if (role === "student") {
+
       const registerNumberRegex =
         /^FIT25MCA-\d{4}$/;
 
@@ -147,7 +148,7 @@ export default function RegisterScreen() {
       ) {
         Alert.alert(
           "Invalid Register Number",
-          "Please enter a valid student register number.",
+          "Register number must follow the format FIT25MCA-0000."
         );
 
         return;
@@ -155,10 +156,11 @@ export default function RegisterScreen() {
     }
 
     // ===================================================
-    // GUIDE EMPLOYEE NUMBER FORMAT VALIDATION
+    // GUIDE EMPLOYEE NUMBER VALIDATION
     // ===================================================
 
     if (role === "guide") {
+
       const employeeNumberRegex =
         /^EMP\d{3}$/;
 
@@ -169,7 +171,7 @@ export default function RegisterScreen() {
       ) {
         Alert.alert(
           "Invalid Employee Number",
-          "Please enter a valid employee number.",
+          "Employee number must follow the format EMP000."
         );
 
         return;
@@ -186,7 +188,7 @@ export default function RegisterScreen() {
     if (!emailRegex.test(cleanEmail)) {
       Alert.alert(
         "Invalid Email",
-        "Please enter a valid email address.",
+        "Please enter a valid email address."
       );
 
       return;
@@ -199,7 +201,7 @@ export default function RegisterScreen() {
     if (password.length < 6) {
       Alert.alert(
         "Weak Password",
-        "Password must contain at least 6 characters.",
+        "Password must contain at least 6 characters."
       );
 
       return;
@@ -212,7 +214,7 @@ export default function RegisterScreen() {
     if (password !== confirmPassword) {
       Alert.alert(
         "Password Mismatch",
-        "Passwords do not match.",
+        "Passwords do not match."
       );
 
       return;
@@ -220,148 +222,360 @@ export default function RegisterScreen() {
 
     setLoading(true);
 
+    let createdAuthUser: any = null;
+
     try {
-      // =================================================
-      // GUIDE AUTHORIZATION CHECK
-      // =================================================
-      //
-      // Firebase Firestore:
-      //
-      // authorizedGuides
-      //      |
-      //      ├── EMP101
-      //      |      active: true
-      //      |
-      //      └── EMP102
-      //             active: true
-      //
-      // The entered employee number is used as the
-      // document ID.
-      //
-      // Example:
-      //
-      // Entered:
-      // EMP101
-      //
-      // Firestore:
-      // authorizedGuides/EMP101
-      //
-      // =================================================
-
-      if (role === "guide") {
-        const guideRef = doc(
-          db,
-          "authorizedGuides",
-          cleanEmployeeNumber,
-        );
-
-        const guideSnapshot =
-          await getDoc(guideRef);
-
-        // -------------------------------------------------
-        // EMPLOYEE NUMBER DOES NOT EXIST
-        // -------------------------------------------------
-
-        if (!guideSnapshot.exists()) {
-          Alert.alert(
-            "Unauthorized Guide",
-            "This employee number is not authorized for guide registration.",
-          );
-
-          setLoading(false);
-
-          return;
-        }
-
-        // -------------------------------------------------
-        // GET AUTHORIZED GUIDE DATA
-        // -------------------------------------------------
-
-        const guideData =
-          guideSnapshot.data();
-
-        // -------------------------------------------------
-        // EMPLOYEE NUMBER EXISTS BUT IS INACTIVE
-        // -------------------------------------------------
-
-        if (guideData.active !== true) {
-          Alert.alert(
-            "Guide Access Disabled",
-            "This employee number is currently inactive. Please contact the administrator.",
-          );
-
-          setLoading(false);
-
-          return;
-        }
-
-        console.log(
-          "Authorized guide verified:",
-          cleanEmployeeNumber,
-        );
-      }
 
       // =================================================
+      // STEP 1
       // CREATE FIREBASE AUTH ACCOUNT
       // =================================================
+
+      console.log(
+        "===================================="
+      );
+
+      console.log(
+        "STEP 1: Creating Firebase Auth account..."
+      );
 
       const userCredential =
         await createUserWithEmailAndPassword(
           auth,
           cleanEmail,
-          password,
+          password
         );
 
-      // =================================================
-      // GET USER UID
-      // =================================================
+      createdAuthUser =
+        userCredential.user;
 
       const uid =
-        userCredential.user.uid;
+        createdAuthUser.uid;
 
       console.log(
-        "New user UID:",
-        uid,
+        "STEP 1 SUCCESS: Firebase Auth account created"
       );
 
       console.log(
-        "Selected role:",
-        role,
+        "USER UID:",
+        uid
       );
 
       // =================================================
-      // CREATE FIRESTORE USER PROFILE
+      // STEP 2
+      // STUDENT REGISTER NUMBER CHECK
       // =================================================
-      //
-      // IMPORTANT:
-      //
-      // Both students and guides start as PENDING.
-      //
-      // Student:
-      //     pending -> admin approval
-      //
-      // Guide:
-      //     pending -> admin approval
-      //
+
+      if (role === "student") {
+
+        console.log(
+          "STEP 2: Checking student register number..."
+        );
+
+        const registerQuery =
+          query(
+            collection(db, "users"),
+            where(
+              "registerNumber",
+              "==",
+              cleanRegisterNumber
+            ),
+            where(
+              "role",
+              "==",
+              "student"
+            )
+          );
+
+        const registerSnapshot =
+          await getDocs(registerQuery);
+
+        console.log(
+          "STEP 2 SUCCESS: Register number checked"
+        );
+
+        // -------------------------------------------------
+        // EXISTING STUDENT FOUND
+        // -------------------------------------------------
+
+        if (!registerSnapshot.empty) {
+
+          const existingStudent =
+            registerSnapshot.docs[0].data();
+
+          const existingStatus =
+            existingStudent.status;
+
+          console.log(
+            "Existing student status:",
+            existingStatus
+          );
+
+          // -----------------------------------------------
+          // APPROVED
+          // -----------------------------------------------
+
+          if (existingStatus === "approved") {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            Alert.alert(
+              "Register Number Already Registered",
+              "This student register number is already registered and approved."
+            );
+
+            return;
+          }
+
+          // -----------------------------------------------
+          // PENDING
+          // -----------------------------------------------
+
+          if (existingStatus === "pending") {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            Alert.alert(
+              "Registration Already Submitted",
+              "This register number already has a pending registration. Please wait for administrator approval."
+            );
+
+            return;
+          }
+
+          // -----------------------------------------------
+          // REJECTED
+          // -----------------------------------------------
+
+          if (existingStatus === "rejected") {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            Alert.alert(
+              "Register Number Already Used",
+              "This register number has a previous rejected registration. Please contact the administrator."
+            );
+
+            return;
+          }
+        }
+
+        console.log(
+          "Register number is available."
+        );
+      }
+
       // =================================================
+      // STEP 3
+      // GUIDE CHECKS
+      // =================================================
+
+      if (role === "guide") {
+
+        console.log(
+          "STEP 2: Checking authorized guide..."
+        );
+
+        // -------------------------------------------------
+        // CHECK AUTHORIZED GUIDE
+        // -------------------------------------------------
+
+        const guideRef =
+          doc(
+            db,
+            "authorizedGuides",
+            cleanEmployeeNumber
+          );
+
+        const guideSnapshot =
+          await getDoc(guideRef);
+
+        console.log(
+          "STEP 2 SUCCESS: Authorized guide checked"
+        );
+
+        if (!guideSnapshot.exists()) {
+
+          await deleteUser(
+            createdAuthUser
+          );
+
+          Alert.alert(
+            "Invalid Employee Number",
+            "This employee number is not authorized for guide registration."
+          );
+
+          return;
+        }
+
+        const guideData =
+          guideSnapshot.data();
+
+        // -------------------------------------------------
+        // CHECK ACTIVE
+        // -------------------------------------------------
+
+        if (guideData.active !== true) {
+
+          await deleteUser(
+            createdAuthUser
+          );
+
+          Alert.alert(
+            "Guide Access Disabled",
+            "This employee number is currently inactive. Please contact the administrator."
+          );
+
+          return;
+        }
+
+        console.log(
+          "Authorized guide verified."
+        );
+
+        // -------------------------------------------------
+        // CHECK EXISTING GUIDE
+        // -------------------------------------------------
+
+        console.log(
+          "STEP 3: Checking existing guide..."
+        );
+
+        const employeeQuery =
+          query(
+            collection(db, "users"),
+            where(
+              "employeeNumber",
+              "==",
+              cleanEmployeeNumber
+            ),
+            where(
+              "role",
+              "==",
+              "guide"
+            )
+          );
+
+        const employeeSnapshot =
+          await getDocs(employeeQuery);
+
+        console.log(
+          "STEP 3 SUCCESS: Existing guide checked"
+        );
+
+        if (!employeeSnapshot.empty) {
+
+          const existingGuide =
+            employeeSnapshot.docs[0].data();
+
+          const existingStatus =
+            existingGuide.status;
+
+          console.log(
+            "Existing guide status:",
+            existingStatus
+          );
+
+          // -----------------------------------------------
+          // APPROVED
+          // -----------------------------------------------
+
+          if (existingStatus === "approved") {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            Alert.alert(
+              "Employee Number Already Registered",
+              "This employee number is already registered and approved."
+            );
+
+            return;
+          }
+
+          // -----------------------------------------------
+          // PENDING
+          // -----------------------------------------------
+
+          if (existingStatus === "pending") {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            Alert.alert(
+              "Registration Already Submitted",
+              "This employee number already has a pending registration. Please wait for administrator approval."
+            );
+
+            return;
+          }
+
+          // -----------------------------------------------
+          // REJECTED
+          // -----------------------------------------------
+
+          if (existingStatus === "rejected") {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            Alert.alert(
+              "Registration Rejected",
+              "A previous registration using this employee number was rejected. Please contact the administrator."
+            );
+
+            return;
+          }
+        }
+      }
+
+      // =================================================
+      // STEP 4
+      // CREATE FIRESTORE USER DATA
+      // =================================================
+
+      console.log(
+        "STEP 4: Preparing Firestore profile..."
+      );
+
+      /*
+       * IMPORTANT
+       *
+       * ProjectVerse now uses ONLY:
+       *
+       * status: pending
+       *
+       * There is NO approvalStatus field.
+       */
 
       const userData: any = {
+
         name: cleanName,
 
         email: cleanEmail,
 
         role: role,
 
-        approvalStatus: "pending",
+        status: "pending",
 
         createdAt: new Date(),
       };
 
       // =================================================
-      // ADD STUDENT DETAILS
+      // STUDENT DATA
       // =================================================
 
       if (role === "student") {
+
         userData.class =
           cleanClass;
 
@@ -370,113 +584,168 @@ export default function RegisterScreen() {
       }
 
       // =================================================
-      // ADD GUIDE DETAILS
+      // GUIDE DATA
       // =================================================
 
       if (role === "guide") {
+
         userData.employeeNumber =
           cleanEmployeeNumber;
       }
 
-      // =================================================
-      // SAVE USER PROFILE
-      // =================================================
-
-      await setDoc(
-        doc(db, "users", uid),
-        userData,
-      );
-
       console.log(
-        "User profile created successfully.",
+        "STEP 5: Creating Firestore profile..."
       );
 
       console.log(
         "Role:",
-        role,
+        userData.role
       );
 
       console.log(
-        "Approval:",
-        userData.approvalStatus,
+        "Status:",
+        userData.status
       );
 
       // =================================================
-      // SUCCESS MESSAGE
+      // CREATE USER PROFILE
       // =================================================
 
-      if (role === "student") {
-        Alert.alert(
-          "Registration Submitted",
-          "Your student account has been created and is waiting for admin approval. You can login after your account is approved.",
-          [
-            {
-              text: "Continue",
-              onPress: () => {
-                router.replace("/login");
-              },
+      await setDoc(
+        doc(db, "users", uid),
+        userData
+      );
+
+      console.log(
+        "STEP 5 SUCCESS: Firestore profile created"
+      );
+
+      // =================================================
+      // STEP 6
+      // SIGN OUT
+      // =================================================
+
+      console.log(
+        "STEP 6: Signing out newly registered user..."
+      );
+
+      await signOut(auth);
+
+      console.log(
+        "STEP 6 SUCCESS: User signed out"
+      );
+
+      // =================================================
+      // SUCCESS
+      // =================================================
+
+      Alert.alert(
+        "Registration Submitted",
+        role === "student"
+          ? "Your student registration has been submitted successfully. Your account is now pending administrator approval. You can login after your account is approved."
+          : "Your guide registration has been submitted successfully. Your account is now pending administrator approval. You can login after your account is approved.",
+        [
+          {
+            text: "Continue",
+            onPress: () => {
+              router.replace("/login");
             },
-          ],
-        );
-      } else {
-        Alert.alert(
-          "Registration Submitted",
-          "Your guide registration has been submitted for admin approval. You can login after your account is approved.",
-          [
-            {
-              text: "Continue",
-              onPress: () => {
-                router.replace("/login");
-              },
-            },
-          ],
-        );
-      }
+          },
+        ]
+      );
 
     } catch (error: any) {
+
       console.log(
-        "Registration error:",
-        error,
+        "===================================="
+      );
+
+      console.log(
+        "REGISTRATION ERROR CODE:",
+        error?.code
+      );
+
+      console.log(
+        "REGISTRATION ERROR MESSAGE:",
+        error?.message
+      );
+
+      console.log(
+        "FULL ERROR:",
+        error
+      );
+
+      console.log(
+        "===================================="
       );
 
       // =================================================
-      // FIREBASE ERROR HANDLING
+      // ROLLBACK AUTH ACCOUNT
+      // =================================================
+
+      if (createdAuthUser) {
+
+        try {
+
+          await deleteUser(
+            createdAuthUser
+          );
+
+          console.log(
+            "Firebase Auth account rolled back."
+          );
+
+        } catch (deleteError) {
+
+          console.log(
+            "Could not rollback Auth account:",
+            deleteError
+          );
+        }
+      }
+
+      // =================================================
+      // FIREBASE AUTH ERRORS
       // =================================================
 
       if (
         error?.code ===
         "auth/email-already-in-use"
       ) {
+
         Alert.alert(
-          "Account Already Exists",
-          "An account already exists with this email address.",
+          "Email Already Registered",
+          "This email address is already registered. Please use another email address or login with the existing account."
         );
 
       } else if (
         error?.code ===
         "auth/invalid-email"
       ) {
+
         Alert.alert(
           "Invalid Email",
-          "Please enter a valid email address.",
+          "Please enter a valid email address."
         );
 
       } else if (
         error?.code ===
         "auth/weak-password"
       ) {
+
         Alert.alert(
           "Weak Password",
-          "Please choose a stronger password.",
+          "Password must contain at least 6 characters."
         );
 
       } else if (
         error?.code ===
         "auth/network-request-failed"
       ) {
+
         Alert.alert(
           "Network Error",
-          "Please check your internet connection and try again.",
+          "Please check your internet connection and try again."
         );
 
       } else if (
@@ -486,20 +755,25 @@ export default function RegisterScreen() {
           "Missing or insufficient permissions"
         )
       ) {
+
         Alert.alert(
           "Permission Error",
-          "The registration request was blocked by Firebase security rules.",
+          "Firebase blocked this registration. Please check the Firestore security rules."
         );
 
       } else {
+
         Alert.alert(
           "Registration Failed",
-          "Something went wrong while creating your account. Please try again.",
+          error?.message ||
+            "Something went wrong during registration."
         );
       }
 
     } finally {
+
       setLoading(false);
+
     }
   };
 
@@ -510,9 +784,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
 
-      {/* =================================================
-          BACK BUTTON
-      ================================================= */}
+      {/* BACK BUTTON */}
 
       <Pressable
         style={styles.backButton}
@@ -530,23 +802,17 @@ export default function RegisterScreen() {
         </Text>
       </Pressable>
 
-      {/* =================================================
-          SCROLLABLE CONTENT
-      ================================================= */}
+      {/* SCROLL */}
 
       <ScrollView
-        contentContainerStyle={
-          styles.scrollContent
-        }
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
 
         <View style={styles.content}>
 
-          {/* =================================================
-              BRAND
-          ================================================= */}
+          {/* BRAND */}
 
           <View style={styles.brandSection}>
 
@@ -568,9 +834,7 @@ export default function RegisterScreen() {
 
           </View>
 
-          {/* =================================================
-              HEADING
-          ================================================= */}
+          {/* HEADING */}
 
           <View style={styles.headingSection}>
 
@@ -585,15 +849,11 @@ export default function RegisterScreen() {
 
           </View>
 
-          {/* =================================================
-              FORM CARD
-          ================================================= */}
+          {/* FORM CARD */}
 
           <View style={styles.formCard}>
 
-            {/* =================================================
-                FULL NAME
-            ================================================= */}
+            {/* FULL NAME */}
 
             <View style={styles.inputGroup}>
 
@@ -625,9 +885,7 @@ export default function RegisterScreen() {
 
             </View>
 
-            {/* =================================================
-                ROLE SELECTION
-            ================================================= */}
+            {/* ROLE */}
 
             <View style={styles.inputGroup}>
 
@@ -729,9 +987,7 @@ export default function RegisterScreen() {
 
             </View>
 
-            {/* =================================================
-                STUDENT REGISTER NUMBER
-            ================================================= */}
+            {/* STUDENT REGISTER NUMBER */}
 
             {role === "student" && (
               <View style={styles.inputGroup}>
@@ -740,9 +996,7 @@ export default function RegisterScreen() {
                   Register Number
                 </Text>
 
-                <View
-                  style={styles.inputContainer}
-                >
+                <View style={styles.inputContainer}>
 
                   <Ionicons
                     name="card-outline"
@@ -753,7 +1007,7 @@ export default function RegisterScreen() {
 
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter Student Register Number"
+                    placeholder="FIT25MCA-2041"
                     placeholderTextColor="#9CA3AF"
                     value={registerNumber}
                     onChangeText={(text) =>
@@ -771,9 +1025,7 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            {/* =================================================
-                GUIDE EMPLOYEE NUMBER
-            ================================================= */}
+            {/* GUIDE EMPLOYEE NUMBER */}
 
             {role === "guide" && (
               <View style={styles.inputGroup}>
@@ -782,9 +1034,7 @@ export default function RegisterScreen() {
                   Employee Number
                 </Text>
 
-                <View
-                  style={styles.inputContainer}
-                >
+                <View style={styles.inputContainer}>
 
                   <Ionicons
                     name="id-card-outline"
@@ -795,7 +1045,7 @@ export default function RegisterScreen() {
 
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter Guide Employee Number"
+                    placeholder="EMP001"
                     placeholderTextColor="#9CA3AF"
                     value={employeeNumber}
                     onChangeText={(text) =>
@@ -813,10 +1063,7 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            {/* =================================================
-                CLASS
-                ONLY FOR STUDENT
-            ================================================= */}
+            {/* CLASS */}
 
             {role === "student" && (
               <View style={styles.inputGroup}>
@@ -825,9 +1072,7 @@ export default function RegisterScreen() {
                   Class
                 </Text>
 
-                <View
-                  style={styles.inputContainer}
-                >
+                <View style={styles.inputContainer}>
 
                   <Ionicons
                     name="school-outline"
@@ -852,9 +1097,7 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            {/* =================================================
-                EMAIL
-            ================================================= */}
+            {/* EMAIL */}
 
             <View style={styles.inputGroup}>
 
@@ -887,9 +1130,7 @@ export default function RegisterScreen() {
 
             </View>
 
-            {/* =================================================
-                PASSWORD
-            ================================================= */}
+            {/* PASSWORD */}
 
             <View style={styles.inputGroup}>
 
@@ -944,9 +1185,7 @@ export default function RegisterScreen() {
 
             </View>
 
-            {/* =================================================
-                CONFIRM PASSWORD
-            ================================================= */}
+            {/* CONFIRM PASSWORD */}
 
             <View style={styles.inputGroup}>
 
@@ -968,9 +1207,7 @@ export default function RegisterScreen() {
                   placeholder="Confirm your password"
                   placeholderTextColor="#9CA3AF"
                   value={confirmPassword}
-                  onChangeText={
-                    setConfirmPassword
-                  }
+                  onChangeText={setConfirmPassword}
                   secureTextEntry={
                     !showConfirmPassword
                   }
@@ -1005,9 +1242,7 @@ export default function RegisterScreen() {
 
             </View>
 
-            {/* =================================================
-                REGISTER BUTTON
-            ================================================= */}
+            {/* REGISTER BUTTON */}
 
             <Pressable
               style={({ pressed }) => [
@@ -1026,7 +1261,6 @@ export default function RegisterScreen() {
 
               {loading ? (
                 <>
-
                   <ActivityIndicator
                     size="small"
                     color="#FFFFFF"
@@ -1035,11 +1269,9 @@ export default function RegisterScreen() {
                   <Text style={styles.buttonText}>
                     Creating Account...
                   </Text>
-
                 </>
               ) : (
                 <>
-
                   <Ionicons
                     name="person-add-outline"
                     size={20}
@@ -1055,7 +1287,6 @@ export default function RegisterScreen() {
                     size={18}
                     color="#FFFFFF"
                   />
-
                 </>
               )}
 
@@ -1063,9 +1294,7 @@ export default function RegisterScreen() {
 
           </View>
 
-          {/* =================================================
-              LOGIN LINK
-          ================================================= */}
+          {/* LOGIN */}
 
           <View style={styles.loginSection}>
 
@@ -1185,11 +1414,9 @@ const styles = StyleSheet.create({
 
   formCard: {
     width: "100%",
-
     backgroundColor: "#FFFFFF",
 
     borderRadius: 20,
-
     padding: 19,
 
     borderWidth: 1,
@@ -1241,7 +1468,6 @@ const styles = StyleSheet.create({
 
   input: {
     flex: 1,
-
     minHeight: 48,
 
     color: "#1F2937",

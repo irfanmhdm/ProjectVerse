@@ -37,7 +37,7 @@ type Student = {
   email?: string;
   role?: string;
 
-  // Optional because older student records may not have it
+  // Student uses register number
   registerNumber?: string;
 
   approvalStatus?: ApprovalStatus;
@@ -51,6 +51,9 @@ type Guide = {
   name?: string;
   email?: string;
   role?: string;
+
+  // Guide uses employee number
+  employeeNumber?: string;
 
   approvalStatus?: ApprovalStatus;
 
@@ -988,11 +991,13 @@ export default function AdminDashboard() {
                         "Student"}
                     </Text>
 
+                    {/* STUDENT REGISTER NUMBER */}
+
                     <View
                       style={styles.emailRow}
                     >
                       <Ionicons
-                        name="mail-outline"
+                        name="card-outline"
                         size={14}
                         color="#6B7280"
                       />
@@ -1000,8 +1005,8 @@ export default function AdminDashboard() {
                       <Text
                         style={styles.guideEmail}
                       >
-                        {student.email ||
-                          "No email"}
+                        {student.registerNumber ||
+                          "No register number"}
                       </Text>
                     </View>
 
@@ -1232,11 +1237,13 @@ export default function AdminDashboard() {
                         "Guide"}
                     </Text>
 
+                    {/* GUIDE EMPLOYEE NUMBER */}
+
                     <View
                       style={styles.emailRow}
                     >
                       <Ionicons
-                        name="mail-outline"
+                        name="id-card-outline"
                         size={14}
                         color="#6B7280"
                       />
@@ -1244,8 +1251,8 @@ export default function AdminDashboard() {
                       <Text
                         style={styles.guideEmail}
                       >
-                        {guide.email ||
-                          "No email"}
+                        {guide.employeeNumber ||
+                          "No employee number"}
                       </Text>
                     </View>
 

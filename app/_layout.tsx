@@ -36,7 +36,6 @@ export default function RootLayout() {
   // =====================================================
 
   useEffect(() => {
-    // Protect only dashboard pages
     const isProtectedPage =
       pathname === "/admin" || pathname === "/student" || pathname === "/guide";
 
@@ -64,6 +63,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (pathname === "/register") {
+        console.log("Register page active - skipping session restoration");
+
+        return;
+      }
       // =================================================
       // NO LOGGED-IN USER
       // =================================================
@@ -89,7 +93,9 @@ export default function RootLayout() {
         // GET USER PROFILE
         // ===============================================
 
-        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userRef = doc(db, "users", user.uid);
+
+        const userDoc = await getDoc(userRef);
 
         // ===============================================
         // PROFILE NOT FOUND
@@ -107,23 +113,9 @@ export default function RootLayout() {
 
         const userData = userDoc.data();
 
-        console.log("Role:", userData.role);
+        console.log("User role:", userData.role);
 
-        console.log("Approval Status:", userData.approvalStatus);
-
-        // =================================================
-        // STUDENT
-        // =================================================
-
-        if (userData.role === "student") {
-          console.log("Student session restored");
-
-          console.log("Redirecting to Student Dashboard");
-
-          router.replace("/student");
-
-          return;
-        }
+        console.log("User status:", userData.status);
 
         // =================================================
         // ADMIN
@@ -132,7 +124,73 @@ export default function RootLayout() {
         if (userData.role === "admin") {
           console.log("Admin session restored");
 
+          console.log("Admin login successful");
+
           router.replace("/admin");
+
+          return;
+        }
+
+        // =================================================
+        // STUDENT
+        // =================================================
+
+        if (userData.role === "student") {
+          // ---------------------------------------------
+          // APPROVED STUDENT
+          // ---------------------------------------------
+
+          if (userData.status === "approved") {
+            console.log("Approved student session restored");
+
+            console.log("Redirecting to Student Dashboard");
+
+            router.replace("/student");
+
+            return;
+          }
+
+          // ---------------------------------------------
+          // PENDING STUDENT
+          // ---------------------------------------------
+
+          if (userData.status === "pending") {
+            console.log("Student account is pending approval");
+
+            console.log("Student session blocked");
+
+            await signOut(auth);
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // ---------------------------------------------
+          // REJECTED STUDENT
+          // ---------------------------------------------
+
+          if (userData.status === "rejected") {
+            console.log("Student registration was rejected");
+
+            console.log("Student session blocked");
+
+            await signOut(auth);
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // ---------------------------------------------
+          // INVALID / MISSING STATUS
+          // ---------------------------------------------
+
+          console.log("Student has invalid status:", userData.status);
+
+          await signOut(auth);
+
+          router.replace("/login");
 
           return;
         }
@@ -146,7 +204,7 @@ export default function RootLayout() {
           // APPROVED GUIDE
           // ---------------------------------------------
 
-          if (userData.approvalStatus === "approved") {
+          if (userData.status === "approved") {
             console.log("Approved guide session restored");
 
             console.log("Redirecting to Guide Dashboard");
@@ -160,8 +218,8 @@ export default function RootLayout() {
           // PENDING GUIDE
           // ---------------------------------------------
 
-          if (userData.approvalStatus === "pending") {
-            console.log("Guide approval is still pending");
+          if (userData.status === "pending") {
+            console.log("Guide account is pending approval");
 
             console.log("Guide session blocked");
 
@@ -176,8 +234,8 @@ export default function RootLayout() {
           // REJECTED GUIDE
           // ---------------------------------------------
 
-          if (userData.approvalStatus === "rejected") {
-            console.log("Guide approval was rejected");
+          if (userData.status === "rejected") {
+            console.log("Guide registration was rejected");
 
             console.log("Guide session blocked");
 
@@ -192,10 +250,7 @@ export default function RootLayout() {
           // INVALID / MISSING STATUS
           // ---------------------------------------------
 
-          console.log(
-            "Guide has invalid approval status:",
-            userData.approvalStatus,
-          );
+          console.log("Guide has invalid status:", userData.status);
 
           await signOut(auth);
 
@@ -223,7 +278,7 @@ export default function RootLayout() {
     // =====================================================
 
     return unsubscribe;
-  }, []);
+  }, [pathname]);
 
   // =====================================================
   // UI
@@ -266,31 +321,25 @@ export default function RootLayout() {
         />
 
         {/* =================================================
-    STUDENT
-================================================= */}
+            STUDENT
+        ================================================= */}
 
         <Stack.Screen
           name="student"
           options={{
-            // No header above the drawer
             headerShown: false,
-
-            // Prevent swipe-back
             gestureEnabled: false,
           }}
         />
 
         {/* =================================================
-    GUIDE
-================================================= */}
+            GUIDE
+        ================================================= */}
 
         <Stack.Screen
           name="guide"
           options={{
-            // No header above the drawer
             headerShown: false,
-
-            // Prevent swipe-back
             gestureEnabled: false,
           }}
         />
@@ -306,10 +355,8 @@ export default function RootLayout() {
 
             title: "Admin",
 
-            // Remove native back arrow
             headerBackVisible: false,
 
-            // Prevent swipe-back
             gestureEnabled: false,
 
             headerStyle: {
