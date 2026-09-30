@@ -16,50 +16,12 @@ import { useRouter } from "expo-router";
 
 import {
   collection,
-  doc,
   getDocs,
   query,
-  updateDoc,
   where,
 } from "firebase/firestore";
 
 import { auth, db } from "../../firebase/firebaseConfig";
-
-// =====================================================
-// TYPES
-// =====================================================
-
-type ApprovalStatus = "pending" | "approved" | "rejected";
-
-type Student = {
-  id: string;
-  name?: string;
-  email?: string;
-  role?: string;
-
-  // Student uses register number
-  registerNumber?: string;
-
-  approvalStatus?: ApprovalStatus;
-
-  // Kept for compatibility with older records
-  status?: ApprovalStatus;
-};
-
-type Guide = {
-  id: string;
-  name?: string;
-  email?: string;
-  role?: string;
-
-  // Guide uses employee number
-  employeeNumber?: string;
-
-  approvalStatus?: ApprovalStatus;
-
-  // Kept for compatibility with older records
-  status?: ApprovalStatus;
-};
 
 // =====================================================
 // ADMIN DASHBOARD
@@ -69,44 +31,27 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   // =====================================================
-  // DASHBOARD COUNTS
+  // COUNTS
   // =====================================================
 
   const [totalStudents, setTotalStudents] = useState(0);
-
   const [totalGuides, setTotalGuides] = useState(0);
-
   const [submittedProjects, setSubmittedProjects] = useState(0);
-
   const [approvedProjects, setApprovedProjects] = useState(0);
 
   // =====================================================
-  // PENDING STUDENT REQUESTS
+  // PENDING COUNTS
   // =====================================================
 
-  const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
-
-  // =====================================================
-  // PENDING GUIDE REQUESTS
-  // =====================================================
-
-  const [pendingGuides, setPendingGuides] = useState<Guide[]>([]);
+  const [pendingStudents, setPendingStudents] = useState(0);
+  const [pendingGuides, setPendingGuides] = useState(0);
 
   // =====================================================
   // LOADING
   // =====================================================
 
   const [loading, setLoading] = useState(true);
-
   const [refreshing, setRefreshing] = useState(false);
-
-  // =====================================================
-  // PROCESSING USER
-  // =====================================================
-
-  const [processingUser, setProcessingUser] = useState<string | null>(
-    null,
-  );
 
   // =====================================================
   // LOAD DASHBOARD
@@ -114,15 +59,8 @@ export default function AdminDashboard() {
 
   const loadDashboard = async () => {
     try {
-      // =================================================
-      // CHECK AUTHENTICATION FIRST
-      // =================================================
-
       if (!auth.currentUser) {
-        console.log(
-          "⏭️ Skipping dashboard load - no authenticated user",
-        );
-
+        console.log("No authenticated admin");
         return;
       }
 
@@ -131,167 +69,120 @@ export default function AdminDashboard() {
       }
 
       // =================================================
-      // GET ALL USERS
+      // GET USERS
       // =================================================
 
       const usersSnapshot = await getDocs(
-        collection(db, "users"),
+        collection(db, "users")
       );
 
-      let students = 0;
+      let approvedStudentCount = 0;
+      let approvedGuideCount = 0;
 
-      let approvedGuides = 0;
-
-      const pendingStudentList: Student[] = [];
-
-      const pendingGuideList: Guide[] = [];
-
-      // =================================================
-      // PROCESS USERS
-      // =================================================
+      let pendingStudentCount = 0;
+      let pendingGuideCount = 0;
 
       usersSnapshot.forEach((userDoc) => {
         const user = userDoc.data();
 
-        const approvalStatus =
+        const status =
           user.approvalStatus ?? user.status;
 
         // =================================================
-        // STUDENT
+        // STUDENTS
         // =================================================
 
         if (user.role === "student") {
-          // Count all registered students
-          students++;
+          if (status === "approved") {
+            approvedStudentCount++;
+          }
 
-          // Pending student
-          if (approvalStatus === "pending") {
-            pendingStudentList.push({
-              id: userDoc.id,
-
-              ...user,
-            } as Student);
+          if (status === "pending") {
+            pendingStudentCount++;
           }
         }
 
         // =================================================
-        // GUIDE
+        // GUIDES
         // =================================================
 
         if (user.role === "guide") {
-          // Approved guide
-          if (approvalStatus === "approved") {
-            approvedGuides++;
+          if (status === "approved") {
+            approvedGuideCount++;
           }
 
-          // Pending guide
-          if (approvalStatus === "pending") {
-            pendingGuideList.push({
-              id: userDoc.id,
-
-              ...user,
-            } as Guide);
+          if (status === "pending") {
+            pendingGuideCount++;
           }
         }
       });
 
       // =================================================
-      // SET COUNTS
-      // =================================================
-
-      setTotalStudents(students);
-
-      setTotalGuides(approvedGuides);
-
-      setPendingStudents(pendingStudentList);
-
-      setPendingGuides(pendingGuideList);
-
-      // =================================================
-      // SUBMITTED PROJECTS
+      // PROJECTS
       // =================================================
 
       const submittedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "submitted"),
+        where("status", "==", "submitted")
       );
-
-      const submittedSnapshot =
-        await getDocs(submittedQuery);
-
-      setSubmittedProjects(
-        submittedSnapshot.size,
-      );
-
-      // =================================================
-      // APPROVED PROJECTS
-      // =================================================
 
       const approvedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "approved"),
+        where("status", "==", "approved")
       );
 
-      const approvedSnapshot =
-        await getDocs(approvedQuery);
+      const [
+        submittedSnapshot,
+        approvedSnapshot,
+      ] = await Promise.all([
+        getDocs(submittedQuery),
+        getDocs(approvedQuery),
+      ]);
 
-      setApprovedProjects(
-        approvedSnapshot.size,
-      );
+      // =================================================
+      // UPDATE STATE
+      // =================================================
+
+      setTotalStudents(approvedStudentCount);
+      setTotalGuides(approvedGuideCount);
+
+      setPendingStudents(pendingStudentCount);
+      setPendingGuides(pendingGuideCount);
+
+      setSubmittedProjects(submittedSnapshot.size);
+      setApprovedProjects(approvedSnapshot.size);
 
       // =================================================
       // DEBUG
       // =================================================
 
-      console.log(
-        "=================================",
-      );
-
-      console.log(
-        "ADMIN DASHBOARD",
-      );
-
-      console.log(
-        "Students:",
-        students,
-      );
-
-      console.log(
-        "Pending Students:",
-        pendingStudentList.length,
-      );
-
-      console.log(
-        "Approved Guides:",
-        approvedGuides,
-      );
-
-      console.log(
-        "Pending Guides:",
-        pendingGuideList.length,
-      );
-
+      console.log("=================================");
+      console.log("ADMIN DASHBOARD");
+      console.log("Approved Students:", approvedStudentCount);
+      console.log("Approved Guides:", approvedGuideCount);
+      console.log("Pending Students:", pendingStudentCount);
+      console.log("Pending Guides:", pendingGuideCount);
       console.log(
         "Submitted Projects:",
-        submittedSnapshot.size,
+        submittedSnapshot.size
       );
-
       console.log(
         "Approved Projects:",
-        approvedSnapshot.size,
+        approvedSnapshot.size
       );
-
-      console.log(
-        "=================================",
-      );
+      console.log("=================================");
     } catch (error) {
       console.error(
         "Error loading admin dashboard:",
-        error,
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "Unable to load admin dashboard."
       );
     } finally {
       setLoading(false);
-
       setRefreshing(false);
     }
   };
@@ -305,217 +196,12 @@ export default function AdminDashboard() {
   }, []);
 
   // =====================================================
-  // PULL TO REFRESH
+  // REFRESH
   // =====================================================
 
   const handleRefresh = () => {
     setRefreshing(true);
-
     loadDashboard();
-  };
-
-  // =====================================================
-  // APPROVE STUDENT
-  // =====================================================
-
-  const approveStudent = async (
-    studentId: string,
-  ) => {
-    try {
-      setProcessingUser(studentId);
-
-      await updateDoc(
-        doc(db, "users", studentId),
-        {
-          approvalStatus: "approved",
-
-          // Keep old field synchronized
-          status: "approved",
-        },
-      );
-
-      // Remove immediately from pending list
-      setPendingStudents(
-        (currentStudents) =>
-          currentStudents.filter(
-            (student) =>
-              student.id !== studentId,
-          ),
-      );
-
-      // Refresh dashboard
-      await loadDashboard();
-
-      Alert.alert(
-        "Student Approved",
-        "The student can now log in.",
-      );
-    } catch (error) {
-      console.error(
-        "Error approving student:",
-        error,
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to approve student.",
-      );
-    } finally {
-      setProcessingUser(null);
-    }
-  };
-
-  // =====================================================
-  // REJECT STUDENT
-  // =====================================================
-
-  const rejectStudent = async (
-    studentId: string,
-  ) => {
-    try {
-      setProcessingUser(studentId);
-
-      await updateDoc(
-        doc(db, "users", studentId),
-        {
-          approvalStatus: "rejected",
-
-          // Keep old field synchronized
-          status: "rejected",
-        },
-      );
-
-      // Remove immediately from pending list
-      setPendingStudents(
-        (currentStudents) =>
-          currentStudents.filter(
-            (student) =>
-              student.id !== studentId,
-          ),
-      );
-
-      // Refresh dashboard
-      await loadDashboard();
-
-      Alert.alert(
-        "Student Rejected",
-        "The student registration has been rejected.",
-      );
-    } catch (error) {
-      console.error(
-        "Error rejecting student:",
-        error,
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to reject student.",
-      );
-    } finally {
-      setProcessingUser(null);
-    }
-  };
-
-  // =====================================================
-  // APPROVE GUIDE
-  // =====================================================
-
-  const approveGuide = async (
-    guideId: string,
-  ) => {
-    try {
-      setProcessingUser(guideId);
-
-      await updateDoc(
-        doc(db, "users", guideId),
-        {
-          approvalStatus: "approved",
-
-          // Keep old field synchronized
-          status: "approved",
-        },
-      );
-
-      // Remove immediately from pending list
-      setPendingGuides(
-        (currentGuides) =>
-          currentGuides.filter(
-            (guide) =>
-              guide.id !== guideId,
-          ),
-      );
-
-      // Refresh counts
-      await loadDashboard();
-
-      Alert.alert(
-        "Guide Approved",
-        "The guide can now log in.",
-      );
-    } catch (error) {
-      console.error(
-        "Error approving guide:",
-        error,
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to approve guide.",
-      );
-    } finally {
-      setProcessingUser(null);
-    }
-  };
-
-  // =====================================================
-  // REJECT GUIDE
-  // =====================================================
-
-  const rejectGuide = async (
-    guideId: string,
-  ) => {
-    try {
-      setProcessingUser(guideId);
-
-      await updateDoc(
-        doc(db, "users", guideId),
-        {
-          approvalStatus: "rejected",
-
-          // Keep old field synchronized
-          status: "rejected",
-        },
-      );
-
-      // Remove immediately from pending list
-      setPendingGuides(
-        (currentGuides) =>
-          currentGuides.filter(
-            (guide) =>
-              guide.id !== guideId,
-          ),
-      );
-
-      // Refresh counts
-      await loadDashboard();
-
-      Alert.alert(
-        "Guide Rejected",
-        "The guide request has been rejected.",
-      );
-    } catch (error) {
-      console.error(
-        "Error rejecting guide:",
-        error,
-      );
-
-      Alert.alert(
-        "Error",
-        "Unable to reject guide.",
-      );
-    } finally {
-      setProcessingUser(null);
-    }
   };
 
   // =====================================================
@@ -524,43 +210,27 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
-      console.log(
-        "Logging out...",
-      );
-
       await auth.signOut();
 
-      console.log(
-        "Admin logged out",
-      );
-
       router.replace("/");
-
     } catch (error) {
-      console.error(
-        "Logout error:",
-        error,
-      );
+      console.error("Logout error:", error);
 
       Alert.alert(
         "Logout Error",
-        "Unable to logout. Please try again.",
+        "Unable to logout. Please try again."
       );
     }
   };
 
   // =====================================================
-  // LOADING SCREEN
+  // LOADING
   // =====================================================
 
   if (loading) {
     return (
-      <View
-        style={styles.loadingContainer}
-      >
-        <View
-          style={styles.loadingIcon}
-        >
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingIcon}>
           <Ionicons
             name="shield-checkmark-outline"
             size={30}
@@ -573,9 +243,7 @@ export default function AdminDashboard() {
           color="#4338CA"
         />
 
-        <Text
-          style={styles.loadingText}
-        >
+        <Text style={styles.loadingText}>
           Loading admin dashboard...
         </Text>
       </View>
@@ -590,9 +258,7 @@ export default function AdminDashboard() {
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={
-          styles.content
-        }
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -607,12 +273,8 @@ export default function AdminDashboard() {
         ================================================= */}
 
         <View style={styles.header}>
-          <View
-            style={styles.headerLeft}
-          >
-            <View
-              style={styles.headerIcon}
-            >
+          <View style={styles.headerLeft}>
+            <View style={styles.headerIcon}>
               <Ionicons
                 name="shield-checkmark-outline"
                 size={25}
@@ -621,15 +283,11 @@ export default function AdminDashboard() {
             </View>
 
             <View>
-              <Text
-                style={styles.title}
-              >
+              <Text style={styles.title}>
                 Admin Dashboard
               </Text>
 
-              <Text
-                style={styles.subtitle}
-              >
+              <Text style={styles.subtitle}>
                 Manage ProjectVerse
               </Text>
             </View>
@@ -652,36 +310,32 @@ export default function AdminDashboard() {
             OVERVIEW
         ================================================= */}
 
-        <View
-          style={styles.sectionHeader}
-        >
-          <View>
-            <Text
-              style={styles.sectionTitle}
-            >
-              Overview
-            </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Overview
+          </Text>
 
-            <Text
-              style={styles.sectionSubtitle}
-            >
-              Current ProjectVerse statistics
-            </Text>
-          </View>
+          <Text style={styles.sectionSubtitle}>
+            Current ProjectVerse statistics
+          </Text>
         </View>
 
         {/* =================================================
             STATISTICS
         ================================================= */}
 
-        <View
-          style={styles.statsGrid}
-        >
+        <View style={styles.statsGrid}>
 
-          {/* STUDENTS */}
+          {/* =================================================
+              APPROVED STUDENTS
+          ================================================= */}
 
-          <View
+          <TouchableOpacity
+            activeOpacity={0.8}
             style={styles.statCard}
+            onPress={() =>
+              router.push("/admin/approved-students")
+            }
           >
             <View
               style={[
@@ -696,39 +350,37 @@ export default function AdminDashboard() {
               />
             </View>
 
-            <Text
-              style={styles.statNumber}
-            >
+            <Text style={styles.statNumber}>
               {totalStudents}
             </Text>
 
-            <Text
-              style={styles.statLabel}
-            >
+            <Text style={styles.statLabel}>
               Students
             </Text>
 
-            <View
-              style={styles.statFooter}
-            >
+            <View style={styles.statFooter}>
               <Ionicons
-                name="person-outline"
+                name="checkmark-circle-outline"
                 size={13}
                 color="#0F766E"
               />
 
-              <Text
-                style={styles.statFooterText}
-              >
-                Registered
+              <Text style={styles.statFooterText}>
+                Approved • Tap to view
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          {/* GUIDES */}
+          {/* =================================================
+              APPROVED GUIDES
+          ================================================= */}
 
-          <View
+          <TouchableOpacity
+            activeOpacity={0.8}
             style={styles.statCard}
+            onPress={() =>
+              router.push("/admin/approved-guides")
+            }
           >
             <View
               style={[
@@ -743,40 +395,32 @@ export default function AdminDashboard() {
               />
             </View>
 
-            <Text
-              style={styles.statNumber}
-            >
+            <Text style={styles.statNumber}>
               {totalGuides}
             </Text>
 
-            <Text
-              style={styles.statLabel}
-            >
+            <Text style={styles.statLabel}>
               Guides
             </Text>
 
-            <View
-              style={styles.statFooter}
-            >
+            <View style={styles.statFooter}>
               <Ionicons
                 name="checkmark-circle-outline"
                 size={13}
                 color="#4338CA"
               />
 
-              <Text
-                style={styles.statFooterText}
-              >
-                Approved
+              <Text style={styles.statFooterText}>
+                Approved • Tap to view
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          {/* SUBMITTED PROJECTS */}
+          {/* =================================================
+              SUBMITTED PROJECTS
+          ================================================= */}
 
-          <View
-            style={styles.statCard}
-          >
+          <View style={styles.statCard}>
             <View
               style={[
                 styles.statIcon,
@@ -790,40 +434,32 @@ export default function AdminDashboard() {
               />
             </View>
 
-            <Text
-              style={styles.statNumber}
-            >
+            <Text style={styles.statNumber}>
               {submittedProjects}
             </Text>
 
-            <Text
-              style={styles.statLabel}
-            >
+            <Text style={styles.statLabel}>
               Submitted
             </Text>
 
-            <View
-              style={styles.statFooter}
-            >
+            <View style={styles.statFooter}>
               <Ionicons
                 name="time-outline"
                 size={13}
                 color="#B45309"
               />
 
-              <Text
-                style={styles.statFooterText}
-              >
+              <Text style={styles.statFooterText}>
                 Projects
               </Text>
             </View>
           </View>
 
-          {/* APPROVED PROJECTS */}
+          {/* =================================================
+              APPROVED PROJECTS
+          ================================================= */}
 
-          <View
-            style={styles.statCard}
-          >
+          <View style={styles.statCard}>
             <View
               style={[
                 styles.statIcon,
@@ -837,30 +473,22 @@ export default function AdminDashboard() {
               />
             </View>
 
-            <Text
-              style={styles.statNumber}
-            >
+            <Text style={styles.statNumber}>
               {approvedProjects}
             </Text>
 
-            <Text
-              style={styles.statLabel}
-            >
+            <Text style={styles.statLabel}>
               Approved
             </Text>
 
-            <View
-              style={styles.statFooter}
-            >
+            <View style={styles.statFooter}>
               <Ionicons
                 name="checkmark-circle-outline"
                 size={13}
                 color="#15803D"
               />
 
-              <Text
-                style={styles.statFooterText}
-              >
+              <Text style={styles.statFooterText}>
                 Projects
               </Text>
             </View>
@@ -869,515 +497,189 @@ export default function AdminDashboard() {
         </View>
 
         {/* =================================================
-            STUDENT APPROVAL
+            APPROVAL MANAGEMENT
         ================================================= */}
 
-        <View
-          style={styles.approvalHeader}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Approval Management
+          </Text>
+
+          <Text style={styles.sectionSubtitle}>
+            Review new student and guide registrations
+          </Text>
+        </View>
+
+        {/* =================================================
+            STUDENT APPROVAL CARD
+        ================================================= */}
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.approvalCard}
+          onPress={() =>
+            router.push("/admin/student-approval")
+          }
         >
-          <View>
-            <Text
-              style={styles.sectionTitle}
-            >
+          <View
+            style={[
+              styles.approvalIcon,
+              styles.studentApprovalIcon,
+            ]}
+          >
+            <Ionicons
+              name="person-add-outline"
+              size={25}
+              color="#0F766E"
+            />
+          </View>
+
+          <View style={styles.approvalInfo}>
+            <Text style={styles.approvalTitle}>
               Student Approval
             </Text>
 
-            <Text
-              style={styles.sectionSubtitle}
-            >
-              Review new student registrations
+            <Text style={styles.approvalDescription}>
+              Review and manage student registration
+              requests.
             </Text>
+
+            <View style={styles.approvalStatusRow}>
+              <Ionicons
+                name={
+                  pendingStudents > 0
+                    ? "time-outline"
+                    : "checkmark-circle-outline"
+                }
+                size={14}
+                color={
+                  pendingStudents > 0
+                    ? "#B45309"
+                    : "#15803D"
+                }
+              />
+
+              <Text
+                style={[
+                  styles.approvalStatusText,
+                  {
+                    color:
+                      pendingStudents > 0
+                        ? "#B45309"
+                        : "#15803D",
+                  },
+                ]}
+              >
+                {pendingStudents > 0
+                  ? `${pendingStudents} pending request${
+                      pendingStudents > 1
+                        ? "s"
+                        : ""
+                    }`
+                  : "No pending requests"}
+              </Text>
+            </View>
           </View>
 
+          <Ionicons
+            name="chevron-forward"
+            size={22}
+            color="#9CA3AF"
+          />
+        </TouchableOpacity>
+
+        {/* =================================================
+            GUIDE APPROVAL CARD
+        ================================================= */}
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.approvalCard}
+          onPress={() =>
+            router.push("/admin/guide-approval")
+          }
+        >
           <View
-            style={
-              pendingStudents.length > 0
-                ? styles.pendingBadge
-                : styles.approvedBadge
-            }
+            style={[
+              styles.approvalIcon,
+              styles.guideApprovalIcon,
+            ]}
           >
             <Ionicons
-              name={
-                pendingStudents.length > 0
-                  ? "time-outline"
-                  : "checkmark-circle-outline"
-              }
-              size={14}
-              color={
-                pendingStudents.length > 0
-                  ? "#B45309"
-                  : "#15803D"
-              }
+              name="school-outline"
+              size={25}
+              color="#4338CA"
             />
-
-            <Text
-              style={
-                pendingStudents.length > 0
-                  ? styles.pendingBadgeText
-                  : styles.approvedBadgeText
-              }
-            >
-              {pendingStudents.length > 0
-                ? `${pendingStudents.length} Pending`
-                : "All Clear"}
-            </Text>
           </View>
-        </View>
 
-        {/* =================================================
-            PENDING STUDENTS
-        ================================================= */}
-
-        {pendingStudents.length === 0 ? (
-          <View
-            style={styles.emptyCard}
-          >
-            <View
-              style={styles.emptyIcon}
-            >
-              <Ionicons
-                name="checkmark-done-outline"
-                size={30}
-                color="#0F766E"
-              />
-            </View>
-
-            <Text
-              style={styles.emptyTitle}
-            >
-              No Pending Requests
-            </Text>
-
-            <Text
-              style={styles.emptyText}
-            >
-              There are no student approval
-              requests at the moment.
-            </Text>
-          </View>
-        ) : (
-          pendingStudents.map(
-            (student) => (
-              <View
-                key={student.id}
-                style={styles.userCard}
-              >
-
-                {/* STUDENT INFORMATION */}
-
-                <View
-                  style={styles.guideInfo}
-                >
-                  <View
-                    style={[
-                      styles.guideAvatar,
-                      styles.studentAvatar,
-                    ]}
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={23}
-                      color="#0F766E"
-                    />
-                  </View>
-
-                  <View
-                    style={styles.guideDetails}
-                  >
-                    <Text
-                      style={styles.guideName}
-                    >
-                      {student.name ||
-                        "Student"}
-                    </Text>
-
-                    {/* STUDENT REGISTER NUMBER */}
-
-                    <View
-                      style={styles.emailRow}
-                    >
-                      <Ionicons
-                        name="card-outline"
-                        size={14}
-                        color="#6B7280"
-                      />
-
-                      <Text
-                        style={styles.guideEmail}
-                      >
-                        {student.registerNumber ||
-                          "No register number"}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={styles.pendingStatus}
-                    >
-                      <Ionicons
-                        name="time-outline"
-                        size={14}
-                        color="#B45309"
-                      />
-
-                      <Text
-                        style={
-                          styles.pendingStatusText
-                        }
-                      >
-                        Waiting for admin approval
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View
-                  style={styles.divider}
-                />
-
-                {/* ACTION BUTTONS */}
-
-                <View
-                  style={styles.actionRow}
-                >
-
-                  {/* REJECT */}
-
-                  <TouchableOpacity
-                    style={
-                      styles.rejectButton
-                    }
-                    activeOpacity={0.75}
-                    disabled={
-                      processingUser ===
-                      student.id
-                    }
-                    onPress={() =>
-                      rejectStudent(
-                        student.id,
-                      )
-                    }
-                  >
-                    <Ionicons
-                      name="close-circle-outline"
-                      size={19}
-                      color="#DC2626"
-                    />
-
-                    <Text
-                      style={styles.rejectText}
-                    >
-                      Reject
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* APPROVE */}
-
-                  <TouchableOpacity
-                    style={
-                      styles.approveButton
-                    }
-                    activeOpacity={0.8}
-                    disabled={
-                      processingUser ===
-                      student.id
-                    }
-                    onPress={() =>
-                      approveStudent(
-                        student.id,
-                      )
-                    }
-                  >
-                    {processingUser ===
-                    student.id ? (
-                      <ActivityIndicator
-                        size="small"
-                        color="#FFFFFF"
-                      />
-                    ) : (
-                      <Ionicons
-                        name="checkmark-circle-outline"
-                        size={19}
-                        color="#FFFFFF"
-                      />
-                    )}
-
-                    <Text
-                      style={styles.approveText}
-                    >
-                      Approve
-                    </Text>
-                  </TouchableOpacity>
-
-                </View>
-              </View>
-            ),
-          )
-        )}
-
-        {/* =================================================
-            GUIDE APPROVAL
-        ================================================= */}
-
-        <View
-          style={[
-            styles.approvalHeader,
-            styles.guideApprovalSection,
-          ]}
-        >
-          <View>
-            <Text
-              style={styles.sectionTitle}
-            >
+          <View style={styles.approvalInfo}>
+            <Text style={styles.approvalTitle}>
               Guide Approval
             </Text>
 
-            <Text
-              style={styles.sectionSubtitle}
-            >
-              Review new guide registrations
+            <Text style={styles.approvalDescription}>
+              Review and manage guide registration
+              requests.
             </Text>
-          </View>
 
-          <View
-            style={
-              pendingGuides.length > 0
-                ? styles.pendingBadge
-                : styles.approvedBadge
-            }
-          >
-            <Ionicons
-              name={
-                pendingGuides.length > 0
-                  ? "time-outline"
-                  : "checkmark-circle-outline"
-              }
-              size={14}
-              color={
-                pendingGuides.length > 0
-                  ? "#B45309"
-                  : "#15803D"
-              }
-            />
-
-            <Text
-              style={
-                pendingGuides.length > 0
-                  ? styles.pendingBadgeText
-                  : styles.approvedBadgeText
-              }
-            >
-              {pendingGuides.length > 0
-                ? `${pendingGuides.length} Pending`
-                : "All Clear"}
-            </Text>
-          </View>
-        </View>
-
-        {/* =================================================
-            PENDING GUIDES
-        ================================================= */}
-
-        {pendingGuides.length === 0 ? (
-          <View
-            style={styles.emptyCard}
-          >
-            <View
-              style={styles.emptyIcon}
-            >
+            <View style={styles.approvalStatusRow}>
               <Ionicons
-                name="checkmark-done-outline"
-                size={30}
-                color="#0F766E"
+                name={
+                  pendingGuides > 0
+                    ? "time-outline"
+                    : "checkmark-circle-outline"
+                }
+                size={14}
+                color={
+                  pendingGuides > 0
+                    ? "#B45309"
+                    : "#15803D"
+                }
               />
-            </View>
 
-            <Text
-              style={styles.emptyTitle}
-            >
-              No Pending Requests
-            </Text>
-
-            <Text
-              style={styles.emptyText}
-            >
-              There are no guide approval
-              requests at the moment.
-            </Text>
-          </View>
-        ) : (
-          pendingGuides.map(
-            (guide) => (
-              <View
-                key={guide.id}
-                style={styles.userCard}
+              <Text
+                style={[
+                  styles.approvalStatusText,
+                  {
+                    color:
+                      pendingGuides > 0
+                        ? "#B45309"
+                        : "#15803D",
+                  },
+                ]}
               >
+                {pendingGuides > 0
+                  ? `${pendingGuides} pending request${
+                      pendingGuides > 1
+                        ? "s"
+                        : ""
+                    }`
+                  : "No pending requests"}
+              </Text>
+            </View>
+          </View>
 
-                {/* GUIDE INFORMATION */}
-
-                <View
-                  style={styles.guideInfo}
-                >
-                  <View
-                    style={styles.guideAvatar}
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={23}
-                      color="#4338CA"
-                    />
-                  </View>
-
-                  <View
-                    style={styles.guideDetails}
-                  >
-                    <Text
-                      style={styles.guideName}
-                    >
-                      {guide.name ||
-                        "Guide"}
-                    </Text>
-
-                    {/* GUIDE EMPLOYEE NUMBER */}
-
-                    <View
-                      style={styles.emailRow}
-                    >
-                      <Ionicons
-                        name="id-card-outline"
-                        size={14}
-                        color="#6B7280"
-                      />
-
-                      <Text
-                        style={styles.guideEmail}
-                      >
-                        {guide.employeeNumber ||
-                          "No employee number"}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={styles.pendingStatus}
-                    >
-                      <Ionicons
-                        name="time-outline"
-                        size={14}
-                        color="#B45309"
-                      />
-
-                      <Text
-                        style={
-                          styles.pendingStatusText
-                        }
-                      >
-                        Waiting for admin approval
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View
-                  style={styles.divider}
-                />
-
-                {/* ACTION BUTTONS */}
-
-                <View
-                  style={styles.actionRow}
-                >
-
-                  {/* REJECT */}
-
-                  <TouchableOpacity
-                    style={
-                      styles.rejectButton
-                    }
-                    activeOpacity={0.75}
-                    disabled={
-                      processingUser ===
-                      guide.id
-                    }
-                    onPress={() =>
-                      rejectGuide(
-                        guide.id,
-                      )
-                    }
-                  >
-                    <Ionicons
-                      name="close-circle-outline"
-                      size={19}
-                      color="#DC2626"
-                    />
-
-                    <Text
-                      style={styles.rejectText}
-                    >
-                      Reject
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* APPROVE */}
-
-                  <TouchableOpacity
-                    style={
-                      styles.approveButton
-                    }
-                    activeOpacity={0.8}
-                    disabled={
-                      processingUser ===
-                      guide.id
-                    }
-                    onPress={() =>
-                      approveGuide(
-                        guide.id,
-                      )
-                    }
-                  >
-                    {processingUser ===
-                    guide.id ? (
-                      <ActivityIndicator
-                        size="small"
-                        color="#FFFFFF"
-                      />
-                    ) : (
-                      <Ionicons
-                        name="checkmark-circle-outline"
-                        size={19}
-                        color="#FFFFFF"
-                      />
-                    )}
-
-                    <Text
-                      style={styles.approveText}
-                    >
-                      Approve
-                    </Text>
-                  </TouchableOpacity>
-
-                </View>
-              </View>
-            ),
-          )
-        )}
+          <Ionicons
+            name="chevron-forward"
+            size={22}
+            color="#9CA3AF"
+          />
+        </TouchableOpacity>
 
         {/* =================================================
-            FOOTER INFORMATION
+            SECURITY NOTE
         ================================================= */}
 
-        <View
-          style={styles.securityNote}
-        >
+        <View style={styles.securityNote}>
           <Ionicons
             name="shield-checkmark-outline"
             size={16}
             color="#6B7280"
           />
 
-          <Text
-            style={styles.securityText}
-          >
-            Only approved students and guides
-            can access their respective modules.
+          <Text style={styles.securityText}>
+            Only approved students and guides can
+            access their respective modules.
           </Text>
         </View>
 
@@ -1391,11 +693,6 @@ export default function AdminDashboard() {
 // =====================================================
 
 const styles = StyleSheet.create({
-
-  // ===================================================
-  // CONTAINER
-  // ===================================================
-
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
@@ -1465,7 +762,6 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "700",
     color: "#1F2937",
-    letterSpacing: -0.3,
   },
 
   subtitle: {
@@ -1572,100 +868,17 @@ const styles = StyleSheet.create({
 
   statFooterText: {
     marginLeft: 4,
-    fontSize: 11,
+    fontSize: 10.5,
     color: "#6B7280",
   },
 
   // ===================================================
-  // APPROVAL HEADER
+  // APPROVAL CARDS
   // ===================================================
 
-  approvalHeader: {
+  approvalCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 15,
-  },
-
-  guideApprovalSection: {
-    marginTop: 32,
-  },
-
-  pendingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-
-  pendingBadgeText: {
-    marginLeft: 4,
-    fontSize: 11.5,
-    fontWeight: "700",
-    color: "#B45309",
-  },
-
-  approvedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-
-  approvedBadgeText: {
-    marginLeft: 4,
-    fontSize: 11.5,
-    fontWeight: "700",
-    color: "#15803D",
-  },
-
-  // ===================================================
-  // EMPTY STATE
-  // ===================================================
-
-  emptyCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 17,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E7EAF0",
-  },
-
-  emptyIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 17,
-    backgroundColor: "#D5F5F2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 13,
-  },
-
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1F2937",
-  },
-
-  emptyText: {
-    marginTop: 7,
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#6B7280",
-    textAlign: "center",
-  },
-
-  // ===================================================
-  // USER CARD
-  // ===================================================
-
-  userCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 17,
     padding: 17,
@@ -1674,119 +887,54 @@ const styles = StyleSheet.create({
     borderColor: "#E7EAF0",
   },
 
-  // ===================================================
-  // USER INFORMATION
-  // ===================================================
-
-  guideInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  guideAvatar: {
-    width: 50,
-    height: 50,
+  approvalIcon: {
+    width: 52,
+    height: 52,
     borderRadius: 15,
-    backgroundColor: "#E0E7FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 13,
+    marginRight: 14,
   },
 
-  studentAvatar: {
+  studentApprovalIcon: {
     backgroundColor: "#D5F5F2",
   },
 
-  guideDetails: {
+  guideApprovalIcon: {
+    backgroundColor: "#E0E7FF",
+  },
+
+  approvalInfo: {
     flex: 1,
   },
 
-  guideName: {
+  approvalTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1F2937",
   },
 
-  emailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5,
-  },
-
-  guideEmail: {
-    marginLeft: 5,
+  approvalDescription: {
+    marginTop: 4,
     fontSize: 12.5,
+    lineHeight: 18,
     color: "#6B7280",
-    flexShrink: 1,
   },
 
-  pendingStatus: {
+  approvalStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 7,
+    marginTop: 8,
   },
 
-  pendingStatusText: {
-    marginLeft: 4,
+  approvalStatusText: {
+    marginLeft: 5,
     fontSize: 11.5,
-    fontWeight: "500",
-    color: "#B45309",
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: "#EEF0F4",
-    marginTop: 16,
-    marginBottom: 14,
-  },
-
-  // ===================================================
-  // ACTION BUTTONS
-  // ===================================================
-
-  actionRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
-  rejectButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FEF2F2",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  rejectText: {
-    marginLeft: 6,
-    fontSize: 13.5,
     fontWeight: "600",
-    color: "#DC2626",
-  },
-
-  approveButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 11,
-    backgroundColor: "#4338CA",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  approveText: {
-    marginLeft: 6,
-    fontSize: 13.5,
-    fontWeight: "600",
-    color: "#FFFFFF",
   },
 
   // ===================================================
-  // SECURITY NOTE
+  // SECURITY
   // ===================================================
 
   securityNote: {

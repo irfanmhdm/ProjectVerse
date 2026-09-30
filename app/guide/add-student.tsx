@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import {
   collection,
   getDocs,
@@ -30,10 +29,11 @@ type Student = {
   name: string;
   email: string;
   class: string;
+  registerNumber: string;
 };
 
 export default function AddStudent() {
-  const [email, setEmail] = useState("");
+  const [registerNumber, setRegisterNumber] = useState("");
   const [student, setStudent] = useState<Student | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -44,15 +44,27 @@ export default function AddStudent() {
   // =====================================================
 
   const searchStudent = async () => {
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanRegisterNumber = registerNumber.trim().toUpperCase();
 
-    if (cleanEmail === "") {
-      Alert.alert("Email Required", "Please enter the student's email.");
+    if (cleanRegisterNumber === "") {
+      Alert.alert(
+        "Register Number Required",
+        "Please enter the student's register number.",
+      );
       return;
     }
 
-    if (!cleanEmail.includes("@")) {
-      Alert.alert("Invalid Email", "Please enter a valid student email.");
+    // ===================================================
+    // REGISTER NUMBER FORMAT
+    // ===================================================
+
+    const registerNumberRegex = /^FIT25MCA-\d{4}$/;
+
+    if (!registerNumberRegex.test(cleanRegisterNumber)) {
+      Alert.alert(
+        "Invalid Register Number",
+        "Please enter a valid register number in the format FIT25MCA-0000.",
+      );
       return;
     }
 
@@ -60,32 +72,54 @@ export default function AddStudent() {
     setStudent(null);
 
     try {
+      // =================================================
+      // SEARCH ONLY APPROVED STUDENTS
+      // =================================================
+
       const studentQuery = query(
         collection(db, "users"),
-        where("email", "==", cleanEmail),
+
+        where("registerNumber", "==", cleanRegisterNumber),
+
         where("role", "==", "student"),
+
+        where("status", "==", "approved"),
       );
 
       const snapshot = await getDocs(studentQuery);
 
+      // =================================================
+      // STUDENT NOT FOUND
+      // =================================================
+
       if (snapshot.empty) {
         Alert.alert(
           "Student Not Found",
-          "No registered student was found with this email.",
+          "No approved student was found with this register number.",
         );
 
         setLoading(false);
         return;
       }
 
+      // =================================================
+      // STUDENT FOUND
+      // =================================================
+
       const studentDoc = snapshot.docs[0];
+
       const studentData = studentDoc.data();
 
       setStudent({
         id: studentDoc.id,
+
         name: studentData.name || "Unknown Student",
-        email: studentData.email || cleanEmail,
+
+        email: studentData.email || "Not provided",
+
         class: studentData.class || "Not provided",
+
+        registerNumber: studentData.registerNumber || cleanRegisterNumber,
       });
     } catch (error) {
       console.log("Error searching student:", error);
@@ -125,6 +159,7 @@ export default function AddStudent() {
       const existingAssignmentQuery = query(
         collection(db, "guideStudents"),
         where("studentId", "==", student.id),
+        where("guideId", "==", guide.uid),
       );
 
       const existingAssignmentSnapshot = await getDocs(existingAssignmentQuery);
@@ -164,11 +199,16 @@ export default function AddStudent() {
 
       await setDoc(doc(db, "guideStudents", assignmentId), {
         guideId: guide.uid,
+
         studentId: student.id,
 
         studentName: student.name,
+
         studentEmail: student.email,
+
         studentClass: student.class || "Not provided",
+
+        studentRegisterNumber: student.registerNumber,
 
         createdAt: serverTimestamp(),
       });
@@ -184,7 +224,7 @@ export default function AddStudent() {
           {
             text: "OK",
             onPress: () => {
-              setEmail("");
+              setRegisterNumber("");
               setStudent(null);
             },
           },
@@ -206,7 +246,6 @@ export default function AddStudent() {
     }
   };
 
-  
   // =====================================================
   // UI
   // =====================================================
@@ -231,34 +270,33 @@ export default function AddStudent() {
           <Text style={styles.cardTitle}>Add a Student</Text>
 
           <Text style={styles.cardSubtitle}>
-            Search for a registered student using their email address.
+            Search for an approved student using their register number.
           </Text>
         </View>
 
         {/* =================================================
-            EMAIL INPUT
+            REGISTER NUMBER INPUT
         ================================================= */}
 
-        <Text style={styles.inputLabel}>Student Email</Text>
+        <Text style={styles.inputLabel}>Student Register Number</Text>
 
         <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={19} color="#9CA3AF" />
+          <Ionicons name="card-outline" size={19} color="#9CA3AF" />
 
           <TextInput
             style={styles.input}
-            placeholder="student@example.com"
+            placeholder="FIT25MCA-2041"
             placeholderTextColor="#9CA3AF"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
+            value={registerNumber}
+            onChangeText={(text) => setRegisterNumber(text.toUpperCase())}
+            autoCapitalize="characters"
             autoCorrect={false}
           />
 
-          {email.length > 0 && (
+          {registerNumber.length > 0 && (
             <Pressable
               onPress={() => {
-                setEmail("");
+                setRegisterNumber("");
                 setStudent(null);
               }}
             >
@@ -317,7 +355,7 @@ export default function AddStudent() {
                   color="#0F766E"
                 />
 
-                <Text style={styles.foundText}>Student Found</Text>
+                <Text style={styles.foundText}>Approved Student</Text>
               </View>
             </View>
           </View>
@@ -327,6 +365,20 @@ export default function AddStudent() {
           ================================================= */}
 
           <View style={styles.detailsContainer}>
+            {/* Register Number */}
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIcon}>
+                <Ionicons name="card-outline" size={17} color="#4338CA" />
+              </View>
+
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Register Number</Text>
+
+                <Text style={styles.detailValue}>{student.registerNumber}</Text>
+              </View>
+            </View>
+
             {/* Email */}
 
             <View style={styles.detailRow}>
@@ -402,9 +454,9 @@ export default function AddStudent() {
             <Text style={styles.infoTitle}>How it works</Text>
 
             <Text style={styles.infoText}>
-              Enter the email address used by the student to register with
-              ProjectVerse. Once found, you can add the student under your
-              guidance.
+              Enter the student's register number. Only students whose
+              registration has been approved by the administrator can be found
+              and added to your students.
             </Text>
           </View>
         </View>
@@ -430,10 +482,6 @@ export default function AddStudent() {
 // ======================================================
 
 const styles = StyleSheet.create({
-  // =====================================================
-  // PAGE
-  // =====================================================
-
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",

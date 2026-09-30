@@ -38,6 +38,12 @@ type ChatItem = {
   lastMessageAt?: any;
 
   hasChat: boolean;
+
+  // ===================================================
+  // NEW: UNREAD MESSAGE
+  // ===================================================
+
+  guideUnread: boolean;
 };
 
 // =====================================================
@@ -121,6 +127,9 @@ export default function Chat() {
               lastMessageAt: null,
 
               hasChat: false,
+
+              // NEW
+              guideUnread: false,
             };
           });
 
@@ -168,12 +177,13 @@ export default function Chat() {
           );
 
           // ===============================================
-          // LISTEN TO EACH CHAT DOCUMENT
+          // LISTEN TO CHAT DOCUMENT
           // ===============================================
 
           const unsubscribe =
             onSnapshot(
               chatRef,
+
               (chatSnapshot) => {
                 if (!chatSnapshot.exists()) {
                   return;
@@ -186,6 +196,7 @@ export default function Chat() {
                   const updated =
                     currentStudents.map(
                       (currentStudent) => {
+
                         if (
                           currentStudent.studentId !==
                           student.studentId
@@ -205,6 +216,13 @@ export default function Chat() {
                             null,
 
                           hasChat: true,
+
+                          // =================================================
+                          // NEW MESSAGE NOTIFICATION
+                          // =================================================
+
+                          guideUnread:
+                            chatData.guideUnread === true,
                         };
                       }
                     );
@@ -215,6 +233,7 @@ export default function Chat() {
 
                   return updated.sort(
                     (a, b) => {
+
                       const aTime =
                         a.lastMessageAt?.toMillis?.() ||
                         0;
@@ -228,6 +247,7 @@ export default function Chat() {
                   );
                 });
               },
+
               (error) => {
                 console.log(
                   "Chat listener error:",
@@ -262,6 +282,7 @@ export default function Chat() {
         (unsubscribe) => unsubscribe()
       );
     };
+
   }, [guide?.uid]);
 
   // =====================================================
@@ -270,6 +291,7 @@ export default function Chat() {
 
   const filteredStudents =
     students.filter((student) => {
+
       const searchText =
         search.trim().toLowerCase();
 
@@ -281,9 +303,11 @@ export default function Chat() {
         student.studentName
           .toLowerCase()
           .includes(searchText) ||
+
         student.studentEmail
           ?.toLowerCase()
           .includes(searchText) ||
+
         student.lastMessage
           .toLowerCase()
           .includes(searchText)
@@ -297,11 +321,13 @@ export default function Chat() {
   const formatTime = (
     timestamp: any
   ) => {
+
     if (!timestamp) {
       return "";
     }
 
     try {
+
       const date =
         timestamp.toDate
           ? timestamp.toDate()
@@ -314,6 +340,7 @@ export default function Chat() {
         now.toDateString();
 
       if (sameDay) {
+
         return date.toLocaleTimeString(
           [],
           {
@@ -345,8 +372,11 @@ export default function Chat() {
           year: "2-digit",
         }
       );
+
     } catch {
+
       return "";
+
     }
   };
 
@@ -357,13 +387,16 @@ export default function Chat() {
   const getInitials = (
     name: string
   ) => {
+
     const words =
       name.trim().split(" ");
 
     if (words.length === 1) {
+
       return words[0]
         .substring(0, 2)
         .toUpperCase();
+
     }
 
     return (
@@ -379,9 +412,11 @@ export default function Chat() {
   const openChat = (
     studentId: string
   ) => {
+
     router.push({
       pathname:
         "/guide/chat/[studentId]",
+
       params: {
         studentId,
       },
@@ -397,13 +432,26 @@ export default function Chat() {
   }: {
     item: ChatItem;
   }) => {
+
     return (
+
       <Pressable
-        style={styles.chatItem}
+        style={[
+          styles.chatItem,
+
+          // =================================================
+          // HIGHLIGHT UNREAD CHAT
+          // =================================================
+
+          item.guideUnread &&
+            styles.unreadChatItem,
+        ]}
+
         onPress={() =>
           openChat(item.studentId)
         }
       >
+
         {/* =================================================
             PROFILE
         ================================================= */}
@@ -411,6 +459,7 @@ export default function Chat() {
         <View
           style={styles.avatar}
         >
+
           <Text
             style={styles.avatarText}
           >
@@ -418,6 +467,17 @@ export default function Chat() {
               item.studentName
             )}
           </Text>
+
+          {/* =================================================
+              UNREAD DOT
+          ================================================= */}
+
+          {item.guideUnread && (
+            <View
+              style={styles.unreadDot}
+            />
+          )}
+
         </View>
 
         {/* =================================================
@@ -427,11 +487,19 @@ export default function Chat() {
         <View
           style={styles.chatInformation}
         >
+
           <View
             style={styles.topRow}
           >
+
             <Text
-              style={styles.studentName}
+              style={[
+                styles.studentName,
+
+                item.guideUnread &&
+                  styles.unreadStudentName,
+              ]}
+
               numberOfLines={1}
             >
               {item.studentName}
@@ -444,21 +512,56 @@ export default function Chat() {
                 item.lastMessageAt
               )}
             </Text>
+
           </View>
 
-          <Text
-            style={[
-              styles.lastMessage,
+          {/* =================================================
+              LAST MESSAGE + NEW BADGE
+          ================================================= */}
 
-              !item.lastMessage &&
-                styles.noMessageText,
-            ]}
-            numberOfLines={1}
+          <View
+            style={styles.messageRow}
           >
-            {item.lastMessage ||
-              "Start a conversation"}
-          </Text>
+
+            <Text
+              style={[
+                styles.lastMessage,
+
+                !item.lastMessage &&
+                  styles.noMessageText,
+
+                item.guideUnread &&
+                  styles.unreadMessage,
+              ]}
+
+              numberOfLines={1}
+            >
+              {item.lastMessage ||
+                "Start a conversation"}
+            </Text>
+
+            {/* =================================================
+                NEW BADGE
+            ================================================= */}
+
+            {item.guideUnread && (
+              <View
+                style={styles.newBadge}
+              >
+
+                <Text
+                  style={styles.newBadgeText}
+                >
+                  NEW
+                </Text>
+
+              </View>
+            )}
+
+          </View>
+
         </View>
+
       </Pressable>
     );
   };
@@ -468,12 +571,15 @@ export default function Chat() {
   // =====================================================
 
   if (loading) {
+
     return (
+
       <View
         style={
           styles.loadingContainer
         }
       >
+
         <ActivityIndicator
           size="large"
           color="#4338CA"
@@ -484,6 +590,7 @@ export default function Chat() {
         >
           Loading chats...
         </Text>
+
       </View>
     );
   }
@@ -493,9 +600,11 @@ export default function Chat() {
   // =====================================================
 
   return (
+
     <View
       style={styles.container}
     >
+
       {/* =================================================
           SEARCH
       ================================================= */}
@@ -503,6 +612,7 @@ export default function Chat() {
       <View
         style={styles.searchContainer}
       >
+
         <Ionicons
           name="search-outline"
           size={20}
@@ -511,27 +621,38 @@ export default function Chat() {
 
         <TextInput
           style={styles.searchInput}
+
           placeholder="Search students..."
+
           placeholderTextColor="#9CA3AF"
+
           value={search}
+
           onChangeText={setSearch}
+
           autoCapitalize="none"
+
           autoCorrect={false}
         />
 
         {search.length > 0 && (
+
           <Pressable
             onPress={() =>
               setSearch("")
             }
           >
+
             <Ionicons
               name="close-circle"
               size={19}
               color="#9CA3AF"
             />
+
           </Pressable>
+
         )}
+
       </View>
 
       {/* =================================================
@@ -539,17 +660,21 @@ export default function Chat() {
       ================================================= */}
 
       {filteredStudents.length === 0 ? (
+
         <View
           style={styles.emptyContainer}
         >
+
           <View
             style={styles.emptyIcon}
           >
+
             <Ionicons
               name="chatbubbles-outline"
               size={32}
               color="#4338CA"
             />
+
           </View>
 
           <Text
@@ -567,22 +692,31 @@ export default function Chat() {
               ? "Try searching with a different name."
               : "Students assigned to you will appear here."}
           </Text>
+
         </View>
+
       ) : (
+
         <FlatList
           data={filteredStudents}
+
           renderItem={renderStudent}
+
           keyExtractor={(item) =>
             item.studentId
           }
+
           showsVerticalScrollIndicator={
             false
           }
+
           contentContainerStyle={
             styles.list
           }
         />
+
       )}
+
     </View>
   );
 }
@@ -592,6 +726,7 @@ export default function Chat() {
 // =======================================================
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
@@ -603,18 +738,25 @@ const styles = StyleSheet.create({
 
   searchContainer: {
     height: 48,
+
     backgroundColor: "#FFFFFF",
+
     borderRadius: 13,
+
     borderWidth: 1,
+
     borderColor: "#DDE2EA",
 
     flexDirection: "row",
+
     alignItems: "center",
 
     paddingHorizontal: 13,
 
     marginHorizontal: 16,
+
     marginTop: 15,
+
     marginBottom: 8,
   },
 
@@ -622,6 +764,7 @@ const styles = StyleSheet.create({
     flex: 1,
 
     fontSize: 14,
+
     color: "#1F2937",
 
     marginLeft: 9,
@@ -647,17 +790,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
 
     flexDirection: "row",
+
     alignItems: "center",
 
     paddingHorizontal: 16,
+
     paddingVertical: 11,
 
     borderBottomWidth: 1,
+
     borderBottomColor: "#EEF0F3",
   },
 
+  // =====================================================
+  // UNREAD CHAT
+  // =====================================================
+
+  unreadChatItem: {
+    backgroundColor: "#F8FAFF",
+  },
+
+  // =====================================================
+  // AVATAR
+  // =====================================================
+
   avatar: {
     width: 52,
+
     height: 52,
 
     borderRadius: 26,
@@ -665,16 +824,49 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF0FF",
 
     alignItems: "center",
+
     justifyContent: "center",
 
     marginRight: 13,
+
+    position: "relative",
   },
 
   avatarText: {
     fontSize: 16,
+
     fontWeight: "700",
+
     color: "#4338CA",
   },
+
+  // =====================================================
+  // UNREAD DOT
+  // =====================================================
+
+  unreadDot: {
+    position: "absolute",
+
+    width: 12,
+
+    height: 12,
+
+    borderRadius: 6,
+
+    backgroundColor: "#4338CA",
+
+    borderWidth: 2,
+
+    borderColor: "#FFFFFF",
+
+    top: -1,
+
+    right: -1,
+  },
+
+  // =====================================================
+  // CHAT INFORMATION
+  // =====================================================
 
   chatInformation: {
     flex: 1,
@@ -682,7 +874,9 @@ const styles = StyleSheet.create({
 
   topRow: {
     flexDirection: "row",
+
     alignItems: "center",
+
     justifyContent: "space-between",
 
     marginBottom: 5,
@@ -692,6 +886,7 @@ const styles = StyleSheet.create({
     flex: 1,
 
     fontSize: 16,
+
     fontWeight: "700",
 
     color: "#1F2937",
@@ -699,19 +894,72 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 
+  unreadStudentName: {
+    color: "#4338CA",
+  },
+
   time: {
     fontSize: 11,
+
     color: "#9CA3AF",
   },
 
+  // =====================================================
+  // MESSAGE ROW
+  // =====================================================
+
+  messageRow: {
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    flex: 1,
+  },
+
   lastMessage: {
+    flex: 1,
+
     fontSize: 13,
+
     color: "#6B7280",
+
+    marginRight: 8,
+  },
+
+  unreadMessage: {
+    color: "#374151",
+
+    fontWeight: "600",
   },
 
   noMessageText: {
     color: "#9CA3AF",
+
     fontStyle: "italic",
+  },
+
+  // =====================================================
+  // NEW BADGE
+  // =====================================================
+
+  newBadge: {
+    backgroundColor: "#D5F5F2",
+
+    paddingHorizontal: 7,
+
+    paddingVertical: 3,
+
+    borderRadius: 6,
+  },
+
+  newBadgeText: {
+    fontSize: 9,
+
+    fontWeight: "800",
+
+    color: "#4338CA",
+
+    letterSpacing: 0.4,
   },
 
   // =====================================================
@@ -724,6 +972,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F7FB",
 
     alignItems: "center",
+
     justifyContent: "center",
   },
 
@@ -731,6 +980,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
 
     fontSize: 13,
+
     color: "#6B7280",
   },
 
@@ -742,6 +992,7 @@ const styles = StyleSheet.create({
     flex: 1,
 
     alignItems: "center",
+
     justifyContent: "center",
 
     paddingHorizontal: 30,
@@ -749,6 +1000,7 @@ const styles = StyleSheet.create({
 
   emptyIcon: {
     width: 68,
+
     height: 68,
 
     borderRadius: 20,
@@ -756,6 +1008,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF0FF",
 
     alignItems: "center",
+
     justifyContent: "center",
 
     marginBottom: 15,
@@ -763,6 +1016,7 @@ const styles = StyleSheet.create({
 
   emptyTitle: {
     fontSize: 19,
+
     fontWeight: "700",
 
     color: "#1F2937",
@@ -772,10 +1026,12 @@ const styles = StyleSheet.create({
     marginTop: 7,
 
     fontSize: 13,
+
     lineHeight: 19,
 
     color: "#6B7280",
 
     textAlign: "center",
   },
+
 });

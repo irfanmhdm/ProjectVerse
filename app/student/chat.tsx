@@ -2,22 +2,20 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
+  increment,
   onSnapshot,
+  query,
+  serverTimestamp,
   setDoc,
   Timestamp,
-  serverTimestamp,
+  where,
 } from "firebase/firestore";
 
-import {
-  router,
-} from "expo-router";
+import { router } from "expo-router";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -26,25 +24,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
-  StatusBar,
 } from "react-native";
 
-import {
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  Ionicons,
-} from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
-import {
-  auth,
-  db,
-} from "../../firebase/firebaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
 
 // =====================================================
 // MESSAGE TYPE
@@ -52,15 +43,10 @@ import {
 
 type Message = {
   id: string;
-
   senderId: string;
-
   senderName?: string;
-
   senderRole?: string;
-
   text: string;
-
   createdAt?: any;
 };
 
@@ -69,61 +55,101 @@ type Message = {
 // =====================================================
 
 export default function StudentChat() {
-
   // =====================================================
   // SAFE AREA
   // =====================================================
 
-  const insets =
-    useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
   // =====================================================
   // CURRENT STUDENT
   // =====================================================
 
-  const student =
-    auth.currentUser;
+  const student = auth.currentUser;
 
   // =====================================================
   // FLATLIST
   // =====================================================
 
-  const flatListRef =
-    useRef<FlatList<Message>>(null);
+  const flatListRef = useRef<FlatList<Message>>(null);
 
   // =====================================================
   // STATE
   // =====================================================
 
-  const [messages, setMessages] =
-    useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
-  const [messageText, setMessageText] =
-    useState("");
+  const [messageText, setMessageText] = useState("");
 
-  const [guideId, setGuideId] =
-    useState("");
+  const [guideId, setGuideId] = useState("");
 
-  const [guideName, setGuideName] =
-    useState("Guide");
+  const [guideName, setGuideName] = useState("Guide");
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [sending, setSending] =
-    useState(false);
+  const [sending, setSending] = useState(false);
+
+  // =====================================================
+  // MARK CHAT AS READ
+  // =====================================================
+
+  const markStudentMessagesAsRead = async (
+    assignedGuideId: string
+  ) => {
+    if (!student?.uid || !assignedGuideId) {
+      return;
+    }
+
+    try {
+      const chatId =
+        `${assignedGuideId}_${student.uid}`;
+
+      const chatRef = doc(
+        db,
+        "chats",
+        chatId
+      );
+
+      await setDoc(
+        chatRef,
+        {
+          unreadStudentCount: 0,
+
+          studentLastReadAt:
+            serverTimestamp(),
+        },
+        {
+          merge: true,
+        }
+      );
+
+      console.log(
+        "Student chat marked as read."
+      );
+    } catch (error: any) {
+      console.log(
+        "MARK CHAT READ ERROR:",
+        error
+      );
+    }
+  };
 
   // =====================================================
   // LOAD ASSIGNED GUIDE
   // =====================================================
 
   useEffect(() => {
+    let isMounted = true;
 
     const loadGuide = async () => {
+      // =================================================
+      // CHECK LOGIN
+      // =================================================
 
-      if (!student) {
-
-        setLoading(false);
+      if (!student?.uid) {
+        if (isMounted) {
+          setLoading(false);
+        }
 
         Alert.alert(
           "Login Required",
@@ -134,8 +160,30 @@ export default function StudentChat() {
       }
 
       try {
+        if (isMounted) {
+          setLoading(true);
+        }
 
-        setLoading(true);
+        console.log(
+          "================================="
+        );
+
+        console.log(
+          "Loading assigned guide..."
+        );
+
+        console.log(
+          "Student UID:",
+          student.uid
+        );
+
+        console.log(
+          "================================="
+        );
+
+        // =================================================
+        // FIND GUIDE ASSIGNMENT
+        // =================================================
 
         const guideStudentsRef =
           collection(
@@ -143,112 +191,246 @@ export default function StudentChat() {
             "guideStudents"
           );
 
+        const guideQuery =
+          query(
+            guideStudentsRef,
+            where(
+              "studentId",
+              "==",
+              student.uid
+            )
+          );
+
         const snapshot =
           await getDocs(
-            guideStudentsRef
+            guideQuery
           );
 
-        let foundGuideId =
-          "";
-
-        let foundGuideName =
-          "Guide";
+        console.log(
+          "Guide assignments found:",
+          snapshot.docs.length
+        );
 
         // =================================================
-        // FIND STUDENT'S GUIDE
+        // NO ASSIGNMENT
         // =================================================
 
-        for (
-          const studentDoc of snapshot.docs
-        ) {
-
-          const data =
-            studentDoc.data();
-
+        if (snapshot.empty) {
           console.log(
-            "GuideStudent document:",
-            studentDoc.id,
-            data
+            "No guide assigned to student."
           );
 
-          if (
-            data.studentId ===
-            student.uid
-          ) {
-
-            foundGuideId =
-              data.guideId ||
-              "";
-
-            foundGuideName =
-              data.guideName ||
-              data.guideEmail ||
-              "Guide";
-
-            break;
+          if (isMounted) {
+            setGuideId("");
+            setGuideName("Guide");
           }
+
+          return;
         }
 
         // =================================================
-        // GUIDE NOT FOUND
+        // GET ASSIGNMENT
         // =================================================
 
-        if (!foundGuideId) {
+        const assignmentDoc =
+          snapshot.docs[0];
 
+        const assignmentData =
+          assignmentDoc.data();
+
+        console.log(
+          "Assignment document:",
+          assignmentDoc.id
+        );
+
+        console.log(
+          "Assignment data:",
+          assignmentData
+        );
+
+        // =================================================
+        // GET GUIDE ID
+        // =================================================
+
+        const assignedGuideId =
+          assignmentData.guideId || "";
+
+        if (!assignedGuideId) {
           console.log(
-            "No guide found for student:",
-            student.uid
+            "ERROR: guideId missing."
           );
 
-          setGuideId("");
-
-          setGuideName(
-            "Guide"
-          );
+          if (isMounted) {
+            setGuideId("");
+            setGuideName("Guide");
+          }
 
           return;
         }
 
         console.log(
           "Assigned Guide ID:",
-          foundGuideId
+          assignedGuideId
+        );
+
+        // =================================================
+        // GET GUIDE NAME
+        // =================================================
+
+        let assignedGuideName =
+          assignmentData.guideName ||
+          assignmentData.guideEmail ||
+          "";
+
+        // =================================================
+        // LOAD GUIDE PROFILE IF NAME NOT STORED
+        // =================================================
+
+        if (!assignedGuideName) {
+          try {
+            const guideRef =
+              doc(
+                db,
+                "users",
+                assignedGuideId
+              );
+
+            // IMPORTANT:
+            // getDoc() is used for a document.
+            // getDocs() is used for a query/collection.
+
+            const guideSnapshot =
+              await getDoc(
+                guideRef
+              );
+
+            if (
+              guideSnapshot.exists()
+            ) {
+              const guideData =
+                guideSnapshot.data();
+
+              console.log(
+                "Guide profile:",
+                guideData
+              );
+
+              assignedGuideName =
+                guideData.name ||
+                guideData.displayName ||
+                guideData.email ||
+                "Guide";
+            } else {
+              console.log(
+                "Guide profile not found."
+              );
+
+              assignedGuideName =
+                "Guide";
+            }
+          } catch (guideError) {
+            console.log(
+              "Unable to load guide profile:",
+              guideError
+            );
+
+            assignedGuideName =
+              assignmentData.guideEmail ||
+              "Guide";
+          }
+        }
+
+        // =================================================
+        // SET GUIDE
+        // =================================================
+
+        if (isMounted) {
+          setGuideId(
+            assignedGuideId
+          );
+
+          setGuideName(
+            assignedGuideName
+          );
+        }
+
+        console.log(
+          "Final Guide ID:",
+          assignedGuideId
         );
 
         console.log(
-          "Assigned Guide Name:",
-          foundGuideName
+          "Final Guide Name:",
+          assignedGuideName
         );
 
-        setGuideId(
-          foundGuideId
+      } catch (error: any) {
+        console.log(
+          "================================="
         );
-
-        setGuideName(
-          foundGuideName
-        );
-
-      } catch (error) {
 
         console.log(
-          "Error loading guide:",
+          "ERROR LOADING GUIDE"
+        );
+
+        console.log(
+          "Error:",
           error
         );
 
+        console.log(
+          "Error code:",
+          error?.code
+        );
+
+        console.log(
+          "Error message:",
+          error?.message
+        );
+
+        console.log(
+          "================================="
+        );
+
+        if (isMounted) {
+          setGuideId("");
+          setGuideName("Guide");
+        }
+
         Alert.alert(
-          "Error",
-          "Unable to load your guide."
+          "Guide Loading Error",
+          "Unable to load your assigned guide."
         );
 
       } finally {
-
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadGuide();
 
+    return () => {
+      isMounted = false;
+    };
+  }, [student?.uid]);
+
+  // =====================================================
+  // MARK CHAT AS READ WHEN SCREEN OPENS
+  // =====================================================
+
+  useEffect(() => {
+    if (!student?.uid || !guideId) {
+      return;
+    }
+
+    markStudentMessagesAsRead(
+      guideId
+    );
   }, [
     student?.uid,
+    guideId,
   ]);
 
   // =====================================================
@@ -256,12 +438,11 @@ export default function StudentChat() {
   // =====================================================
 
   useEffect(() => {
+    if (!student?.uid) {
+      return;
+    }
 
-    if (
-      !student?.uid ||
-      !guideId
-    ) {
-
+    if (!guideId) {
       return;
     }
 
@@ -273,8 +454,20 @@ export default function StudentChat() {
       `${guideId}_${student.uid}`;
 
     console.log(
-      "Student Chat ID:",
+      "================================="
+    );
+
+    console.log(
+      "Opening Student Chat"
+    );
+
+    console.log(
+      "Chat ID:",
       chatId
+    );
+
+    console.log(
+      "================================="
     );
 
     // =================================================
@@ -299,16 +492,14 @@ export default function StudentChat() {
       );
 
     // =================================================
-    // LISTENER
+    // REAL-TIME LISTENER
     // =================================================
 
     const unsubscribe =
       onSnapshot(
-
         messagesRef,
 
-        (snapshot) => {
-
+        async (snapshot) => {
           console.log(
             "Messages found:",
             snapshot.docs.length
@@ -318,18 +509,10 @@ export default function StudentChat() {
             Message[] =
             snapshot.docs.map(
               (messageDoc) => {
-
                 const data =
                   messageDoc.data();
 
-                console.log(
-                  "Message:",
-                  messageDoc.id,
-                  data
-                );
-
                 return {
-
                   id:
                     messageDoc.id,
 
@@ -356,12 +539,11 @@ export default function StudentChat() {
             );
 
           // =================================================
-          // SORT MESSAGES SAFELY
+          // SORT MESSAGES
           // =================================================
 
           loadedMessages.sort(
             (a, b) => {
-
               const timeA =
                 a.createdAt?.toMillis
                   ? a.createdAt.toMillis()
@@ -379,7 +561,7 @@ export default function StudentChat() {
           );
 
           // =================================================
-          // UPDATE
+          // UPDATE MESSAGES
           // =================================================
 
           setMessages(
@@ -387,37 +569,96 @@ export default function StudentChat() {
           );
 
           // =================================================
+          // MARK INCOMING GUIDE MESSAGE AS READ
+          //
+          // Since the student is currently inside the
+          // chat screen, incoming messages are considered
+          // read immediately.
+          // =================================================
+
+          const hasGuideMessage =
+            loadedMessages.some(
+              (message) =>
+                message.senderId !==
+                student.uid
+            );
+
+          if (hasGuideMessage) {
+            try {
+              await setDoc(
+                chatRef,
+                {
+                  unreadStudentCount: 0,
+
+                  studentLastReadAt:
+                    serverTimestamp(),
+                },
+                {
+                  merge: true,
+                }
+              );
+            } catch (readError) {
+              console.log(
+                "Unable to clear unread count:",
+                readError
+              );
+            }
+          }
+
+          // =================================================
           // SCROLL TO BOTTOM
           // =================================================
 
           setTimeout(() => {
-
             if (
               loadedMessages.length > 0
             ) {
-
-              flatListRef.current?.scrollToEnd({
-                animated: false,
-              });
-
+              flatListRef.current?.scrollToEnd(
+                {
+                  animated: false,
+                }
+              );
             }
-
           }, 150);
         },
 
-        (error) => {
+        (error: any) => {
+          console.log(
+            "================================="
+          );
 
           console.log(
-            "MESSAGE LISTENER ERROR:",
+            "MESSAGE LISTENER ERROR"
+          );
+
+          console.log(
             error
+          );
+
+          console.log(
+            "Error code:",
+            error?.code
+          );
+
+          console.log(
+            "Error message:",
+            error?.message
+          );
+
+          console.log(
+            "================================="
           );
 
           Alert.alert(
             "Chat Error",
-            "Unable to load messages."
+            "Unable to load chat messages."
           );
         }
       );
+
+    // =================================================
+    // CLEANUP
+    // =================================================
 
     return unsubscribe;
 
@@ -431,9 +672,11 @@ export default function StudentChat() {
   // =====================================================
 
   const sendMessage = async () => {
+    // =================================================
+    // LOGIN CHECK
+    // =================================================
 
-    if (!student) {
-
+    if (!student?.uid) {
       Alert.alert(
         "Login Required",
         "Please login again."
@@ -442,8 +685,11 @@ export default function StudentChat() {
       return;
     }
 
-    if (!guideId) {
+    // =================================================
+    // GUIDE CHECK
+    // =================================================
 
+    if (!guideId) {
       Alert.alert(
         "Guide Not Found",
         "You are not currently assigned to a guide."
@@ -452,16 +698,18 @@ export default function StudentChat() {
       return;
     }
 
+    // =================================================
+    // MESSAGE VALIDATION
+    // =================================================
+
     const text =
       messageText.trim();
 
     if (!text) {
-
       return;
     }
 
     try {
-
       setSending(true);
 
       // =================================================
@@ -472,7 +720,7 @@ export default function StudentChat() {
         `${guideId}_${student.uid}`;
 
       console.log(
-        "Sending to chat:",
+        "Sending message to:",
         chatId
       );
 
@@ -508,11 +756,9 @@ export default function StudentChat() {
       // =================================================
 
       await setDoc(
-
         chatRef,
 
         {
-
           guideId:
             guideId,
 
@@ -533,6 +779,23 @@ export default function StudentChat() {
 
           updatedAt:
             serverTimestamp(),
+
+          // =============================================
+          // NOTIFICATION FOR GUIDE
+          // =============================================
+
+          unreadGuideCount:
+            increment(1),
+
+          // Student is currently inside the chat
+          unreadStudentCount:
+            0,
+
+          lastMessageSenderId:
+            student.uid,
+
+          lastMessageSenderRole:
+            "student",
         },
 
         {
@@ -546,14 +809,12 @@ export default function StudentChat() {
 
       const messageRef =
         await addDoc(
-
           collection(
             chatRef,
             "messages"
           ),
 
           {
-
             senderId:
               student.uid,
 
@@ -582,11 +843,31 @@ export default function StudentChat() {
 
       setMessageText("");
 
-    } catch (error) {
+    } catch (error: any) {
+      console.log(
+        "================================="
+      );
 
       console.log(
-        "SEND MESSAGE ERROR:",
+        "SEND MESSAGE ERROR"
+      );
+
+      console.log(
         error
+      );
+
+      console.log(
+        "Error code:",
+        error?.code
+      );
+
+      console.log(
+        "Error message:",
+        error?.message
+      );
+
+      console.log(
+        "================================="
       );
 
       Alert.alert(
@@ -595,7 +876,6 @@ export default function StudentChat() {
       );
 
     } finally {
-
       setSending(false);
     }
   };
@@ -609,13 +889,11 @@ export default function StudentChat() {
   }: {
     item: Message;
   }) => {
-
     const isMine =
       item.senderId ===
       student?.uid;
 
     return (
-
       <View
         style={[
           styles.messageRow,
@@ -625,7 +903,6 @@ export default function StudentChat() {
             : styles.guideMessageRow,
         ]}
       >
-
         <View
           style={[
             styles.messageBubble,
@@ -635,7 +912,6 @@ export default function StudentChat() {
               : styles.guideBubble,
           ]}
         >
-
           <Text
             style={[
               styles.messageText,
@@ -647,27 +923,22 @@ export default function StudentChat() {
           >
             {item.text}
           </Text>
-
         </View>
-
       </View>
     );
   };
 
   // =====================================================
-  // LOADING
+  // LOADING SCREEN
   // =====================================================
 
   if (loading) {
-
     return (
-
       <View
         style={
           styles.loadingContainer
         }
       >
-
         <ActivityIndicator
           size="large"
           color="#4338CA"
@@ -680,7 +951,6 @@ export default function StudentChat() {
         >
           Loading chat...
         </Text>
-
       </View>
     );
   }
@@ -690,27 +960,22 @@ export default function StudentChat() {
   // =====================================================
 
   if (!guideId) {
-
     return (
-
       <View
         style={
           styles.emptyContainer
         }
       >
-
         <View
           style={
             styles.emptyIcon
           }
         >
-
           <Ionicons
             name="chatbubble-ellipses-outline"
             size={32}
             color="#4338CA"
           />
-
         </View>
 
         <Text
@@ -729,17 +994,15 @@ export default function StudentChat() {
           Chat will be available once
           a guide is assigned to you.
         </Text>
-
       </View>
     );
   }
 
   // =====================================================
-  // SCREEN
+  // MAIN SCREEN
   // =====================================================
 
   return (
-
     <KeyboardAvoidingView
       style={
         styles.container
@@ -751,7 +1014,6 @@ export default function StudentChat() {
           : "height"
       }
     >
-
       {/* =================================================
           STATUS BAR
       ================================================= */}
@@ -778,10 +1040,7 @@ export default function StudentChat() {
           },
         ]}
       >
-
-        {/* =================================================
-            BACK BUTTON
-        ================================================= */}
+        {/* BACK BUTTON */}
 
         <Pressable
           style={
@@ -792,25 +1051,20 @@ export default function StudentChat() {
             router.back()
           }
         >
-
           <Ionicons
             name="arrow-back"
             size={27}
             color="#1F2937"
           />
-
         </Pressable>
 
-        {/* =================================================
-            GUIDE AVATAR
-        ================================================= */}
+        {/* GUIDE AVATAR */}
 
         <View
           style={
             styles.headerAvatar
           }
         >
-
           <Text
             style={
               styles.headerAvatarText
@@ -820,19 +1074,15 @@ export default function StudentChat() {
               .substring(0, 2)
               .toUpperCase()}
           </Text>
-
         </View>
 
-        {/* =================================================
-            GUIDE NAME
-        ================================================= */}
+        {/* GUIDE INFORMATION */}
 
         <View
           style={
             styles.headerInfo
           }
         >
-
           <Text
             style={
               styles.headerName
@@ -850,9 +1100,7 @@ export default function StudentChat() {
           >
             Guide
           </Text>
-
         </View>
-
       </View>
 
       {/* =================================================
@@ -891,29 +1139,25 @@ export default function StudentChat() {
         ]}
 
         // =================================================
-        // INTRO
+        // CHAT INTRO
         // =================================================
 
         ListHeaderComponent={
-
           <View
             style={
               styles.chatIntro
             }
           >
-
             <View
               style={
                 styles.chatIntroIcon
               }
             >
-
               <Ionicons
                 name="chatbubbles-outline"
                 size={20}
                 color="#4338CA"
               />
-
             </View>
 
             <Text
@@ -932,7 +1176,6 @@ export default function StudentChat() {
               You can discuss your project,
               feedback and questions here.
             </Text>
-
           </View>
         }
 
@@ -941,13 +1184,11 @@ export default function StudentChat() {
         // =================================================
 
         ListEmptyComponent={
-
           <View
             style={
               styles.noMessages
             }
           >
-
             <Text
               style={
                 styles.noMessagesTitle
@@ -963,22 +1204,23 @@ export default function StudentChat() {
             >
               Send a message to {guideName}.
             </Text>
-
           </View>
         }
 
-        onContentSizeChange={() => {
+        // =================================================
+        // AUTO SCROLL
+        // =================================================
 
+        onContentSizeChange={() => {
           if (
             messages.length > 0
           ) {
-
-            flatListRef.current?.scrollToEnd({
-              animated: false,
-            });
-
+            flatListRef.current?.scrollToEnd(
+              {
+                animated: false,
+              }
+            );
           }
-
         }}
       />
 
@@ -999,7 +1241,6 @@ export default function StudentChat() {
           },
         ]}
       >
-
         <TextInput
           style={
             styles.input
@@ -1046,28 +1287,20 @@ export default function StudentChat() {
             sending
           }
         >
-
           {sending ? (
-
             <ActivityIndicator
               size="small"
               color="#FFFFFF"
             />
-
           ) : (
-
             <Ionicons
               name="send"
               size={19}
               color="#FFFFFF"
             />
-
           )}
-
         </Pressable>
-
       </View>
-
     </KeyboardAvoidingView>
   );
 }
@@ -1079,544 +1312,298 @@ export default function StudentChat() {
 const styles =
   StyleSheet.create({
 
-  // =====================================================
-  // MAIN CONTAINER
-  // =====================================================
-
-  container: {
-
-    flex: 1,
-
-    backgroundColor:
-      "#F5F7FB",
-  },
-
-  // =====================================================
-  // HEADER
-  // =====================================================
-
-  chatHeader: {
-
-    backgroundColor:
-      "#FFFFFF",
-
-    flexDirection:
-      "row",
-
-    alignItems:
-      "center",
-
-    paddingHorizontal:
-      8,
-
-    borderBottomWidth:
-      1,
-
-    borderBottomColor:
-      "#E5E7EB",
-  },
-
-  // =====================================================
-  // BACK BUTTON
-  // =====================================================
-
-  backButton: {
-
-    width:
-      44,
-
-    height:
-      44,
-
-    alignItems:
-      "center",
-
-    justifyContent:
-      "center",
-
-    marginRight:
-      2,
-  },
-
-  headerAvatar: {
-
-    width:
-      42,
-
-    height:
-      42,
-
-    borderRadius:
-      21,
-
-    backgroundColor:
-      "#EEF0FF",
-
-    alignItems:
-      "center",
-
-    justifyContent:
-      "center",
-
-    marginRight:
-      11,
-  },
-
-  headerAvatarText: {
-
-    fontSize:
-      13,
-
-    fontWeight:
-      "700",
-
-    color:
-      "#4338CA",
-  },
-
-  headerInfo: {
-
-    flex: 1,
-  },
-
-  headerName: {
-
-    fontSize:
-      17,
-
-    fontWeight:
-      "700",
-
-    color:
-      "#1F2937",
-  },
-
-  headerSubtitle: {
-
-    fontSize:
-      11,
-
-    color:
-      "#9CA3AF",
-
-    marginTop:
-      2,
-  },
-
-  // =====================================================
-  // INTRO
-  // =====================================================
-
-  chatIntro: {
-
-    alignItems:
-      "center",
-
-    paddingTop:
-      18,
-
-    paddingBottom:
-      25,
-  },
-
-  chatIntroIcon: {
-
-    width:
-      42,
-
-    height:
-      42,
-
-    borderRadius:
-      14,
-
-    backgroundColor:
-      "#EEF0FF",
-
-    alignItems:
-      "center",
-
-    justifyContent:
-      "center",
-
-    marginBottom:
-      9,
-  },
-
-  chatIntroText: {
-
-    fontSize:
-      16,
-
-    fontWeight:
-      "700",
-
-    color:
-      "#1F2937",
-
-    textAlign:
-      "center",
-  },
-
-  chatIntroSubText: {
-
-    fontSize:
-      11,
-
-    color:
-      "#9CA3AF",
-
-    marginTop:
-      4,
-
-    textAlign:
-      "center",
-
-    paddingHorizontal:
-      30,
-  },
-
-  // =====================================================
-  // MESSAGE LIST
-  // =====================================================
-
-  messagesList: {
-
-    paddingHorizontal:
-      15,
-
-    paddingBottom:
-      18,
-  },
-
-  emptyMessagesList: {
-
-    flexGrow:
-      1,
-  },
-
-  // =====================================================
-  // MESSAGE ROW
-  // =====================================================
-
-  messageRow: {
-
-    width:
-      "100%",
-
-    marginBottom:
-      14,
-  },
-
-  myMessageRow: {
-
-    alignItems:
-      "flex-end",
-  },
-
-  guideMessageRow: {
-
-    alignItems:
-      "flex-start",
-  },
-
-  // =====================================================
-  // MESSAGE BUBBLE
-  // =====================================================
-
-  messageBubble: {
-
-    maxWidth:
-      "78%",
-
-    paddingHorizontal:
-      14,
-
-    paddingVertical:
-      10,
-
-    borderRadius:
-      16,
-  },
-
-  myBubble: {
-
-    backgroundColor:
-      "#4338CA",
-
-    borderBottomRightRadius:
-      4,
-  },
-
-  guideBubble: {
-
-    backgroundColor:
-      "#FFFFFF",
-
-    borderWidth:
-      1,
-
-    borderColor:
-      "#E5E7EB",
-
-    borderBottomLeftRadius:
-      4,
-  },
-
-  messageText: {
-
-    fontSize:
-      14,
-
-    lineHeight:
-      20,
-  },
-
-  myMessageText: {
-
-    color:
-      "#FFFFFF",
-  },
-
-  guideMessageText: {
-
-    color:
-      "#1F2937",
-  },
-
-  // =====================================================
-  // INPUT
-  // =====================================================
-
-  inputContainer: {
-
-    flexDirection:
-      "row",
-
-    alignItems:
-      "flex-end",
-
-    backgroundColor:
-      "#FFFFFF",
-
-    borderTopWidth:
-      1,
-
-    borderTopColor:
-      "#E5E7EB",
-
-    paddingHorizontal:
-      12,
-
-    paddingTop:
-      10,
-  },
-
-  input: {
-
-    flex: 1,
-
-    minHeight:
-      44,
-
-    maxHeight:
-      110,
-
-    backgroundColor:
-      "#F5F7FB",
-
-    borderWidth:
-      1,
-
-    borderColor:
-      "#E0E4EC",
-
-    borderRadius:
-      12,
-
-    paddingHorizontal:
-      13,
-
-    paddingVertical:
-      10,
-
-    fontSize:
-      14,
-
-    color:
-      "#1F2937",
-  },
-
-  sendButton: {
-
-    width:
-      44,
-
-    height:
-      44,
-
-    borderRadius:
-      12,
-
-    backgroundColor:
-      "#4338CA",
-
-    alignItems:
-      "center",
-
-    justifyContent:
-      "center",
-
-    marginLeft:
-      8,
-  },
-
-  sendButtonDisabled: {
-
-    opacity:
-      0.45,
-  },
-
-  // =====================================================
-  // LOADING
-  // =====================================================
-
-  loadingContainer: {
-
-    flex: 1,
-
-    backgroundColor:
-      "#F5F7FB",
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-  },
-
-  loadingText: {
-
-    marginTop:
-      12,
-
-    fontSize:
-      13,
-
-    color:
-      "#6B7280",
-  },
-
-  // =====================================================
-  // NO GUIDE
-  // =====================================================
-
-  emptyContainer: {
-
-    flex: 1,
-
-    backgroundColor:
-      "#F5F7FB",
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-
-    paddingHorizontal:
-      30,
-  },
-
-  emptyIcon: {
-
-    width:
-      68,
-
-    height:
-      68,
-
-    borderRadius:
-      20,
-
-    backgroundColor:
-      "#EEF0FF",
-
-    alignItems:
-      "center",
-
-    justifyContent:
-      "center",
-
-    marginBottom:
-      16,
-  },
-
-  emptyTitle: {
-
-    fontSize:
-      19,
-
-    fontWeight:
-      "700",
-
-    color:
-      "#1F2937",
-  },
-
-  emptyText: {
-
-    fontSize:
-      13,
-
-    lineHeight:
-      19,
-
-    color:
-      "#6B7280",
-
-    textAlign:
-      "center",
-
-    marginTop:
-      7,
-  },
-
-  // =====================================================
-  // NO MESSAGES
-  // =====================================================
-
-  noMessages: {
-
-    alignItems:
-      "center",
-
-    paddingTop:
-      5,
-  },
-
-  noMessagesTitle: {
-
-    fontSize:
-      14,
-
-    fontWeight:
-      "700",
-
-    color:
-      "#374151",
-  },
-
-  noMessagesText: {
-
-    marginTop:
-      4,
-
-    fontSize:
-      12,
-
-    color:
-      "#9CA3AF",
-  },
-
-});
+    // ===================================================
+    // MAIN CONTAINER
+    // ===================================================
+
+    container: {
+      flex: 1,
+      backgroundColor: "#F5F7FB",
+    },
+
+    // ===================================================
+    // HEADER
+    // ===================================================
+
+    chatHeader: {
+      backgroundColor: "#FFFFFF",
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: "#E5E7EB",
+    },
+
+    // ===================================================
+    // BACK BUTTON
+    // ===================================================
+
+    backButton: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 2,
+    },
+
+    // ===================================================
+    // GUIDE AVATAR
+    // ===================================================
+
+    headerAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 11,
+    },
+
+    headerAvatarText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#4338CA",
+    },
+
+    // ===================================================
+    // GUIDE INFO
+    // ===================================================
+
+    headerInfo: {
+      flex: 1,
+    },
+
+    headerName: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: "#1F2937",
+    },
+
+    headerSubtitle: {
+      fontSize: 11,
+      color: "#9CA3AF",
+      marginTop: 2,
+    },
+
+    // ===================================================
+    // INTRO
+    // ===================================================
+
+    chatIntro: {
+      alignItems: "center",
+      paddingTop: 18,
+      paddingBottom: 25,
+    },
+
+    chatIntroIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 9,
+    },
+
+    chatIntroText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#1F2937",
+      textAlign: "center",
+    },
+
+    chatIntroSubText: {
+      fontSize: 11,
+      color: "#9CA3AF",
+      marginTop: 4,
+      textAlign: "center",
+      paddingHorizontal: 30,
+    },
+
+    // ===================================================
+    // MESSAGE LIST
+    // ===================================================
+
+    messagesList: {
+      paddingHorizontal: 15,
+      paddingBottom: 18,
+    },
+
+    emptyMessagesList: {
+      flexGrow: 1,
+    },
+
+    // ===================================================
+    // MESSAGE ROW
+    // ===================================================
+
+    messageRow: {
+      width: "100%",
+      marginBottom: 14,
+    },
+
+    myMessageRow: {
+      alignItems: "flex-end",
+    },
+
+    guideMessageRow: {
+      alignItems: "flex-start",
+    },
+
+    // ===================================================
+    // MESSAGE BUBBLE
+    // ===================================================
+
+    messageBubble: {
+      maxWidth: "78%",
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 16,
+    },
+
+    myBubble: {
+      backgroundColor: "#4338CA",
+      borderBottomRightRadius: 4,
+    },
+
+    guideBubble: {
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+      borderBottomLeftRadius: 4,
+    },
+
+    messageText: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+
+    myMessageText: {
+      color: "#FFFFFF",
+    },
+
+    guideMessageText: {
+      color: "#1F2937",
+    },
+
+    // ===================================================
+    // INPUT
+    // ===================================================
+
+    inputContainer: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      backgroundColor: "#FFFFFF",
+      borderTopWidth: 1,
+      borderTopColor: "#E5E7EB",
+      paddingHorizontal: 12,
+      paddingTop: 10,
+    },
+
+    input: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 110,
+      backgroundColor: "#F5F7FB",
+      borderWidth: 1,
+      borderColor: "#E0E4EC",
+      borderRadius: 12,
+      paddingHorizontal: 13,
+      paddingVertical: 10,
+      fontSize: 14,
+      color: "#1F2937",
+    },
+
+    // ===================================================
+    // SEND BUTTON
+    // ===================================================
+
+    sendButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: "#4338CA",
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: 8,
+    },
+
+    sendButtonDisabled: {
+      opacity: 0.45,
+    },
+
+    // ===================================================
+    // LOADING
+    // ===================================================
+
+    loadingContainer: {
+      flex: 1,
+      backgroundColor: "#F5F7FB",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    loadingText: {
+      marginTop: 12,
+      fontSize: 13,
+      color: "#6B7280",
+    },
+
+    // ===================================================
+    // NO GUIDE
+    // ===================================================
+
+    emptyContainer: {
+      flex: 1,
+      backgroundColor: "#F5F7FB",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 30,
+    },
+
+    emptyIcon: {
+      width: 68,
+      height: 68,
+      borderRadius: 20,
+      backgroundColor: "#EEF0FF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+
+    emptyTitle: {
+      fontSize: 19,
+      fontWeight: "700",
+      color: "#1F2937",
+    },
+
+    emptyText: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: "#6B7280",
+      textAlign: "center",
+      marginTop: 7,
+    },
+
+    // ===================================================
+    // NO MESSAGES
+    // ===================================================
+
+    noMessages: {
+      alignItems: "center",
+      paddingTop: 5,
+    },
+
+    noMessagesTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#374151",
+    },
+
+    noMessagesText: {
+      marginTop: 4,
+      fontSize: 12,
+      color: "#9CA3AF",
+    },
+  });

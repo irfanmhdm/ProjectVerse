@@ -1,6 +1,8 @@
 import { Drawer } from "expo-router/drawer";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { signOut } from "firebase/auth";
+import { BackHandler } from "react-native";
+import { useEffect } from "react";
 
 import {
   Alert,
@@ -25,13 +27,25 @@ import { auth } from "../../firebase/firebaseConfig";
 // =====================================================
 
 function CustomDrawerContent(props: any) {
+
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
   const handleLogout = async () => {
+
     try {
+
       await signOut(auth);
 
       router.replace("/");
+
     } catch (error) {
-      console.log("Logout error:", error);
+
+      console.log(
+        "Logout error:",
+        error
+      );
 
       Alert.alert(
         "Logout Failed",
@@ -40,8 +54,17 @@ function CustomDrawerContent(props: any) {
     }
   };
 
+  // =====================================================
+  // DRAWER UI
+  // =====================================================
+
   return (
-    <View style={styles.drawerContainer}>
+
+    <View
+      style={
+        styles.drawerContainer
+      }
+    >
 
       {/* =================================================
           DRAWER CONTENT
@@ -49,31 +72,60 @@ function CustomDrawerContent(props: any) {
 
       <DrawerContentScrollView
         {...props}
-        contentContainerStyle={styles.drawerContent}
+
+        contentContainerStyle={
+          styles.drawerContent
+        }
       >
 
         {/* =================================================
             DRAWER HEADER
         ================================================= */}
 
-        <View style={styles.drawerHeader}>
+        <View
+          style={
+            styles.drawerHeader
+          }
+        >
 
-          <View style={styles.logoContainer}>
+          <View
+            style={
+              styles.logoContainer
+            }
+          >
 
             <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.logo}
+              source={
+                require(
+                  "../../assets/images/logo.png"
+                )
+              }
+
+              style={
+                styles.logo
+              }
+
               resizeMode="contain"
             />
 
             <View>
-              <Text style={styles.appName}>
+
+              <Text
+                style={
+                  styles.appName
+                }
+              >
                 ProjectVerse
               </Text>
 
-              <Text style={styles.role}>
+              <Text
+                style={
+                  styles.role
+                }
+              >
                 Guide Portal
               </Text>
+
             </View>
 
           </View>
@@ -84,7 +136,9 @@ function CustomDrawerContent(props: any) {
             DRAWER PAGES
         ================================================= */}
 
-        <DrawerItemList {...props} />
+        <DrawerItemList
+          {...props}
+        />
 
       </DrawerContentScrollView>
 
@@ -92,11 +146,20 @@ function CustomDrawerContent(props: any) {
           LOGOUT
       ================================================= */}
 
-      <View style={styles.logoutContainer}>
+      <View
+        style={
+          styles.logoutContainer
+        }
+      >
 
         <Pressable
-          style={styles.logoutButton}
-          onPress={handleLogout}
+          style={
+            styles.logoutButton
+          }
+
+          onPress={
+            handleLogout
+          }
         >
 
           <Ionicons
@@ -105,7 +168,11 @@ function CustomDrawerContent(props: any) {
             color="#DC2626"
           />
 
-          <Text style={styles.logoutText}>
+          <Text
+            style={
+              styles.logoutText
+            }
+          >
             Logout
           </Text>
 
@@ -122,46 +189,221 @@ function CustomDrawerContent(props: any) {
 // =====================================================
 
 export default function GuideLayout() {
-  return (
-    <Drawer
-      drawerContent={(props) => (
-        <CustomDrawerContent {...props} />
-      )}
 
-      backBehavior="history"
+  // =====================================================
+  // CURRENT ROUTE
+  // =====================================================
+
+  const pathname =
+    usePathname();
+
+  // =====================================================
+  // ANDROID BACK HANDLING
+  // =====================================================
+
+  useEffect(() => {
+
+    const handleAndroidBack = () => {
+
+      console.log(
+        "Android back pressed:",
+        pathname
+      );
+
+      // =================================================
+      // MAIN GUIDE HOME
+      //
+      // Home → Back → CLOSE APP
+      //
+      // This does NOT logout.
+      // =================================================
+
+      if (
+        pathname === "/guide" ||
+        pathname === "/guide/"
+      ) {
+
+        console.log(
+          "Guide home - exiting app"
+        );
+
+        BackHandler.exitApp();
+
+        return true;
+      }
+
+      // =================================================
+      // MAIN DRAWER PAGES
+      //
+      // These should ALWAYS return to Home.
+      //
+      // We intentionally use replace so the previous
+      // drawer page does not remain in the navigation
+      // history.
+      // =================================================
+
+      const mainDrawerPages = [
+
+        "/guide/students",
+
+        "/guide/add-student",
+
+        "/guide/projects",
+
+        "/guide/chat",
+
+        "/guide/profile",
+
+      ];
+
+      if (
+        mainDrawerPages.includes(
+          pathname
+        )
+      ) {
+
+        console.log(
+          "Main drawer page - returning to Guide Home"
+        );
+
+        router.replace(
+          "/guide"
+        );
+
+        return true;
+      }
+
+      // =================================================
+      // EVERYTHING ELSE
+      //
+      // IMPORTANT:
+      //
+      // Project Details
+      // Project Details → Revise
+      //
+      // Chat → Chat/[studentId]
+      //
+      // are NOT handled here.
+      //
+      // Their existing navigation flow remains untouched.
+      // =================================================
+
+      return false;
+    };
+
+    const subscription =
+      BackHandler.addEventListener(
+        "hardwareBackPress",
+        handleAndroidBack
+      );
+
+    return () => {
+
+      subscription.remove();
+
+    };
+
+  }, [
+    pathname,
+  ]);
+
+  // =====================================================
+  // DRAWER
+  // =====================================================
+
+  return (
+
+    <Drawer
+
+      drawerContent={
+        (props) => (
+          <CustomDrawerContent
+            {...props}
+          />
+        )
+      }
+
+      // =================================================
+      // DRAWER BACK BEHAVIOR
+      //
+      // This prevents drawer history from determining
+      // the destination of the Android back action.
+      //
+      // Our BackHandler above handles the actual
+      // Android back/swipe behavior.
+      // =================================================
+
+      backBehavior="firstRoute"
 
       screenOptions={{
-        // Normal Drawer pages have header
+
+        // =================================================
+        // HEADER
+        // =================================================
+
         headerShown: true,
 
-        drawerActiveTintColor: "#4338CA",
+        // =================================================
+        // DRAWER COLORS
+        // =================================================
 
-        drawerInactiveTintColor: "#374151",
+        drawerActiveTintColor:
+          "#4338CA",
+
+        drawerInactiveTintColor:
+          "#374151",
 
         drawerLabelStyle: {
+
           fontSize: 15,
+
           fontWeight: "600",
+
           marginLeft: -5,
+
         },
+
+        // =================================================
+        // DRAWER STYLE
+        // =================================================
 
         drawerStyle: {
-          backgroundColor: "#FFFFFF",
+
+          backgroundColor:
+            "#FFFFFF",
+
           width: 285,
+
         },
 
-        drawerActiveBackgroundColor: "#D5F5F2",
+        drawerActiveBackgroundColor:
+          "#D5F5F2",
+
+        // =================================================
+        // HEADER STYLE
+        // =================================================
 
         headerStyle: {
-          backgroundColor: "#FFFFFF",
+
+          backgroundColor:
+            "#FFFFFF",
+
         },
 
-        headerTintColor: "#1F2937",
+        headerTintColor:
+          "#1F2937",
 
         headerTitleStyle: {
+
           fontSize: 18,
+
           fontWeight: "700",
-          color: "#1F2937",
+
+          color:
+            "#1F2937",
+
         },
+
       }}
     >
 
@@ -171,17 +413,29 @@ export default function GuideLayout() {
 
       <Drawer.Screen
         name="index"
-        options={{
-          title: "Home",
-          drawerLabel: "Home",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="grid-outline"
-              size={size}
-              color={color}
-            />
-          ),
+        options={{
+
+          title:
+            "Home",
+
+          drawerLabel:
+            "Home",
+
+          drawerIcon:
+            ({
+              color,
+              size,
+            }) => (
+
+              <Ionicons
+                name="grid-outline"
+                size={size}
+                color={color}
+              />
+
+            ),
+
         }}
       />
 
@@ -191,17 +445,29 @@ export default function GuideLayout() {
 
       <Drawer.Screen
         name="students"
-        options={{
-          title: "My Students",
-          drawerLabel: "My Students",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="people-outline"
-              size={size}
-              color={color}
-            />
-          ),
+        options={{
+
+          title:
+            "My Students",
+
+          drawerLabel:
+            "My Students",
+
+          drawerIcon:
+            ({
+              color,
+              size,
+            }) => (
+
+              <Ionicons
+                name="people-outline"
+                size={size}
+                color={color}
+              />
+
+            ),
+
         }}
       />
 
@@ -211,17 +477,29 @@ export default function GuideLayout() {
 
       <Drawer.Screen
         name="add-student"
-        options={{
-          title: "Add Student",
-          drawerLabel: "Add Student",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="person-add-outline"
-              size={size}
-              color={color}
-            />
-          ),
+        options={{
+
+          title:
+            "Add Student",
+
+          drawerLabel:
+            "Add Student",
+
+          drawerIcon:
+            ({
+              color,
+              size,
+            }) => (
+
+              <Ionicons
+                name="person-add-outline"
+                size={size}
+                color={color}
+              />
+
+            ),
+
         }}
       />
 
@@ -231,17 +509,29 @@ export default function GuideLayout() {
 
       <Drawer.Screen
         name="projects"
-        options={{
-          title: "Projects",
-          drawerLabel: "Projects",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="folder-open-outline"
-              size={size}
-              color={color}
-            />
-          ),
+        options={{
+
+          title:
+            "Projects",
+
+          drawerLabel:
+            "Projects",
+
+          drawerIcon:
+            ({
+              color,
+              size,
+            }) => (
+
+              <Ionicons
+                name="folder-open-outline"
+                size={size}
+                color={color}
+              />
+
+            ),
+
         }}
       />
 
@@ -251,42 +541,55 @@ export default function GuideLayout() {
 
       <Drawer.Screen
         name="chat"
-        options={{
-          title: "Chat",
-          drawerLabel: "Chat",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="chatbubbles-outline"
-              size={size}
-              color={color}
-            />
-          ),
+        options={{
+
+          title:
+            "Chat",
+
+          drawerLabel:
+            "Chat",
+
+          drawerIcon:
+            ({
+              color,
+              size,
+            }) => (
+
+              <Ionicons
+                name="chatbubbles-outline"
+                size={size}
+                color={color}
+              />
+
+            ),
+
         }}
       />
 
       {/* =================================================
           CHAT CONVERSATION
           
-          IMPORTANT:
-          This hides the MAIN DRAWER HEADER.
+          HIDDEN FROM DRAWER
 
-          The actual conversation page has
-          its own custom header containing:
-          - Back button
-          - Student avatar
-          - Student name
-          - Student role
+          DO NOT CHANGE THE FLOW.
       ================================================= */}
 
       <Drawer.Screen
         name="chat/[studentId]"
+
         options={{
-          headerShown: false,
+
+          headerShown:
+            false,
 
           drawerItemStyle: {
-            display: "none",
+
+            display:
+              "none",
+
           },
+
         }}
       />
 
@@ -296,33 +599,63 @@ export default function GuideLayout() {
 
       <Drawer.Screen
         name="profile"
-        options={{
-          title: "Profile",
-          drawerLabel: "Profile",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="person-circle-outline"
-              size={size}
-              color={color}
-            />
-          ),
+        options={{
+
+          title:
+            "Profile",
+
+          drawerLabel:
+            "Profile",
+
+          drawerIcon:
+            ({
+              color,
+              size,
+            }) => (
+
+              <Ionicons
+                name="person-circle-outline"
+                size={size}
+                color={color}
+              />
+
+            ),
+
         }}
       />
 
       {/* =================================================
           PROJECT DETAILS
-          HIDDEN FROM DRAWER
+          
+          IMPORTANT:
+          
+          DO NOT CHANGE THIS FLOW.
+          
+          Projects
+              ↓
+          Project Details
+              ↓
+          Revise
+          
+          Existing project flow stays untouched.
       ================================================= */}
 
       <Drawer.Screen
         name="project-details"
+
         options={{
-          title: "Project Details",
+
+          title:
+            "Project Details",
 
           drawerItemStyle: {
-            display: "none",
+
+            display:
+              "none",
+
           },
+
         }}
       />
 
@@ -334,103 +667,157 @@ export default function GuideLayout() {
 // STYLES
 // =======================================================
 
-const styles = StyleSheet.create({
+const styles =
+  StyleSheet.create({
 
-  // =====================================================
-  // DRAWER
-  // =====================================================
+    // ===================================================
+    // DRAWER
+    // ===================================================
 
-  drawerContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+    drawerContainer: {
 
-  drawerContent: {
-    paddingTop: 0,
-  },
+      flex: 1,
 
-  // =====================================================
-  // DRAWER HEADER
-  // =====================================================
+      backgroundColor:
+        "#FFFFFF",
 
-  drawerHeader: {
-    paddingHorizontal: 20,
+    },
 
-    paddingTop: 65,
+    drawerContent: {
 
-    paddingBottom: 24,
+      paddingTop:
+        0,
 
-    borderBottomWidth: 1,
+    },
 
-    borderBottomColor: "#E5E7EB",
+    // ===================================================
+    // DRAWER HEADER
+    // ===================================================
 
-    marginBottom: 8,
-  },
+    drawerHeader: {
 
-  logoContainer: {
-    flexDirection: "row",
+      paddingHorizontal:
+        20,
 
-    alignItems: "center",
-  },
+      paddingTop:
+        65,
 
-  logo: {
-    width: 48,
+      paddingBottom:
+        24,
 
-    height: 48,
+      borderBottomWidth:
+        1,
 
-    marginRight: 12,
-  },
+      borderBottomColor:
+        "#E5E7EB",
 
-  appName: {
-    fontSize: 21,
+      marginBottom:
+        8,
 
-    fontWeight: "700",
+    },
 
-    color: "#4338CA",
-  },
+    logoContainer: {
 
-  role: {
-    fontSize: 13,
+      flexDirection:
+        "row",
 
-    color: "#6B7280",
+      alignItems:
+        "center",
 
-    marginTop: 3,
-  },
+    },
 
-  // =====================================================
-  // LOGOUT
-  // =====================================================
+    logo: {
 
-  logoutContainer: {
-    borderTopWidth: 1,
+      width:
+        48,
 
-    borderTopColor: "#E5E7EB",
+      height:
+        48,
 
-    paddingHorizontal: 15,
+      marginRight:
+        12,
 
-    paddingVertical: 12,
-  },
+    },
 
-  logoutButton: {
-    flexDirection: "row",
+    appName: {
 
-    alignItems: "center",
+      fontSize:
+        21,
 
-    paddingVertical: 13,
+      fontWeight:
+        "700",
 
-    paddingHorizontal: 15,
+      color:
+        "#4338CA",
 
-    borderRadius: 10,
-  },
+    },
 
-  logoutText: {
-    fontSize: 15,
+    role: {
 
-    fontWeight: "600",
+      fontSize:
+        13,
 
-    color: "#DC2626",
+      color:
+        "#6B7280",
 
-    marginLeft: 12,
-  },
+      marginTop:
+        3,
 
-});
+    },
+
+    // ===================================================
+    // LOGOUT
+    // ===================================================
+
+    logoutContainer: {
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        "#E5E7EB",
+
+      paddingHorizontal:
+        15,
+
+      paddingVertical:
+        12,
+
+    },
+
+    logoutButton: {
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      paddingVertical:
+        13,
+
+      paddingHorizontal:
+        15,
+
+      borderRadius:
+        10,
+
+    },
+
+    logoutText: {
+
+      fontSize:
+        15,
+
+      fontWeight:
+        "600",
+
+      color:
+        "#DC2626",
+
+      marginLeft:
+        12,
+
+    },
+
+  });
