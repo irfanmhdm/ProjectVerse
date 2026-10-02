@@ -25,7 +25,7 @@ import { router } from "expo-router";
 //
 // Do NOT use localhost when testing from a physical phone.
 
-const API_URL = "http://192.168.137.1:8000";
+const API_URL = "http://10.0.27.126:8000";
 
 // =====================================================
 // TYPES

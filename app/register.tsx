@@ -33,6 +33,7 @@ import {
 
 import { auth, db } from "../firebase/firebaseConfig";
 
+
 export default function RegisterScreen() {
 
   // =====================================================
@@ -41,32 +42,58 @@ export default function RegisterScreen() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [studentClass, setStudentClass] = useState("");
+  const [college, setCollege] = useState("");
+  const [qualification, setQualification] = useState("");
+
   const [registerNumber, setRegisterNumber] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
+
+
+  // =====================================================
+  // DROPDOWN STATES
+  // =====================================================
+
+  const [showClassDropdown, setShowClassDropdown] =
+    useState(false);
+
+  const [showCollegeDropdown, setShowCollegeDropdown] =
+    useState(false);
+
+  const [showQualificationDropdown, setShowQualificationDropdown] =
+    useState(false);
+
 
   // =====================================================
   // ROLE
   // =====================================================
 
-  const [role, setRole] = useState<"student" | "guide">("student");
+  const [role, setRole] =
+    useState<"student" | "guide">("student");
+
 
   // =====================================================
   // PASSWORD VISIBILITY
   // =====================================================
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
+
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
+
 
   // =====================================================
   // LOADING
   // =====================================================
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
+
 
   // =====================================================
   // REGISTER
@@ -78,21 +105,35 @@ export default function RegisterScreen() {
       return;
     }
 
+
     // ===================================================
     // CLEAN VALUES
     // ===================================================
 
-    const cleanName = name.trim();
+    const cleanName =
+      name.trim();
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail =
+      email.trim().toLowerCase();
 
-    const cleanClass = studentClass.trim();
+    const cleanPhone =
+      phone.trim();
+
+    const cleanClass =
+      studentClass.trim();
+
+    const cleanCollege =
+      college.trim();
+
+    const cleanQualification =
+      qualification.trim();
 
     const cleanRegisterNumber =
       registerNumber.trim().toUpperCase();
 
     const cleanEmployeeNumber =
       employeeNumber.trim().toUpperCase();
+
 
     // ===================================================
     // EMPTY VALIDATION
@@ -101,14 +142,25 @@ export default function RegisterScreen() {
     if (
       cleanName === "" ||
       cleanEmail === "" ||
+      cleanPhone === "" ||
       password === "" ||
       confirmPassword === "" ||
-      (role === "student" &&
-        (cleanClass === "" ||
-          cleanRegisterNumber === "")) ||
-      (role === "guide" &&
-        cleanEmployeeNumber === "")
+      cleanClass === "" ||
+      cleanCollege === "" ||
+      (
+        role === "guide" &&
+        cleanQualification === ""
+      ) ||
+      (
+        role === "student" &&
+        cleanRegisterNumber === ""
+      ) ||
+      (
+        role === "guide" &&
+        cleanEmployeeNumber === ""
+      )
     ) {
+
       Alert.alert(
         "Missing Information",
         role === "student"
@@ -119,11 +171,15 @@ export default function RegisterScreen() {
       return;
     }
 
+
     // ===================================================
     // NAME VALIDATION
     // ===================================================
 
-    if (cleanName.length < 2) {
+    if (
+      cleanName.length < 2
+    ) {
+
       Alert.alert(
         "Invalid Name",
         "Please enter your full name."
@@ -132,11 +188,89 @@ export default function RegisterScreen() {
       return;
     }
 
+
     // ===================================================
-    // STUDENT REGISTER NUMBER VALIDATION
+    // PHONE VALIDATION
     // ===================================================
 
-    if (role === "student") {
+    const phoneRegex =
+      /^[6-9]\d{9}$/;
+
+    if (
+      !phoneRegex.test(
+        cleanPhone
+      )
+    ) {
+
+      Alert.alert(
+        "Invalid Phone Number",
+        "Please enter a valid 10-digit Indian phone number."
+      );
+
+      return;
+    }
+
+
+    // ===================================================
+    // CLASS VALIDATION
+    // ===================================================
+
+    if (
+      cleanClass !== "MCA"
+    ) {
+
+      Alert.alert(
+        "Invalid Program",
+        
+      );
+
+      return;
+    }
+
+
+    // ===================================================
+    // COLLEGE VALIDATION
+    // ===================================================
+
+    if (
+      cleanCollege !== "FISAT"
+    ) {
+
+      Alert.alert(
+        "Invalid College",
+        "Please select FISAT."
+      );
+
+      return;
+    }
+
+
+    // ===================================================
+    // GUIDE QUALIFICATION VALIDATION
+    // ===================================================
+
+    if (
+      role === "guide" &&
+      cleanQualification !== "MCA" &&
+      cleanQualification !== "PhD"
+    ) {
+
+      Alert.alert(
+        "Invalid Qualification",
+        "Please select a valid qualification."
+      );
+
+      return;
+    }
+
+
+    // ===================================================
+    // STUDENT REGISTER NUMBER
+    // ===================================================
+
+    if (
+      role === "student"
+    ) {
 
       const registerNumberRegex =
         /^FIT25MCA-\d{4}$/;
@@ -146,20 +280,24 @@ export default function RegisterScreen() {
           cleanRegisterNumber
         )
       ) {
+
         Alert.alert(
           "Invalid Register Number",
-          "Register number must follow the format FIT25MCA-0000."
+          
         );
 
         return;
       }
     }
 
+
     // ===================================================
-    // GUIDE EMPLOYEE NUMBER VALIDATION
+    // GUIDE EMPLOYEE NUMBER
     // ===================================================
 
-    if (role === "guide") {
+    if (
+      role === "guide"
+    ) {
 
       const employeeNumberRegex =
         /^EMP\d{3}$/;
@@ -169,6 +307,7 @@ export default function RegisterScreen() {
           cleanEmployeeNumber
         )
       ) {
+
         Alert.alert(
           "Invalid Employee Number",
           "Employee number must follow the format EMP000."
@@ -178,14 +317,20 @@ export default function RegisterScreen() {
       }
     }
 
+
     // ===================================================
-    // EMAIL VALIDATION
+    // EMAIL
     // ===================================================
 
     const emailRegex =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(cleanEmail)) {
+    if (
+      !emailRegex.test(
+        cleanEmail
+      )
+    ) {
+
       Alert.alert(
         "Invalid Email",
         "Please enter a valid email address."
@@ -194,11 +339,15 @@ export default function RegisterScreen() {
       return;
     }
 
+
     // ===================================================
-    // PASSWORD VALIDATION
+    // PASSWORD
     // ===================================================
 
-    if (password.length < 6) {
+    if (
+      password.length < 6
+    ) {
+
       Alert.alert(
         "Weak Password",
         "Password must contain at least 6 characters."
@@ -207,11 +356,15 @@ export default function RegisterScreen() {
       return;
     }
 
+
     // ===================================================
     // CONFIRM PASSWORD
     // ===================================================
 
-    if (password !== confirmPassword) {
+    if (
+      password !== confirmPassword
+    ) {
+
       Alert.alert(
         "Password Mismatch",
         "Passwords do not match."
@@ -220,9 +373,22 @@ export default function RegisterScreen() {
       return;
     }
 
+
+    // ===================================================
+    // START LOADING
+    // =====================================================
+
     setLoading(true);
 
+
+    // =====================================================
+    // AUTH USER REFERENCE
+    // =====================================================
+
     let createdAuthUser: any = null;
+
+    let createdUid: string | null = null;
+
 
     try {
 
@@ -239,6 +405,17 @@ export default function RegisterScreen() {
         "STEP 1: Creating Firebase Auth account..."
       );
 
+      console.log(
+        "DEBUG: Email:",
+        cleanEmail
+      );
+
+      console.log(
+        "DEBUG: Role:",
+        role
+      );
+
+
       const userCredential =
         await createUserWithEmailAndPassword(
           auth,
@@ -246,11 +423,13 @@ export default function RegisterScreen() {
           password
         );
 
+
       createdAuthUser =
         userCredential.user;
 
-      const uid =
+      createdUid =
         createdAuthUser.uid;
+
 
       console.log(
         "STEP 1 SUCCESS: Firebase Auth account created"
@@ -258,28 +437,46 @@ export default function RegisterScreen() {
 
       console.log(
         "USER UID:",
-        uid
+        createdUid
       );
+
 
       // =================================================
       // STEP 2
       // STUDENT REGISTER NUMBER CHECK
       // =================================================
 
-      if (role === "student") {
+      if (
+        role === "student"
+      ) {
+
+        console.log(
+          "===================================="
+        );
 
         console.log(
           "STEP 2: Checking student register number..."
         );
 
+        console.log(
+          "DEBUG: Register Number:",
+          cleanRegisterNumber
+        );
+
+
         const registerQuery =
           query(
-            collection(db, "users"),
+            collection(
+              db,
+              "users"
+            ),
+
             where(
               "registerNumber",
               "==",
               cleanRegisterNumber
             ),
+
             where(
               "role",
               "==",
@@ -287,35 +484,44 @@ export default function RegisterScreen() {
             )
           );
 
+
         const registerSnapshot =
-          await getDocs(registerQuery);
+          await getDocs(
+            registerQuery
+          );
+
 
         console.log(
           "STEP 2 SUCCESS: Register number checked"
         );
 
-        // -------------------------------------------------
-        // EXISTING STUDENT FOUND
-        // -------------------------------------------------
+        console.log(
+          "Documents found:",
+          registerSnapshot.size
+        );
 
-        if (!registerSnapshot.empty) {
+
+        if (
+          !registerSnapshot.empty
+        ) {
 
           const existingStudent =
             registerSnapshot.docs[0].data();
 
+
           const existingStatus =
             existingStudent.status;
+
 
           console.log(
             "Existing student status:",
             existingStatus
           );
 
-          // -----------------------------------------------
-          // APPROVED
-          // -----------------------------------------------
 
-          if (existingStatus === "approved") {
+          if (
+            existingStatus === "approved"
+          ) {
 
             await deleteUser(
               createdAuthUser
@@ -329,11 +535,10 @@ export default function RegisterScreen() {
             return;
           }
 
-          // -----------------------------------------------
-          // PENDING
-          // -----------------------------------------------
 
-          if (existingStatus === "pending") {
+          if (
+            existingStatus === "pending"
+          ) {
 
             await deleteUser(
               createdAuthUser
@@ -347,11 +552,10 @@ export default function RegisterScreen() {
             return;
           }
 
-          // -----------------------------------------------
-          // REJECTED
-          // -----------------------------------------------
 
-          if (existingStatus === "rejected") {
+          if (
+            existingStatus === "rejected"
+          ) {
 
             await deleteUser(
               createdAuthUser
@@ -366,25 +570,35 @@ export default function RegisterScreen() {
           }
         }
 
+
         console.log(
           "Register number is available."
         );
       }
 
+
       // =================================================
-      // STEP 3
-      // GUIDE CHECKS
+      // STEP 2
+      // GUIDE AUTHORIZATION
       // =================================================
 
-      if (role === "guide") {
+      if (
+        role === "guide"
+      ) {
+
+        console.log(
+          "===================================="
+        );
 
         console.log(
           "STEP 2: Checking authorized guide..."
         );
 
-        // -------------------------------------------------
-        // CHECK AUTHORIZED GUIDE
-        // -------------------------------------------------
+        console.log(
+          "DEBUG: Employee Number:",
+          cleanEmployeeNumber
+        );
+
 
         const guideRef =
           doc(
@@ -393,14 +607,31 @@ export default function RegisterScreen() {
             cleanEmployeeNumber
           );
 
-        const guideSnapshot =
-          await getDoc(guideRef);
 
         console.log(
-          "STEP 2 SUCCESS: Authorized guide checked"
+          "DEBUG: Creating authorized guide reference..."
         );
 
-        if (!guideSnapshot.exists()) {
+
+        const guideSnapshot =
+          await getDoc(
+            guideRef
+          );
+
+
+        console.log(
+          "DEBUG: getDoc(guideRef) completed successfully."
+        );
+
+        console.log(
+          "DEBUG: Authorized guide exists:",
+          guideSnapshot.exists()
+        );
+
+
+        if (
+          !guideSnapshot.exists()
+        ) {
 
           await deleteUser(
             createdAuthUser
@@ -414,14 +645,20 @@ export default function RegisterScreen() {
           return;
         }
 
+
         const guideData =
           guideSnapshot.data();
 
-        // -------------------------------------------------
-        // CHECK ACTIVE
-        // -------------------------------------------------
 
-        if (guideData.active !== true) {
+        console.log(
+          "DEBUG: Authorized guide data:",
+          guideData
+        );
+
+
+        if (
+          guideData.active !== true
+        ) {
 
           await deleteUser(
             createdAuthUser
@@ -435,26 +672,55 @@ export default function RegisterScreen() {
           return;
         }
 
+
         console.log(
           "Authorized guide verified."
         );
 
-        // -------------------------------------------------
+
+        // =================================================
+        // STEP 3
         // CHECK EXISTING GUIDE
-        // -------------------------------------------------
+        // =================================================
+
+        console.log(
+          "===================================="
+        );
 
         console.log(
           "STEP 3: Checking existing guide..."
         );
 
+
+        console.log(
+          "DEBUG: Auth UID from created user:",
+          createdUid
+        );
+
+        console.log(
+          "DEBUG: Employee Number:",
+          cleanEmployeeNumber
+        );
+
+        console.log(
+          "DEBUG: Role:",
+          "guide"
+        );
+
+
         const employeeQuery =
           query(
-            collection(db, "users"),
+            collection(
+              db,
+              "users"
+            ),
+
             where(
               "employeeNumber",
               "==",
               cleanEmployeeNumber
             ),
+
             where(
               "role",
               "==",
@@ -462,31 +728,111 @@ export default function RegisterScreen() {
             )
           );
 
-        const employeeSnapshot =
-          await getDocs(employeeQuery);
+
+        console.log(
+          "DEBUG: Users query created successfully."
+        );
+
+        console.log(
+          "DEBUG: About to execute getDocs(employeeQuery)..."
+        );
+
+
+        let employeeSnapshot;
+
+
+        try {
+
+          employeeSnapshot =
+            await getDocs(
+              employeeQuery
+            );
+
+
+          console.log(
+            "DEBUG: getDocs() completed successfully."
+          );
+
+          console.log(
+            "DEBUG: Documents found:",
+            employeeSnapshot.size
+          );
+
+        } catch (queryError: any) {
+
+          console.log(
+            "===================================="
+          );
+
+          console.log(
+            "STEP 3 QUERY FAILED"
+          );
+
+          console.log(
+            "QUERY ERROR CODE:",
+            queryError?.code
+          );
+
+          console.log(
+            "QUERY ERROR MESSAGE:",
+            queryError?.message
+          );
+
+          console.log(
+            "QUERY ERROR FULL:",
+            queryError
+          );
+
+          console.log(
+            "DEBUG CREATED UID:",
+            createdUid
+          );
+
+          console.log(
+            "DEBUG EMPLOYEE NUMBER:",
+            cleanEmployeeNumber
+          );
+
+          console.log(
+            "===================================="
+          );
+
+          throw queryError;
+        }
+
 
         console.log(
           "STEP 3 SUCCESS: Existing guide checked"
         );
 
-        if (!employeeSnapshot.empty) {
+
+        if (
+          !employeeSnapshot.empty
+        ) {
 
           const existingGuide =
             employeeSnapshot.docs[0].data();
 
+
+          console.log(
+            "DEBUG: Existing guide data:",
+            existingGuide
+          );
+
+
           const existingStatus =
             existingGuide.status;
+
 
           console.log(
             "Existing guide status:",
             existingStatus
           );
 
-          // -----------------------------------------------
-          // APPROVED
-          // -----------------------------------------------
 
-          if (existingStatus === "approved") {
+          if (
+            existingStatus === "approved"
+          ) {
 
             await deleteUser(
               createdAuthUser
@@ -500,11 +846,10 @@ export default function RegisterScreen() {
             return;
           }
 
-          // -----------------------------------------------
-          // PENDING
-          // -----------------------------------------------
 
-          if (existingStatus === "pending") {
+          if (
+            existingStatus === "pending"
+          ) {
 
             await deleteUser(
               createdAuthUser
@@ -518,11 +863,10 @@ export default function RegisterScreen() {
             return;
           }
 
-          // -----------------------------------------------
-          // REJECTED
-          // -----------------------------------------------
 
-          if (existingStatus === "rejected") {
+          if (
+            existingStatus === "rejected"
+          ) {
 
             await deleteUser(
               createdAuthUser
@@ -536,104 +880,133 @@ export default function RegisterScreen() {
             return;
           }
         }
+
+
+        console.log(
+          "No existing guide found."
+        );
       }
+
 
       // =================================================
       // STEP 4
-      // CREATE FIRESTORE USER DATA
+      // CREATE FIRESTORE USER PROFILE
       // =================================================
+
+      console.log(
+        "===================================="
+      );
 
       console.log(
         "STEP 4: Preparing Firestore profile..."
       );
 
-      /*
-       * IMPORTANT
-       *
-       * ProjectVerse now uses ONLY:
-       *
-       * status: pending
-       *
-       * There is NO approvalStatus field.
-       */
 
       const userData: any = {
 
-        name: cleanName,
+        name:
+          cleanName,
 
-        email: cleanEmail,
+        email:
+          cleanEmail,
 
-        role: role,
+        phone:
+          cleanPhone,
 
-        status: "pending",
+        role:
+          role,
 
-        createdAt: new Date(),
+        status:
+          "pending",
+
+        class:
+          cleanClass,
+
+        college:
+          cleanCollege,
+
+        createdAt:
+          new Date(),
       };
+
 
       // =================================================
       // STUDENT DATA
       // =================================================
 
-      if (role === "student") {
-
-        userData.class =
-          cleanClass;
+      if (
+        role === "student"
+      ) {
 
         userData.registerNumber =
           cleanRegisterNumber;
       }
 
+
       // =================================================
       // GUIDE DATA
       // =================================================
 
-      if (role === "guide") {
+      if (
+        role === "guide"
+      ) {
 
         userData.employeeNumber =
           cleanEmployeeNumber;
+
+        userData.qualification =
+          cleanQualification;
       }
 
-      console.log(
-        "STEP 5: Creating Firestore profile..."
-      );
 
       console.log(
-        "Role:",
-        userData.role
-      );
-
-      console.log(
-        "Status:",
-        userData.status
-      );
-
-      // =================================================
-      // CREATE USER PROFILE
-      // =================================================
-
-      await setDoc(
-        doc(db, "users", uid),
+        "STEP 4 USER DATA:",
         userData
       );
 
-      console.log(
-        "STEP 5 SUCCESS: Firestore profile created"
-      );
 
       // =================================================
-      // STEP 6
+      // CREATE USERS/{UID}
+      // =================================================
+
+      await setDoc(
+        doc(
+          db,
+          "users",
+          createdUid!
+        ),
+        userData
+      );
+
+
+      console.log(
+        "STEP 4 SUCCESS: Firestore profile created"
+      );
+
+
+      // =================================================
+      // STEP 5
       // SIGN OUT
       // =================================================
 
       console.log(
-        "STEP 6: Signing out newly registered user..."
+        "===================================="
       );
-
-      await signOut(auth);
 
       console.log(
-        "STEP 6 SUCCESS: User signed out"
+        "STEP 5: Signing out newly registered user..."
       );
+
+
+      await signOut(
+        auth
+      );
+
+
+      console.log(
+        "STEP 5 SUCCESS: User signed out"
+      );
+
 
       // =================================================
       // SUCCESS
@@ -641,23 +1014,35 @@ export default function RegisterScreen() {
 
       Alert.alert(
         "Registration Submitted",
+
         role === "student"
           ? "Your student registration has been submitted successfully. Your account is now pending administrator approval. You can login after your account is approved."
-          : "Your guide registration has been submitted successfully. Your account is now pending administrator approval. You can login after your account is approved.",
+          : "Your guide registration has been submitted successfully. Your guide account is now pending administrator approval. You can login after your account is approved.",
+
         [
           {
             text: "Continue",
+
             onPress: () => {
-              router.replace("/login");
+
+              router.replace(
+                "/login"
+              );
+
             },
           },
         ]
       );
 
+
     } catch (error: any) {
 
       console.log(
         "===================================="
+      );
+
+      console.log(
+        "REGISTRATION ERROR"
       );
 
       console.log(
@@ -679,21 +1064,41 @@ export default function RegisterScreen() {
         "===================================="
       );
 
+
       // =================================================
-      // ROLLBACK AUTH ACCOUNT
+      // AUTH ROLLBACK
       // =================================================
 
-      if (createdAuthUser) {
+      if (
+        createdAuthUser
+      ) {
 
         try {
 
-          await deleteUser(
-            createdAuthUser
+          console.log(
+            "DEBUG: Attempting Auth rollback..."
           );
 
-          console.log(
-            "Firebase Auth account rolled back."
-          );
+
+          if (
+            auth.currentUser?.uid ===
+            createdAuthUser.uid
+          ) {
+
+            await deleteUser(
+              createdAuthUser
+            );
+
+            console.log(
+              "Firebase Auth account rolled back."
+            );
+
+          } else {
+
+            console.log(
+              "Auth user is no longer current. Rollback not required."
+            );
+          }
 
         } catch (deleteError) {
 
@@ -703,6 +1108,7 @@ export default function RegisterScreen() {
           );
         }
       }
+
 
       // =================================================
       // FIREBASE AUTH ERRORS
@@ -758,7 +1164,7 @@ export default function RegisterScreen() {
 
         Alert.alert(
           "Permission Error",
-          "Firebase blocked this registration. Please check the Firestore security rules."
+          "Firebase blocked this operation. Please check the Firestore security rules."
         );
 
       } else {
@@ -777,11 +1183,120 @@ export default function RegisterScreen() {
     }
   };
 
+
+  // =====================================================
+  // DROPDOWN COMPONENT
+  // =====================================================
+
+  const Dropdown = ({
+    value,
+    placeholder,
+    icon,
+    options,
+    visible,
+    onOpen,
+    onSelect,
+  }: {
+    value: string;
+    placeholder: string;
+    icon: any;
+    options: string[];
+    visible: boolean;
+    onOpen: () => void;
+    onSelect: (value: string) => void;
+  }) => {
+
+    return (
+      <View>
+
+        <Pressable
+          style={styles.inputContainer}
+          onPress={onOpen}
+          disabled={loading}
+        >
+
+          <Ionicons
+            name={icon}
+            size={19}
+            color="#6B7280"
+            style={styles.inputIcon}
+          />
+
+          <Text
+            style={[
+              styles.dropdownText,
+              !value && styles.dropdownPlaceholder,
+            ]}
+          >
+            {value || placeholder}
+          </Text>
+
+          <Ionicons
+            name={
+              visible
+                ? "chevron-up-outline"
+                : "chevron-down-outline"
+            }
+            size={19}
+            color="#6B7280"
+          />
+
+        </Pressable>
+
+
+        {visible && (
+
+          <View style={styles.dropdownMenu}>
+
+            {options.map((option) => (
+
+              <Pressable
+                key={option}
+                style={styles.dropdownOption}
+                onPress={() =>
+                  onSelect(option)
+                }
+              >
+
+                <Text
+                  style={[
+                    styles.dropdownOptionText,
+                    value === option &&
+                      styles.dropdownOptionSelected,
+                  ]}
+                >
+                  {option}
+                </Text>
+
+                {value === option && (
+
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color="#4338CA"
+                  />
+
+                )}
+
+              </Pressable>
+
+            ))}
+
+          </View>
+
+        )}
+
+      </View>
+    );
+  };
+
+
   // =====================================================
   // UI
   // =====================================================
 
   return (
+
     <View style={styles.container}>
 
       {/* BACK BUTTON */}
@@ -791,6 +1306,7 @@ export default function RegisterScreen() {
         onPress={() => router.back()}
         disabled={loading}
       >
+
         <Ionicons
           name="arrow-back"
           size={20}
@@ -800,12 +1316,16 @@ export default function RegisterScreen() {
         <Text style={styles.backText}>
           Back
         </Text>
+
       </Pressable>
+
 
       {/* SCROLL */}
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={
+          styles.scrollContent
+        }
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -834,6 +1354,7 @@ export default function RegisterScreen() {
 
           </View>
 
+
           {/* HEADING */}
 
           <View style={styles.headingSection}>
@@ -848,6 +1369,7 @@ export default function RegisterScreen() {
             </Text>
 
           </View>
+
 
           {/* FORM CARD */}
 
@@ -885,6 +1407,7 @@ export default function RegisterScreen() {
 
             </View>
 
+
             {/* ROLE */}
 
             <View style={styles.inputGroup}>
@@ -900,6 +1423,7 @@ export default function RegisterScreen() {
                 <Pressable
                   style={[
                     styles.roleOption,
+
                     role === "student" &&
                       styles.roleOptionSelected,
                   ]}
@@ -922,6 +1446,7 @@ export default function RegisterScreen() {
                   <Text
                     style={[
                       styles.roleText,
+
                       role === "student" &&
                         styles.roleTextSelected,
                     ]}
@@ -930,20 +1455,24 @@ export default function RegisterScreen() {
                   </Text>
 
                   {role === "student" && (
+
                     <Ionicons
                       name="checkmark-circle"
                       size={19}
                       color="#4338CA"
                     />
+
                   )}
 
                 </Pressable>
+
 
                 {/* GUIDE */}
 
                 <Pressable
                   style={[
                     styles.roleOption,
+
                     role === "guide" &&
                       styles.roleOptionSelected,
                   ]}
@@ -966,6 +1495,7 @@ export default function RegisterScreen() {
                   <Text
                     style={[
                       styles.roleText,
+
                       role === "guide" &&
                         styles.roleTextSelected,
                     ]}
@@ -974,11 +1504,13 @@ export default function RegisterScreen() {
                   </Text>
 
                   {role === "guide" && (
+
                     <Ionicons
                       name="checkmark-circle"
                       size={19}
                       color="#4338CA"
                     />
+
                   )}
 
                 </Pressable>
@@ -987,9 +1519,11 @@ export default function RegisterScreen() {
 
             </View>
 
+
             {/* STUDENT REGISTER NUMBER */}
 
             {role === "student" && (
+
               <View style={styles.inputGroup}>
 
                 <Text style={styles.inputLabel}>
@@ -1007,7 +1541,7 @@ export default function RegisterScreen() {
 
                   <TextInput
                     style={styles.input}
-                    placeholder="FIT25MCA-2041"
+                    placeholder="Enter Student Register Number"
                     placeholderTextColor="#9CA3AF"
                     value={registerNumber}
                     onChangeText={(text) =>
@@ -1023,11 +1557,14 @@ export default function RegisterScreen() {
                 </View>
 
               </View>
+
             )}
+
 
             {/* GUIDE EMPLOYEE NUMBER */}
 
             {role === "guide" && (
+
               <View style={styles.inputGroup}>
 
                 <Text style={styles.inputLabel}>
@@ -1045,7 +1582,7 @@ export default function RegisterScreen() {
 
                   <TextInput
                     style={styles.input}
-                    placeholder="EMP001"
+                    placeholder="Enter Guide Register Number"
                     placeholderTextColor="#9CA3AF"
                     value={employeeNumber}
                     onChangeText={(text) =>
@@ -1061,41 +1598,156 @@ export default function RegisterScreen() {
                 </View>
 
               </View>
+
             )}
+
+
+            {/* PHONE NUMBER */}
+
+            <View style={styles.inputGroup}>
+
+              <Text style={styles.inputLabel}>
+                Phone Number
+              </Text>
+
+              <View style={styles.inputContainer}>
+
+                <Ionicons
+                  name="call-outline"
+                  size={19}
+                  color="#6B7280"
+                  style={styles.inputIcon}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#9CA3AF"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  editable={!loading}
+                />
+
+              </View>
+
+            </View>
+
 
             {/* CLASS */}
 
-            {role === "student" && (
+            <View style={styles.inputGroup}>
+
+              <Text style={styles.inputLabel}>
+                Program
+              </Text>
+
+              <Dropdown
+                value={studentClass}
+                placeholder="Select Program"
+                icon="school-outline"
+                options={["MCA"]}
+                visible={showClassDropdown}
+                onOpen={() => {
+
+                  setShowClassDropdown(
+                    !showClassDropdown
+                  );
+
+                  setShowCollegeDropdown(false);
+                  setShowQualificationDropdown(false);
+
+                }}
+                onSelect={(value) => {
+
+                  setStudentClass(value);
+                  setShowClassDropdown(false);
+
+                }}
+              />
+
+            </View>
+
+
+            {/* COLLEGE */}
+
+            <View style={styles.inputGroup}>
+
+              <Text style={styles.inputLabel}>
+                College
+              </Text>
+
+              <Dropdown
+                value={college}
+                placeholder="Select college"
+                icon="business-outline"
+                options={["FISAT"]}
+                visible={showCollegeDropdown}
+                onOpen={() => {
+
+                  setShowCollegeDropdown(
+                    !showCollegeDropdown
+                  );
+
+                  setShowClassDropdown(false);
+                  setShowQualificationDropdown(false);
+
+                }}
+                onSelect={(value) => {
+
+                  setCollege(value);
+                  setShowCollegeDropdown(false);
+
+                }}
+              />
+
+            </View>
+
+
+            {/* GUIDE QUALIFICATION */}
+
+            {role === "guide" && (
+
               <View style={styles.inputGroup}>
 
                 <Text style={styles.inputLabel}>
-                  Class
+                  Qualification
                 </Text>
 
-                <View style={styles.inputContainer}>
+                <Dropdown
+                  value={qualification}
+                  placeholder="Select qualification"
+                  icon="ribbon-outline"
+                  options={[
+                    "MCA",
+                    "PhD",
+                  ]}
+                  visible={
+                    showQualificationDropdown
+                  }
+                  onOpen={() => {
 
-                  <Ionicons
-                    name="school-outline"
-                    size={19}
-                    color="#6B7280"
-                    style={styles.inputIcon}
-                  />
+                    setShowQualificationDropdown(
+                      !showQualificationDropdown
+                    );
 
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter your class"
-                    placeholderTextColor="#9CA3AF"
-                    value={studentClass}
-                    onChangeText={setStudentClass}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    editable={!loading}
-                  />
+                    setShowClassDropdown(false);
+                    setShowCollegeDropdown(false);
 
-                </View>
+                  }}
+                  onSelect={(value) => {
+
+                    setQualification(value);
+                    setShowQualificationDropdown(false);
+
+                  }}
+                />
 
               </View>
+
             )}
+
 
             {/* EMAIL */}
 
@@ -1129,6 +1781,7 @@ export default function RegisterScreen() {
               </View>
 
             </View>
+
 
             {/* PASSWORD */}
 
@@ -1184,6 +1837,7 @@ export default function RegisterScreen() {
               </View>
 
             </View>
+
 
             {/* CONFIRM PASSWORD */}
 
@@ -1242,6 +1896,7 @@ export default function RegisterScreen() {
 
             </View>
 
+
             {/* REGISTER BUTTON */}
 
             <Pressable
@@ -1260,7 +1915,9 @@ export default function RegisterScreen() {
             >
 
               {loading ? (
+
                 <>
+
                   <ActivityIndicator
                     size="small"
                     color="#FFFFFF"
@@ -1269,9 +1926,13 @@ export default function RegisterScreen() {
                   <Text style={styles.buttonText}>
                     Creating Account...
                   </Text>
+
                 </>
+
               ) : (
+
                 <>
+
                   <Ionicons
                     name="person-add-outline"
                     size={20}
@@ -1287,12 +1948,15 @@ export default function RegisterScreen() {
                     size={18}
                     color="#FFFFFF"
                   />
+
                 </>
+
               )}
 
             </Pressable>
 
           </View>
+
 
           {/* LOGIN */}
 
@@ -1325,9 +1989,10 @@ export default function RegisterScreen() {
   );
 }
 
-// ========================================================
+
+// =====================================================
 // STYLES
-// ========================================================
+// =====================================================
 
 const styles = StyleSheet.create({
 
@@ -1338,8 +2003,10 @@ const styles = StyleSheet.create({
 
   backButton: {
     position: "absolute",
+
     top: 55,
     left: 22,
+
     zIndex: 10,
 
     flexDirection: "row",
@@ -1351,75 +2018,100 @@ const styles = StyleSheet.create({
 
   backText: {
     marginLeft: 6,
+
     color: "#4338CA",
+
     fontSize: 13,
+
     fontWeight: "600",
   },
 
   scrollContent: {
     flexGrow: 1,
+
     justifyContent: "center",
   },
 
   content: {
     width: "100%",
+
     paddingHorizontal: 24,
+
     paddingTop: 85,
+
     paddingBottom: 30,
   },
 
   brandSection: {
     alignItems: "center",
+
     marginBottom: 18,
   },
 
   logo: {
     width: 68,
     height: 68,
+
     marginBottom: 8,
   },
 
   appName: {
     fontSize: 25,
+
     fontWeight: "800",
+
     color: "#4338CA",
+
     letterSpacing: -0.5,
   },
 
   tagline: {
     marginTop: 4,
+
     fontSize: 11,
+
     color: "#6B7280",
+
     fontWeight: "500",
   },
 
   headingSection: {
     alignItems: "center",
+
     marginBottom: 18,
   },
 
   title: {
     fontSize: 25,
+
     fontWeight: "700",
+
     color: "#1F2937",
+
     marginBottom: 6,
   },
 
   subtitle: {
     fontSize: 12,
+
     color: "#6B7280",
+
     textAlign: "center",
+
     paddingHorizontal: 15,
   },
 
   formCard: {
     width: "100%",
+
     backgroundColor: "#FFFFFF",
 
     borderRadius: 20,
+
     padding: 19,
 
     borderWidth: 1,
+
     borderColor: "#E0E4EC",
 
     shadowColor: "#1F2937",
@@ -1430,6 +2122,7 @@ const styles = StyleSheet.create({
     },
 
     shadowOpacity: 0.06,
+
     shadowRadius: 10,
 
     elevation: 3,
@@ -1441,8 +2134,11 @@ const styles = StyleSheet.create({
 
   inputLabel: {
     fontSize: 12,
+
     fontWeight: "700",
+
     color: "#374151",
+
     marginBottom: 7,
   },
 
@@ -1450,11 +2146,13 @@ const styles = StyleSheet.create({
     minHeight: 50,
 
     flexDirection: "row",
+
     alignItems: "center",
 
     backgroundColor: "#F8F9FB",
 
     borderWidth: 1,
+
     borderColor: "#DDE2EA",
 
     borderRadius: 12,
@@ -1468,19 +2166,23 @@ const styles = StyleSheet.create({
 
   input: {
     flex: 1,
+
     minHeight: 48,
 
     color: "#1F2937",
+
     fontSize: 14,
   },
 
   passwordToggle: {
     padding: 5,
+
     marginLeft: 5,
   },
 
   roleContainer: {
     flexDirection: "row",
+
     gap: 10,
   },
 
@@ -1490,11 +2192,13 @@ const styles = StyleSheet.create({
     minHeight: 50,
 
     flexDirection: "row",
+
     alignItems: "center",
 
     backgroundColor: "#F8F9FB",
 
     borderWidth: 1,
+
     borderColor: "#DDE2EA",
 
     borderRadius: 12,
@@ -1504,6 +2208,7 @@ const styles = StyleSheet.create({
 
   roleOptionSelected: {
     backgroundColor: "#F0F1FF",
+
     borderColor: "#4338CA",
   },
 
@@ -1513,6 +2218,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
 
     fontSize: 13,
+
     fontWeight: "600",
 
     color: "#6B7280",
@@ -1522,8 +2228,82 @@ const styles = StyleSheet.create({
     color: "#4338CA",
   },
 
+  dropdownText: {
+    flex: 1,
+
+    fontSize: 14,
+
+    color: "#1F2937",
+
+    fontWeight: "500",
+  },
+
+  dropdownPlaceholder: {
+    color: "#9CA3AF",
+
+    fontWeight: "400",
+  },
+
+  dropdownMenu: {
+    marginTop: 6,
+
+    backgroundColor: "#FFFFFF",
+
+    borderWidth: 1,
+
+    borderColor: "#DDE2EA",
+
+    borderRadius: 12,
+
+    overflow: "hidden",
+
+    elevation: 4,
+
+    shadowColor: "#1F2937",
+
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+
+    shadowOpacity: 0.08,
+
+    shadowRadius: 7,
+  },
+
+  dropdownOption: {
+    minHeight: 48,
+
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    justifyContent: "space-between",
+
+    paddingHorizontal: 15,
+
+    borderBottomWidth: 1,
+
+    borderBottomColor: "#F0F1F4",
+  },
+
+  dropdownOptionText: {
+    fontSize: 14,
+
+    color: "#374151",
+
+    fontWeight: "500",
+  },
+
+  dropdownOptionSelected: {
+    color: "#4338CA",
+
+    fontWeight: "700",
+  },
+
   registerButton: {
     minHeight: 52,
+
     width: "100%",
 
     backgroundColor: "#4338CA",
@@ -1533,7 +2313,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
 
     flexDirection: "row",
+
     alignItems: "center",
+
     justifyContent: "center",
 
     marginTop: 3,
@@ -1546,6 +2328,7 @@ const styles = StyleSheet.create({
     },
 
     shadowOpacity: 0.16,
+
     shadowRadius: 7,
 
     elevation: 3,
@@ -1557,8 +2340,11 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: "#FFFFFF",
+
     fontSize: 14,
+
     fontWeight: "700",
+
     marginHorizontal: 9,
   },
 
@@ -1574,7 +2360,9 @@ const styles = StyleSheet.create({
 
   loginSection: {
     flexDirection: "row",
+
     alignItems: "center",
+
     justifyContent: "center",
 
     marginTop: 19,
@@ -1582,13 +2370,18 @@ const styles = StyleSheet.create({
 
   loginPrompt: {
     color: "#6B7280",
+
     fontSize: 12,
   },
 
   loginLink: {
     color: "#4338CA",
+
     fontSize: 12,
+
     fontWeight: "700",
+
     marginLeft: 5,
   },
+
 });

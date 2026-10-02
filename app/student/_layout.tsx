@@ -2,14 +2,7 @@ import { Drawer } from "expo-router/drawer";
 import { router, usePathname } from "expo-router";
 import { signOut } from "firebase/auth";
 
-import {
-  Alert,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   DrawerContentScrollView,
@@ -37,16 +30,12 @@ function CustomDrawerContent(props: any) {
     } catch (error) {
       console.log("Logout error:", error);
 
-      Alert.alert(
-        "Logout Failed",
-        "Something went wrong while logging out."
-      );
+      Alert.alert("Logout Failed", "Something went wrong while logging out.");
     }
   };
 
   return (
     <View style={styles.drawerContainer}>
-
       {/* =================================================
           DRAWER CONTENT
       ================================================= */}
@@ -55,15 +44,12 @@ function CustomDrawerContent(props: any) {
         {...props}
         contentContainerStyle={styles.drawerContent}
       >
-
         {/* =================================================
             DRAWER HEADER
         ================================================= */}
 
         <View style={styles.drawerHeader}>
-
           <View style={styles.logoContainer}>
-
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.logo}
@@ -71,19 +57,11 @@ function CustomDrawerContent(props: any) {
             />
 
             <View>
+              <Text style={styles.appName}>ProjectVerse</Text>
 
-              <Text style={styles.appName}>
-                ProjectVerse
-              </Text>
-
-              <Text style={styles.role}>
-                Student Portal
-              </Text>
-
+              <Text style={styles.role}>Student Portal</Text>
             </View>
-
           </View>
-
         </View>
 
         {/* =================================================
@@ -91,7 +69,6 @@ function CustomDrawerContent(props: any) {
         ================================================= */}
 
         <DrawerItemList {...props} />
-
       </DrawerContentScrollView>
 
       {/* =================================================
@@ -99,26 +76,12 @@ function CustomDrawerContent(props: any) {
       ================================================= */}
 
       <View style={styles.logoutContainer}>
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={21} color="#DC2626" />
 
-        <Pressable
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
-
-          <Ionicons
-            name="log-out-outline"
-            size={21}
-            color="#DC2626"
-          />
-
-          <Text style={styles.logoutText}>
-            Logout
-          </Text>
-
+          <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
-
       </View>
-
     </View>
   );
 }
@@ -128,10 +91,8 @@ function CustomDrawerContent(props: any) {
 // =====================================================
 
 export default function StudentLayout() {
-
   return (
     <Drawer
-
       // =================================================
       // IMPORTANT
       //
@@ -156,13 +117,8 @@ export default function StudentLayout() {
       // =================================================
 
       backBehavior="firstRoute"
-
-      drawerContent={(props) => (
-        <CustomDrawerContent {...props} />
-      )}
-
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
-
         // =================================================
         // HEADER
         // =================================================
@@ -211,7 +167,6 @@ export default function StudentLayout() {
         headerTintColor: "#4338CA",
       }}
     >
-
       {/* =================================================
           HOME
       ================================================= */}
@@ -223,15 +178,8 @@ export default function StudentLayout() {
 
           title: "ProjectVerse",
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="home-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
@@ -247,15 +195,8 @@ export default function StudentLayout() {
 
           title: "My Projects",
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="folder-open-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="folder-open-outline" size={size} color={color} />
           ),
         }}
       />
@@ -271,15 +212,8 @@ export default function StudentLayout() {
 
           title: "Upload Project",
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="cloud-upload-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="cloud-upload-outline" size={size} color={color} />
           ),
         }}
       />
@@ -295,15 +229,8 @@ export default function StudentLayout() {
 
           title: "Explore Projects",
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="compass-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="compass-outline" size={size} color={color} />
           ),
         }}
       />
@@ -319,15 +246,8 @@ export default function StudentLayout() {
 
           title: "Similarity Analysis",
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="analytics-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="analytics-outline" size={size} color={color} />
           ),
         }}
       />
@@ -343,15 +263,8 @@ export default function StudentLayout() {
 
           title: "Profile",
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="person-circle-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
         }}
       />
@@ -373,15 +286,8 @@ export default function StudentLayout() {
 
           headerShown: false,
 
-          drawerIcon: ({
-            color,
-            size,
-          }) => (
-            <Ionicons
-              name="chatbubble-outline"
-              size={size}
-              color={color}
-            />
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-outline" size={size} color={color} />
           ),
         }}
       />
@@ -427,11 +333,10 @@ export default function StudentLayout() {
           drawerItemStyle: {
             display: "none",
           },
-
           headerShown: true,
+          title: "Similarity Results",
         }}
       />
-
     </Drawer>
   );
 }
@@ -441,7 +346,6 @@ export default function StudentLayout() {
 // =====================================================
 
 const styles = StyleSheet.create({
-
   // =====================================================
   // DRAWER CONTAINER
   // =====================================================
@@ -567,5 +471,4 @@ const styles = StyleSheet.create({
 
     marginLeft: 12,
   },
-
 });

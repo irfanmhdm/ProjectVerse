@@ -12,7 +12,10 @@ import {
 
 import { StatusBar } from "expo-status-bar";
 
-import { useEffect } from "react";
+import {
+  useEffect,
+  useRef,
+} from "react";
 
 import {
   BackHandler,
@@ -54,42 +57,40 @@ export default function RootLayout() {
 
 
   // =====================================================
-  // ANDROID BACK HANDLING
+  // KEEP CURRENT PATHNAME IN REF
   // =====================================================
   //
-  // REQUIRED BEHAVIOR:
+  // IMPORTANT:
   //
-  // Guide Home
-  //      ↓ Android back
-  // Android closes app
+  // We do NOT put pathname in the Firebase auth
+  // useEffect dependency array.
   //
-  // Guide Students
-  //      ↓ Android back
-  // Guide Home
+  // Instead, this ref always contains the latest route.
   //
-  // Guide Projects
-  //      ↓ Android back
-  // Guide Home
-  //
-  // Guide Chat
-  //      ↓ Android back
-  // Guide Home
-  //
-  // Guide Profile
-  //      ↓ Android back
-  // Guide Home
-  //
-  // Project Details / Revise:
-  //      DO NOT TOUCH
-  //
-  // Chat Conversation:
-  //      DO NOT TOUCH
-  //
+  // =====================================================
+
+  const pathnameRef =
+    useRef(pathname);
+
+  useEffect(() => {
+
+    pathnameRef.current =
+      pathname;
+
+  }, [
+    pathname,
+  ]);
+
+
+  // =====================================================
+  // ANDROID BACK HANDLING
   // =====================================================
 
   useEffect(() => {
 
-    if (typeof pathname !== "string") {
+    if (
+      typeof pathname !== "string"
+    ) {
       return;
     }
 
@@ -106,21 +107,7 @@ export default function RootLayout() {
 
 
           // =================================================
-          // PROJECT DETAILS / REVISE
-          // =================================================
-          //
-          // VERY IMPORTANT:
-          //
-          // Do not interfere with:
-          //
-          // Project
-          //    ↓
-          // Project Details
-          //    ↓
-          // Revise
-          //
-          // Those screens manage their own navigation.
-          //
+          // PROJECT DETAILS
           // =================================================
 
           if (
@@ -140,17 +127,6 @@ export default function RootLayout() {
           // =================================================
           // GUIDE CHAT CONVERSATION
           // =================================================
-          //
-          // Example:
-          //
-          // /guide/chat/ABC123
-          //
-          // The conversation screen has its own
-          // custom back button/header.
-          //
-          // Do not interfere with it.
-          //
-          // =================================================
 
           if (
             pathname.startsWith(
@@ -169,23 +145,6 @@ export default function RootLayout() {
           // =================================================
           // GUIDE HOME
           // =================================================
-          //
-          // IMPORTANT:
-          //
-          // Returning FALSE here allows Android itself
-          // to handle the back action.
-          //
-          // On a physical Android phone this means:
-          //
-          // Guide Home
-          //      ↓
-          // Android Back
-          //      ↓
-          // App closes
-          //
-          // Firebase logout DOES NOT happen.
-          //
-          // =================================================
 
           if (
             pathname === "/guide"
@@ -200,13 +159,7 @@ export default function RootLayout() {
 
 
           // =================================================
-          // GUIDE MAIN DRAWER PAGES
-          // =================================================
-          //
-          // These pages should always return to
-          // Guide Home instead of going through
-          // navigation history.
-          //
+          // GUIDE MAIN PAGES
           // =================================================
 
           if (
@@ -218,7 +171,7 @@ export default function RootLayout() {
           ) {
 
             console.log(
-              "Guide main drawer page - returning to Guide Home"
+              "Guide main page - returning to Guide Home"
             );
 
             router.replace(
@@ -231,10 +184,6 @@ export default function RootLayout() {
 
           // =================================================
           // STUDENT HOME
-          // =================================================
-          //
-          // Student Home → Back → Android closes app
-          //
           // =================================================
 
           if (
@@ -250,14 +199,7 @@ export default function RootLayout() {
 
 
           // =================================================
-          // STUDENT MAIN DRAWER PAGES
-          // =================================================
-          //
-          // Any normal Student drawer page goes back
-          // to Student Home.
-          //
-          // Project Details was already excluded above.
-          //
+          // STUDENT PAGES
           // =================================================
 
           if (
@@ -281,10 +223,6 @@ export default function RootLayout() {
           // =================================================
           // ADMIN HOME
           // =================================================
-          //
-          // Admin Home → Back → Android closes app
-          //
-          // =================================================
 
           if (
             pathname === "/admin" ||
@@ -300,39 +238,28 @@ export default function RootLayout() {
 
 
           // =================================================
-          // ADMIN MAIN DRAWER PAGES
+          // ADMIN PAGES
           // =================================================
           //
-          // Normal Admin pages return to Admin Home.
+          // IMPORTANT:
+          //
+          // There is NO admin route replacement here.
+          //
+          // Therefore:
+          //
+          // /admin/approved-students
+          // /admin/approved-guides
+          // /admin/student-approval
+          //
+          // will remain on their current page.
+          //
+          // Android back will use normal navigation.
           //
           // =================================================
-
-          if (
-            pathname.startsWith(
-              "/admin/"
-            )
-          ) {
-
-            console.log(
-              "Admin page - returning to Admin Home"
-            );
-
-            router.replace(
-              "/admin"
-            );
-
-            return true;
-          }
 
 
           // =================================================
           // OTHER PAGES
-          // =================================================
-          //
-          // Login, Register, etc.
-          //
-          // Let React Navigation / Android handle them.
-          //
           // =================================================
 
           console.log(
@@ -360,35 +287,66 @@ export default function RootLayout() {
 
 
   // =====================================================
-  // SESSION RESTORATION
+  // FIREBASE SESSION RESTORATION
+  // =====================================================
+  //
+  // VERY IMPORTANT:
+  //
+  // DO NOT PUT pathname IN THIS DEPENDENCY ARRAY.
+  //
+  // This listener should exist only ONCE.
+  //
+  // Otherwise every route change causes:
+  //
+  // onAuthStateChanged()
+  //       ↓
+  // get user
+  //       ↓
+  // router.replace("/admin")
+  //
   // =====================================================
 
   useEffect(() => {
+
+    console.log(
+      "===================================="
+    );
+
+    console.log(
+      "CREATING FIREBASE AUTH LISTENER"
+    );
+
+    console.log(
+      "Initial pathname:",
+      pathnameRef.current
+    );
+
+    console.log(
+      "===================================="
+    );
+
 
     const unsubscribe =
       onAuthStateChanged(
         auth,
         async (user) => {
 
+          console.log(
+            "===================================="
+          );
 
-          // =================================================
-          // REGISTER PAGE
-          // =================================================
+          console.log(
+            "AUTH STATE CHANGED"
+          );
 
-          if (
-            pathname === "/register"
-          ) {
-
-            console.log(
-              "Register page active - skipping session restoration"
-            );
-
-            return;
-          }
+          console.log(
+            "CURRENT PATH:",
+            pathnameRef.current
+          );
 
 
           // =================================================
-          // NO LOGGED-IN USER
+          // NO USER
           // =================================================
 
           if (!user) {
@@ -397,12 +355,16 @@ export default function RootLayout() {
               "No saved session"
             );
 
+            console.log(
+              "===================================="
+            );
+
             return;
           }
 
 
           // =================================================
-          // SESSION RESTORED
+          // USER EXISTS
           // =================================================
 
           console.log(
@@ -420,11 +382,48 @@ export default function RootLayout() {
           );
 
 
+          // =================================================
+          // REGISTRATION PROTECTION
+          // =================================================
+          //
+          // During registration:
+          //
+          // createUserWithEmailAndPassword()
+          //        ↓
+          // Auth state changes
+          //
+          // But users/{uid} may not exist yet.
+          //
+          // Therefore NEVER perform session restoration
+          // while the register screen is active.
+          //
+          // =================================================
+
+          if (
+            pathnameRef.current === "/register"
+          ) {
+
+            console.log(
+              "REGISTER PAGE ACTIVE"
+            );
+
+            console.log(
+              "Skipping session restoration."
+            );
+
+            console.log(
+              "===================================="
+            );
+
+            return;
+          }
+
+
           try {
 
-            // ===============================================
+            // =================================================
             // GET USER PROFILE
-            // ===============================================
+            // =================================================
 
             const userRef =
               doc(
@@ -433,15 +432,41 @@ export default function RootLayout() {
                 user.uid
               );
 
+
+            console.log(
+              "Loading user profile..."
+            );
+
+
             const userDoc =
               await getDoc(
                 userRef
               );
 
 
-            // ===============================================
+            // =================================================
+            // CHECK REGISTER AGAIN
+            // =================================================
+
+            if (
+              pathnameRef.current === "/register"
+            ) {
+
+              console.log(
+                "Route is now register."
+              );
+
+              console.log(
+                "Stopping session restoration."
+              );
+
+              return;
+            }
+
+
+            // =================================================
             // PROFILE NOT FOUND
-            // ===============================================
+            // =================================================
 
             if (
               !userDoc.exists()
@@ -463,6 +488,10 @@ export default function RootLayout() {
             }
 
 
+            // =================================================
+            // USER DATA
+            // =================================================
+
             const userData =
               userDoc.data();
 
@@ -479,6 +508,18 @@ export default function RootLayout() {
 
 
             // =================================================
+            // IMPORTANT ROUTE CHECK
+            // =================================================
+            //
+            // If the user is ALREADY inside an authenticated
+            // section, do NOT redirect them.
+            //
+            // This is the main fix for your Admin problem.
+            //
+            // =================================================
+
+
+            // =================================================
             // ADMIN
             // =================================================
 
@@ -487,16 +528,52 @@ export default function RootLayout() {
             ) {
 
               console.log(
-                "Admin session restored"
+                "Admin session verified."
               );
 
-              console.log(
-                "Admin login successful"
-              );
 
-              router.replace(
-                "/admin"
-              );
+              // ---------------------------------------------
+              // ONLY REDIRECT TO ADMIN HOME IF USER IS
+              // CURRENTLY ON AN AUTHENTICATION / ROOT PAGE.
+              // ---------------------------------------------
+
+              const currentPath =
+                pathnameRef.current;
+
+
+              const isAuthPage =
+                currentPath === "/" ||
+                currentPath === "/login";
+
+
+              if (
+                isAuthPage
+              ) {
+
+                console.log(
+                  "Admin is on auth/root page."
+                );
+
+                console.log(
+                  "Redirecting to Admin Dashboard."
+                );
+
+                router.replace(
+                  "/admin"
+                );
+
+              } else {
+
+                console.log(
+                  "Admin is already inside application."
+                );
+
+                console.log(
+                  "Keeping current route:",
+                  currentPath
+                );
+
+              }
 
               return;
             }
@@ -519,17 +596,43 @@ export default function RootLayout() {
                 userData.status === "approved"
               ) {
 
-                console.log(
-                  "Approved student session restored"
-                );
+                const currentPath =
+                  pathnameRef.current;
 
-                console.log(
-                  "Redirecting to Student Dashboard"
-                );
 
-                router.replace(
-                  "/student"
-                );
+                const isAuthPage =
+                  currentPath === "/" ||
+                  currentPath === "/login";
+
+
+                if (
+                  isAuthPage
+                ) {
+
+                  console.log(
+                    "Approved student."
+                  );
+
+                  console.log(
+                    "Redirecting to Student Dashboard."
+                  );
+
+                  router.replace(
+                    "/student"
+                  );
+
+                } else {
+
+                  console.log(
+                    "Student already inside application."
+                  );
+
+                  console.log(
+                    "Keeping current route:",
+                    currentPath
+                  );
+
+                }
 
                 return;
               }
@@ -544,11 +647,7 @@ export default function RootLayout() {
               ) {
 
                 console.log(
-                  "Student account is pending approval"
-                );
-
-                console.log(
-                  "Student session blocked"
+                  "Student account is pending approval."
                 );
 
                 await signOut(
@@ -572,11 +671,7 @@ export default function RootLayout() {
               ) {
 
                 console.log(
-                  "Student registration was rejected"
-                );
-
-                console.log(
-                  "Student session blocked"
+                  "Student registration was rejected."
                 );
 
                 await signOut(
@@ -629,17 +724,43 @@ export default function RootLayout() {
                 userData.status === "approved"
               ) {
 
-                console.log(
-                  "Approved guide session restored"
-                );
+                const currentPath =
+                  pathnameRef.current;
 
-                console.log(
-                  "Redirecting to Guide Dashboard"
-                );
 
-                router.replace(
-                  "/guide"
-                );
+                const isAuthPage =
+                  currentPath === "/" ||
+                  currentPath === "/login";
+
+
+                if (
+                  isAuthPage
+                ) {
+
+                  console.log(
+                    "Approved guide."
+                  );
+
+                  console.log(
+                    "Redirecting to Guide Dashboard."
+                  );
+
+                  router.replace(
+                    "/guide"
+                  );
+
+                } else {
+
+                  console.log(
+                    "Guide already inside application."
+                  );
+
+                  console.log(
+                    "Keeping current route:",
+                    currentPath
+                  );
+
+                }
 
                 return;
               }
@@ -654,11 +775,7 @@ export default function RootLayout() {
               ) {
 
                 console.log(
-                  "Guide account is pending approval"
-                );
-
-                console.log(
-                  "Guide session blocked"
+                  "Guide account is pending approval."
                 );
 
                 await signOut(
@@ -682,11 +799,7 @@ export default function RootLayout() {
               ) {
 
                 console.log(
-                  "Guide registration was rejected"
-                );
-
-                console.log(
-                  "Guide session blocked"
+                  "Guide registration was rejected."
                 );
 
                 await signOut(
@@ -739,12 +852,38 @@ export default function RootLayout() {
               "/login"
             );
 
-          } catch (error) {
+          } catch (error: any) {
 
             console.log(
-              "Error loading user profile:",
-              error
+              "===================================="
             );
+
+            console.log(
+              "ERROR LOADING USER PROFILE"
+            );
+
+            console.log(
+              "ERROR CODE:",
+              error?.code
+            );
+
+            console.log(
+              "ERROR MESSAGE:",
+              error?.message
+            );
+
+            console.log(
+              "===================================="
+            );
+
+            // IMPORTANT:
+            //
+            // Do NOT automatically navigate to /admin
+            // or /login here.
+            //
+            // If Firestore is temporarily offline,
+            // keep the current screen instead of
+            // unexpectedly navigating away.
 
           }
 
@@ -756,7 +895,15 @@ export default function RootLayout() {
     // CLEANUP
     // =====================================================
 
-    return unsubscribe;
+    return () => {
+
+      console.log(
+        "Firebase Auth listener removed."
+      );
+
+      unsubscribe();
+
+    };
 
   }, []);
 
@@ -821,10 +968,6 @@ export default function RootLayout() {
           name="student"
           options={{
             headerShown: false,
-
-            // Android hardware back is handled
-            // by BackHandler above.
-
             gestureEnabled: false,
           }}
         />
@@ -838,10 +981,6 @@ export default function RootLayout() {
           name="guide"
           options={{
             headerShown: false,
-
-            // Android hardware back is handled
-            // by BackHandler above.
-
             gestureEnabled: false,
           }}
         />
@@ -854,7 +993,6 @@ export default function RootLayout() {
         <Stack.Screen
           name="admin/index"
           options={{
-
             headerShown: true,
 
             title: "Admin",
@@ -864,26 +1002,21 @@ export default function RootLayout() {
             gestureEnabled: false,
 
             headerStyle: {
-              backgroundColor:
-                "#FFFFFF",
+              backgroundColor: "#FFFFFF",
             },
 
             headerTintColor:
               "#111827",
 
             headerTitleStyle: {
-              color:
-                "#111827",
+              color: "#111827",
 
-              fontWeight:
-                "700",
+              fontWeight: "700",
 
-              fontSize:
-                24,
+              fontSize: 24,
             },
 
-            headerShadowVisible:
-              false,
+            headerShadowVisible: false,
           }}
         />
 
@@ -896,7 +1029,6 @@ export default function RootLayout() {
           name="modal"
           options={{
             presentation: "modal",
-
             title: "Modal",
           }}
         />
