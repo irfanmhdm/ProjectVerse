@@ -104,7 +104,7 @@ export default function ApprovedStudents() {
           />
         }
       >
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <View style={styles.iconBox}>
             <Ionicons
               name="people-outline"
@@ -114,16 +114,16 @@ export default function ApprovedStudents() {
           </View>
 
           <View>
-            <Text style={styles.title}>
+            {/* <Text style={styles.title}>
               Approved Students
-            </Text>
+            </Text> *
 
             <Text style={styles.subtitle}>
               {students.length} approved student
               {students.length !== 1 ? "s" : ""}
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {students.length === 0 ? (
           <View style={styles.emptyCard}>

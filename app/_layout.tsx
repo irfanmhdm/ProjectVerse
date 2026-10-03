@@ -619,38 +619,15 @@ export default function RootLayout() {
         />
 
         {/* =================================================
-            ADMIN
-        ================================================= */}
+                     ADMIN
+          ================================================= */}
 
         <Stack.Screen
-          name="admin/index"
+          name="admin"
           options={{
-            headerShown: true,
-
-            title: "Admin",
-
-            headerBackVisible: false,
-
-            gestureEnabled: false,
-
-            headerStyle: {
-              backgroundColor: "#FFFFFF",
-            },
-
-            headerTintColor: "#111827",
-
-            headerTitleStyle: {
-              color: "#111827",
-
-              fontWeight: "700",
-
-              fontSize: 24,
-            },
-
-            headerShadowVisible: false,
+            headerShown: false,
           }}
         />
-
         {/* =================================================
             MODAL
         ================================================= */}

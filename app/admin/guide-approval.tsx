@@ -273,7 +273,7 @@ export default function GuideApproval() {
         {/* =================================================
             HEADER
         ================================================= */}
-
+{/* 
         <View style={styles.header}>
           <View style={styles.iconBox}>
             <Ionicons
@@ -292,7 +292,7 @@ export default function GuideApproval() {
               Review guide registration requests
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {/* =================================================
             COUNT

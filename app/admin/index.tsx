@@ -7,19 +7,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Image,
   TouchableOpacity,
   View,
 } from "react-native";
 
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { auth, db } from "../../firebase/firebaseConfig";
 
@@ -72,9 +70,7 @@ export default function AdminDashboard() {
       // GET USERS
       // =================================================
 
-      const usersSnapshot = await getDocs(
-        collection(db, "users")
-      );
+      const usersSnapshot = await getDocs(collection(db, "users"));
 
       let approvedStudentCount = 0;
       let approvedGuideCount = 0;
@@ -85,8 +81,7 @@ export default function AdminDashboard() {
       usersSnapshot.forEach((userDoc) => {
         const user = userDoc.data();
 
-        const status =
-          user.approvalStatus ?? user.status;
+        const status = user.approvalStatus ?? user.status;
 
         // =================================================
         // STUDENTS
@@ -123,18 +118,15 @@ export default function AdminDashboard() {
 
       const submittedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "submitted")
+        where("status", "==", "submitted"),
       );
 
       const approvedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "approved")
+        where("status", "==", "approved"),
       );
 
-      const [
-        submittedSnapshot,
-        approvedSnapshot,
-      ] = await Promise.all([
+      const [submittedSnapshot, approvedSnapshot] = await Promise.all([
         getDocs(submittedQuery),
         getDocs(approvedQuery),
       ]);
@@ -162,25 +154,13 @@ export default function AdminDashboard() {
       console.log("Approved Guides:", approvedGuideCount);
       console.log("Pending Students:", pendingStudentCount);
       console.log("Pending Guides:", pendingGuideCount);
-      console.log(
-        "Submitted Projects:",
-        submittedSnapshot.size
-      );
-      console.log(
-        "Approved Projects:",
-        approvedSnapshot.size
-      );
+      console.log("Submitted Projects:", submittedSnapshot.size);
+      console.log("Approved Projects:", approvedSnapshot.size);
       console.log("=================================");
     } catch (error) {
-      console.error(
-        "Error loading admin dashboard:",
-        error
-      );
+      console.error("Error loading admin dashboard:", error);
 
-      Alert.alert(
-        "Error",
-        "Unable to load admin dashboard."
-      );
+      Alert.alert("Error", "Unable to load admin dashboard.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -216,10 +196,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Logout error:", error);
 
-      Alert.alert(
-        "Logout Error",
-        "Unable to logout. Please try again."
-      );
+      Alert.alert("Logout Error", "Unable to logout. Please try again.");
     }
   };
 
@@ -229,24 +206,21 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <View style={styles.loadingIcon}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={30}
-            color="#4338CA"
-          />
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingIcon}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={30}
+              color="#4338CA"
+            />
+          </View>
+
+          <ActivityIndicator size="small" color="#4338CA" />
+
+          <Text style={styles.loadingText}>Loading admin dashboard...</Text>
         </View>
-
-        <ActivityIndicator
-          size="small"
-          color="#4338CA"
-        />
-
-        <Text style={styles.loadingText}>
-          Loading admin dashboard...
-        </Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -255,436 +229,319 @@ export default function AdminDashboard() {
   // =====================================================
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#4338CA"
-          />
-        }
-      >
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#4338CA"
+            />
+          }
+        >
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              {/* <View style={styles.headerIcon}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={25}
+                  color="#4338CA"
+                />
+              </View> */}
+              <View style={styles.headerIcon}>
+                <Image
+                  source={require("../../assets/images/logo.png")}
+                  style={styles.headerLogo}
+                  resizeMode="contain"
+                />
+              </View>
 
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerIcon}>
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={25}
-                color="#4338CA"
-              />
+              <View>
+                <Text style={styles.title}>Admin Dashboard</Text>
+
+                <Text style={styles.subtitle}>Manage ProjectVerse</Text>
+              </View>
             </View>
 
-            <View>
-              <Text style={styles.title}>
-                Admin Dashboard
-              </Text>
+            {/* <TouchableOpacity
+              style={styles.logoutButton}
+              activeOpacity={0.7}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={22} color="#4338CA" />
+            </TouchableOpacity> */}
+          </View>
 
-              <Text style={styles.subtitle}>
-                Manage ProjectVerse
-              </Text>
+          {/* =================================================
+              OVERVIEW
+          ================================================= */}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Overview</Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Current ProjectVerse statistics
+            </Text>
+          </View>
+
+          {/* =================================================
+              STATISTICS
+          ================================================= */}
+
+          <View style={styles.statsGrid}>
+            {/* =================================================
+                APPROVED STUDENTS
+            ================================================= */}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.statCard}
+              onPress={() => router.push("/admin/approved-students")}
+            >
+              <View style={[styles.statIcon, styles.mintIcon]}>
+                <Ionicons name="people-outline" size={23} color="#0F766E" />
+              </View>
+
+              <Text style={styles.statNumber}>{totalStudents}</Text>
+
+              <Text style={styles.statLabel}>Students</Text>
+
+              <View style={styles.statFooter}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={13}
+                  color="#0F766E"
+                />
+
+                <Text style={styles.statFooterText}>
+                  Approved • Tap to view
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* =================================================
+                APPROVED GUIDES
+            ================================================= */}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.statCard}
+              onPress={() => router.push("/admin/approved-guides")}
+            >
+              <View style={[styles.statIcon, styles.indigoIcon]}>
+                <Ionicons name="school-outline" size={23} color="#4338CA" />
+              </View>
+
+              <Text style={styles.statNumber}>{totalGuides}</Text>
+
+              <Text style={styles.statLabel}>Guides</Text>
+
+              <View style={styles.statFooter}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={13}
+                  color="#4338CA"
+                />
+
+                <Text style={styles.statFooterText}>
+                  Approved • Tap to view
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* =================================================
+                SUBMITTED PROJECTS
+            ================================================= */}
+
+            <View style={styles.statCard}>
+              <View style={[styles.statIcon, styles.amberIcon]}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={23}
+                  color="#B45309"
+                />
+              </View>
+
+              <Text style={styles.statNumber}>{submittedProjects}</Text>
+
+              <Text style={styles.statLabel}>Submitted</Text>
+
+              <View style={styles.statFooter}>
+                <Ionicons name="time-outline" size={13} color="#B45309" />
+
+                <Text style={styles.statFooterText}>Projects</Text>
+              </View>
+            </View>
+
+            {/* =================================================
+                APPROVED PROJECTS
+            ================================================= */}
+
+            <View style={styles.statCard}>
+              <View style={[styles.statIcon, styles.greenIcon]}>
+                <Ionicons
+                  name="checkmark-done-outline"
+                  size={23}
+                  color="#15803D"
+                />
+              </View>
+
+              <Text style={styles.statNumber}>{approvedProjects}</Text>
+
+              <Text style={styles.statLabel}>Approved</Text>
+
+              <View style={styles.statFooter}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={13}
+                  color="#15803D"
+                />
+
+                <Text style={styles.statFooterText}>Projects</Text>
+              </View>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.logoutButton}
-            activeOpacity={0.7}
-            onPress={handleLogout}
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={22}
-              color="#4338CA"
-            />
-          </TouchableOpacity>
-        </View>
+          {/* =================================================
+              APPROVAL MANAGEMENT
+          ================================================= */}
 
-        {/* =================================================
-            OVERVIEW
-        ================================================= */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Approval Management</Text>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            Overview
-          </Text>
-
-          <Text style={styles.sectionSubtitle}>
-            Current ProjectVerse statistics
-          </Text>
-        </View>
-
-        {/* =================================================
-            STATISTICS
-        ================================================= */}
-
-        <View style={styles.statsGrid}>
+            <Text style={styles.sectionSubtitle}>
+              Review new student and guide registrations
+            </Text>
+          </View>
 
           {/* =================================================
-              APPROVED STUDENTS
+              STUDENT APPROVAL CARD
           ================================================= */}
 
           <TouchableOpacity
             activeOpacity={0.8}
-            style={styles.statCard}
-            onPress={() =>
-              router.push("/admin/approved-students")
-            }
+            style={styles.approvalCard}
+            onPress={() => router.push("/admin/student-approval")}
           >
-            <View
-              style={[
-                styles.statIcon,
-                styles.mintIcon,
-              ]}
-            >
-              <Ionicons
-                name="people-outline"
-                size={23}
-                color="#0F766E"
-              />
+            <View style={[styles.approvalIcon, styles.studentApprovalIcon]}>
+              <Ionicons name="person-add-outline" size={25} color="#0F766E" />
             </View>
 
-            <Text style={styles.statNumber}>
-              {totalStudents}
-            </Text>
+            <View style={styles.approvalInfo}>
+              <Text style={styles.approvalTitle}>Student Approval</Text>
 
-            <Text style={styles.statLabel}>
-              Students
-            </Text>
-
-            <View style={styles.statFooter}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={13}
-                color="#0F766E"
-              />
-
-              <Text style={styles.statFooterText}>
-                Approved • Tap to view
+              <Text style={styles.approvalDescription}>
+                Review and manage student registration requests.
               </Text>
+
+              <View style={styles.approvalStatusRow}>
+                <Ionicons
+                  name={
+                    pendingStudents > 0
+                      ? "time-outline"
+                      : "checkmark-circle-outline"
+                  }
+                  size={14}
+                  color={pendingStudents > 0 ? "#B45309" : "#15803D"}
+                />
+
+                <Text
+                  style={[
+                    styles.approvalStatusText,
+                    {
+                      color: pendingStudents > 0 ? "#B45309" : "#15803D",
+                    },
+                  ]}
+                >
+                  {pendingStudents > 0
+                    ? `${pendingStudents} pending request${
+                        pendingStudents > 1 ? "s" : ""
+                      }`
+                    : "No pending requests"}
+                </Text>
+              </View>
             </View>
+
+            <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* =================================================
-              APPROVED GUIDES
+              GUIDE APPROVAL CARD
           ================================================= */}
 
           <TouchableOpacity
             activeOpacity={0.8}
-            style={styles.statCard}
-            onPress={() =>
-              router.push("/admin/approved-guides")
-            }
+            style={styles.approvalCard}
+            onPress={() => router.push("/admin/guide-approval")}
           >
-            <View
-              style={[
-                styles.statIcon,
-                styles.indigoIcon,
-              ]}
-            >
-              <Ionicons
-                name="school-outline"
-                size={23}
-                color="#4338CA"
-              />
+            <View style={[styles.approvalIcon, styles.guideApprovalIcon]}>
+              <Ionicons name="school-outline" size={25} color="#4338CA" />
             </View>
 
-            <Text style={styles.statNumber}>
-              {totalGuides}
-            </Text>
+            <View style={styles.approvalInfo}>
+              <Text style={styles.approvalTitle}>Guide Approval</Text>
 
-            <Text style={styles.statLabel}>
-              Guides
-            </Text>
-
-            <View style={styles.statFooter}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={13}
-                color="#4338CA"
-              />
-
-              <Text style={styles.statFooterText}>
-                Approved • Tap to view
+              <Text style={styles.approvalDescription}>
+                Review and manage guide registration requests.
               </Text>
+
+              <View style={styles.approvalStatusRow}>
+                <Ionicons
+                  name={
+                    pendingGuides > 0
+                      ? "time-outline"
+                      : "checkmark-circle-outline"
+                  }
+                  size={14}
+                  color={pendingGuides > 0 ? "#B45309" : "#15803D"}
+                />
+
+                <Text
+                  style={[
+                    styles.approvalStatusText,
+                    {
+                      color: pendingGuides > 0 ? "#B45309" : "#15803D",
+                    },
+                  ]}
+                >
+                  {pendingGuides > 0
+                    ? `${pendingGuides} pending request${
+                        pendingGuides > 1 ? "s" : ""
+                      }`
+                    : "No pending requests"}
+                </Text>
+              </View>
             </View>
+
+            <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* =================================================
-              SUBMITTED PROJECTS
+              SECURITY NOTE
           ================================================= */}
 
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIcon,
-                styles.amberIcon,
-              ]}
-            >
-              <Ionicons
-                name="document-text-outline"
-                size={23}
-                color="#B45309"
-              />
-            </View>
-
-            <Text style={styles.statNumber}>
-              {submittedProjects}
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Submitted
-            </Text>
-
-            <View style={styles.statFooter}>
-              <Ionicons
-                name="time-outline"
-                size={13}
-                color="#B45309"
-              />
-
-              <Text style={styles.statFooterText}>
-                Projects
-              </Text>
-            </View>
-          </View>
-
-          {/* =================================================
-              APPROVED PROJECTS
-          ================================================= */}
-
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIcon,
-                styles.greenIcon,
-              ]}
-            >
-              <Ionicons
-                name="checkmark-done-outline"
-                size={23}
-                color="#15803D"
-              />
-            </View>
-
-            <Text style={styles.statNumber}>
-              {approvedProjects}
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Approved
-            </Text>
-
-            <View style={styles.statFooter}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={13}
-                color="#15803D"
-              />
-
-              <Text style={styles.statFooterText}>
-                Projects
-              </Text>
-            </View>
-          </View>
-
-        </View>
-
-        {/* =================================================
-            APPROVAL MANAGEMENT
-        ================================================= */}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            Approval Management
-          </Text>
-
-          <Text style={styles.sectionSubtitle}>
-            Review new student and guide registrations
-          </Text>
-        </View>
-
-        {/* =================================================
-            STUDENT APPROVAL CARD
-        ================================================= */}
-
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.approvalCard}
-          onPress={() =>
-            router.push("/admin/student-approval")
-          }
-        >
-          <View
-            style={[
-              styles.approvalIcon,
-              styles.studentApprovalIcon,
-            ]}
-          >
+          <View style={styles.securityNote}>
             <Ionicons
-              name="person-add-outline"
-              size={25}
-              color="#0F766E"
+              name="shield-checkmark-outline"
+              size={16}
+              color="#6B7280"
             />
-          </View>
 
-          <View style={styles.approvalInfo}>
-            <Text style={styles.approvalTitle}>
-              Student Approval
+            <Text style={styles.securityText}>
+              Only approved students and guides can access their respective
+              modules.
             </Text>
-
-            <Text style={styles.approvalDescription}>
-              Review and manage student registration
-              requests.
-            </Text>
-
-            <View style={styles.approvalStatusRow}>
-              <Ionicons
-                name={
-                  pendingStudents > 0
-                    ? "time-outline"
-                    : "checkmark-circle-outline"
-                }
-                size={14}
-                color={
-                  pendingStudents > 0
-                    ? "#B45309"
-                    : "#15803D"
-                }
-              />
-
-              <Text
-                style={[
-                  styles.approvalStatusText,
-                  {
-                    color:
-                      pendingStudents > 0
-                        ? "#B45309"
-                        : "#15803D",
-                  },
-                ]}
-              >
-                {pendingStudents > 0
-                  ? `${pendingStudents} pending request${
-                      pendingStudents > 1
-                        ? "s"
-                        : ""
-                    }`
-                  : "No pending requests"}
-              </Text>
-            </View>
           </View>
-
-          <Ionicons
-            name="chevron-forward"
-            size={22}
-            color="#9CA3AF"
-          />
-        </TouchableOpacity>
-
-        {/* =================================================
-            GUIDE APPROVAL CARD
-        ================================================= */}
-
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.approvalCard}
-          onPress={() =>
-            router.push("/admin/guide-approval")
-          }
-        >
-          <View
-            style={[
-              styles.approvalIcon,
-              styles.guideApprovalIcon,
-            ]}
-          >
-            <Ionicons
-              name="school-outline"
-              size={25}
-              color="#4338CA"
-            />
-          </View>
-
-          <View style={styles.approvalInfo}>
-            <Text style={styles.approvalTitle}>
-              Guide Approval
-            </Text>
-
-            <Text style={styles.approvalDescription}>
-              Review and manage guide registration
-              requests.
-            </Text>
-
-            <View style={styles.approvalStatusRow}>
-              <Ionicons
-                name={
-                  pendingGuides > 0
-                    ? "time-outline"
-                    : "checkmark-circle-outline"
-                }
-                size={14}
-                color={
-                  pendingGuides > 0
-                    ? "#B45309"
-                    : "#15803D"
-                }
-              />
-
-              <Text
-                style={[
-                  styles.approvalStatusText,
-                  {
-                    color:
-                      pendingGuides > 0
-                        ? "#B45309"
-                        : "#15803D",
-                  },
-                ]}
-              >
-                {pendingGuides > 0
-                  ? `${pendingGuides} pending request${
-                      pendingGuides > 1
-                        ? "s"
-                        : ""
-                    }`
-                  : "No pending requests"}
-              </Text>
-            </View>
-          </View>
-
-          <Ionicons
-            name="chevron-forward"
-            size={22}
-            color="#9CA3AF"
-          />
-        </TouchableOpacity>
-
-        {/* =================================================
-            SECURITY NOTE
-        ================================================= */}
-
-        <View style={styles.securityNote}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={16}
-            color="#6B7280"
-          />
-
-          <Text style={styles.securityText}>
-            Only approved students and guides can
-            access their respective modules.
-          </Text>
-        </View>
-
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -693,6 +550,19 @@ export default function AdminDashboard() {
 // =====================================================
 
 const styles = StyleSheet.create({
+  // ===================================================
+  // SAFE AREA
+  // ===================================================
+
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F5F7FB",
+  },
+
+  // ===================================================
+  // CONTAINER
+  // ===================================================
+
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
@@ -950,5 +820,10 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: "#6B7280",
     textAlign: "center",
+  },
+
+  headerLogo: {
+    width: 34,
+    height: 34,
   },
 });

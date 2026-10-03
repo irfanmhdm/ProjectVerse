@@ -104,7 +104,7 @@ export default function ApprovedGuides() {
           />
         }
       >
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <View style={styles.iconBox}>
             <Ionicons
               name="school-outline"
@@ -123,7 +123,7 @@ export default function ApprovedGuides() {
               {guides.length !== 1 ? "s" : ""}
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {guides.length === 0 ? (
           <View style={styles.emptyCard}>

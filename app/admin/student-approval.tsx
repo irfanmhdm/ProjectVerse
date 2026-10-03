@@ -277,7 +277,7 @@ export default function StudentApproval() {
       >
         {/* HEADER */}
 
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <View style={styles.iconBox}>
             <Ionicons
               name="person-add-outline"
@@ -295,7 +295,7 @@ export default function StudentApproval() {
               Review student registration requests
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {/* COUNT */}
 
