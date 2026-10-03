@@ -259,9 +259,9 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="profile"
         options={{
-          drawerLabel: "Profile",
+          drawerLabel: "My Profile",
 
-          title: "Profile",
+          title: "My Profile",
 
           drawerIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
