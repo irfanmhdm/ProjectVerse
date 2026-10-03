@@ -1,8 +1,15 @@
 import { Drawer } from "expo-router/drawer";
-import { router, usePathname } from "expo-router";
+import { router } from "expo-router";
 import { signOut } from "firebase/auth";
 
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import {
   DrawerContentScrollView,
@@ -30,12 +37,20 @@ function CustomDrawerContent(props: any) {
     } catch (error) {
       console.log("Logout error:", error);
 
-      Alert.alert("Logout Failed", "Something went wrong while logging out.");
+      Alert.alert(
+        "Logout Failed",
+        "Something went wrong while logging out."
+      );
     }
   };
 
+  // ===================================================
+  // UI
+  // ===================================================
+
   return (
     <View style={styles.drawerContainer}>
+
       {/* =================================================
           DRAWER CONTENT
       ================================================= */}
@@ -44,12 +59,15 @@ function CustomDrawerContent(props: any) {
         {...props}
         contentContainerStyle={styles.drawerContent}
       >
+
         {/* =================================================
             DRAWER HEADER
         ================================================= */}
 
         <View style={styles.drawerHeader}>
+
           <View style={styles.logoContainer}>
+
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.logo}
@@ -57,11 +75,19 @@ function CustomDrawerContent(props: any) {
             />
 
             <View>
-              <Text style={styles.appName}>ProjectVerse</Text>
 
-              <Text style={styles.role}>Student Portal</Text>
+              <Text style={styles.appName}>
+                ProjectVerse
+              </Text>
+
+              <Text style={styles.role}>
+                Student Portal
+              </Text>
+
             </View>
+
           </View>
+
         </View>
 
         {/* =================================================
@@ -69,6 +95,7 @@ function CustomDrawerContent(props: any) {
         ================================================= */}
 
         <DrawerItemList {...props} />
+
       </DrawerContentScrollView>
 
       {/* =================================================
@@ -76,12 +103,26 @@ function CustomDrawerContent(props: any) {
       ================================================= */}
 
       <View style={styles.logoutContainer}>
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={21} color="#DC2626" />
 
-          <Text style={styles.logoutText}>Logout</Text>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color="#DC2626"
+          />
+
+          <Text style={styles.logoutText}>
+            Logout
+          </Text>
+
         </Pressable>
+
       </View>
+
     </View>
   );
 }
@@ -93,34 +134,36 @@ function CustomDrawerContent(props: any) {
 export default function StudentLayout() {
   return (
     <Drawer
+
       // =================================================
-      // IMPORTANT
+      // DRAWER BACK BEHAVIOR
+      // =================================================
       //
-      // We DO NOT use drawer history.
+      // IMPORTANT:
       //
-      // Main drawer pages should conceptually behave as:
+      // Use navigation history instead of always going
+      // back to the first Drawer route (Home).
       //
-      // Home
-      //   ↑
-      // My Projects
-      // Upload Project
-      // Explore
+      // This allows:
+      //
       // Similarity
-      // Profile
-      // Chat
+      //      ↓
+      // Similarity Results
+      //      ↓ swipe back
+      // Similarity
       //
-      // Internal pages such as:
-      //
-      // My Projects → Project → Revise
-      //
-      // remain controlled by their own navigation.
       // =================================================
 
-      backBehavior="firstRoute"
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      backBehavior="history"
+
+      drawerContent={(props) => (
+        <CustomDrawerContent {...props} />
+      )}
+
       screenOptions={{
+
         // =================================================
-        // HEADER
+        // DEFAULT HEADER
         // =================================================
 
         headerShown: true,
@@ -167,6 +210,7 @@ export default function StudentLayout() {
         headerTintColor: "#4338CA",
       }}
     >
+
       {/* =================================================
           HOME
       ================================================= */}
@@ -174,13 +218,22 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="index"
         options={{
+
           drawerLabel: "Home",
 
           title: "ProjectVerse",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="home-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
@@ -191,13 +244,22 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="my-projects"
         options={{
+
           drawerLabel: "My Projects",
 
           title: "My Projects",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="folder-open-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="folder-open-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
@@ -208,13 +270,22 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="add-project"
         options={{
+
           drawerLabel: "Upload Project",
 
           title: "Upload Project",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="cloud-upload-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
@@ -225,13 +296,22 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="explore"
         options={{
+
           drawerLabel: "Explore Projects",
 
           title: "Explore Projects",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="compass-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
@@ -242,13 +322,22 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="similarity"
         options={{
+
           drawerLabel: "Similarity Analysis",
 
           title: "Similarity Analysis",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="analytics-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="analytics-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
@@ -259,48 +348,60 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="profile"
         options={{
+
           drawerLabel: "My Profile",
 
           title: "My Profile",
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="person-circle-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
       {/* =================================================
           CHAT
-          
-          CUSTOM HEADER
-          
-          Nothing else changed.
       ================================================= */}
 
       <Drawer.Screen
         name="chat"
         options={{
+
           drawerLabel: "Chat",
 
           title: "Chat",
 
           headerShown: false,
 
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-outline" size={size} color={color} />
+          drawerIcon: ({
+            color,
+            size,
+          }) => (
+            <Ionicons
+              name="chatbubble-outline"
+              size={size}
+              color={color}
+            />
           ),
+
         }}
       />
 
       {/* =================================================
           PROJECT
-          
+
           HIDDEN FROM DRAWER
-          
-          DO NOT CHANGE.
-          
-          Existing flow:
-          
+
+          INTERNAL FLOW:
+
           My Projects
                ↓
           Project Details
@@ -311,32 +412,80 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="project"
         options={{
+
           drawerItemStyle: {
             display: "none",
           },
 
           headerShown: true,
+
         }}
       />
 
       {/* =================================================
           SIMILARITY RESULTS
-          
+
           HIDDEN FROM DRAWER
-          
-          INTERNAL FLOW ONLY.
+
+          INTERNAL FLOW:
+
+          Similarity Analysis
+                 ↓
+          Similarity Results
+
+          IMPORTANT:
+          This remains an internal Drawer route.
+          It is NOT shown in the Drawer.
       ================================================= */}
 
       <Drawer.Screen
         name="similarity-results"
         options={{
+
           drawerItemStyle: {
             display: "none",
           },
+
           headerShown: true,
+
           title: "Similarity Results",
+
+          // Keep the drawer swipe disabled on this screen.
+          // This does NOT control the Android system back
+          // gesture. backBehavior="history" above handles
+          // the back navigation.
+
+          swipeEnabled: false,
+
+          // =================================================
+          // HEADER BACK BUTTON
+          //
+          // Keep your existing working behavior.
+          // =================================================
+
+          headerLeft: () => (
+            <Pressable
+              onPress={() => {
+                router.replace(
+                  "/student/similarity"
+                );
+              }}
+              style={styles.resultsBackButton}
+              hitSlop={8}
+            >
+
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color="#4338CA"
+              />
+
+            </Pressable>
+          ),
+
         }}
       />
+
     </Drawer>
   );
 }
@@ -346,6 +495,7 @@ export default function StudentLayout() {
 // =====================================================
 
 const styles = StyleSheet.create({
+
   // =====================================================
   // DRAWER CONTAINER
   // =====================================================
@@ -471,4 +621,21 @@ const styles = StyleSheet.create({
 
     marginLeft: 12,
   },
+
+  // =====================================================
+  // SIMILARITY RESULTS BACK BUTTON
+  // =====================================================
+
+  resultsBackButton: {
+    width: 44,
+
+    height: 44,
+
+    alignItems: "center",
+
+    justifyContent: "center",
+
+    marginLeft: 4,
+  },
+
 });

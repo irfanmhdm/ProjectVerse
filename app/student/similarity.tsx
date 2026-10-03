@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+
 import {
   View,
   Text,
@@ -10,22 +11,16 @@ import {
 } from "react-native";
 
 import * as DocumentPicker from "expo-document-picker";
+
 import { Ionicons } from "@expo/vector-icons";
+
 import { router } from "expo-router";
 
 // =====================================================
 // FASTAPI URL
 // =====================================================
 
-// IMPORTANT:
-// Replace this with your computer's IPv4 address.
-//
-// Example:
-// http://192.168.1.5:8000
-//
-// Do NOT use localhost when testing from a physical phone.
-
-const API_URL = "http://10.0.27.126:8000";
+const API_URL = "http://192.168.94.51:8000";
 
 // =====================================================
 // TYPES
@@ -53,29 +48,50 @@ type AnalysisData = {
 
 export default function SimilarityScreen() {
   // ===================================================
-  // STATE
+  // SELECTED FILE
   // ===================================================
 
   const [selectedFile, setSelectedFile] =
     useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
+  // ===================================================
+  // ANALYSIS STATE
+  // ===================================================
+
   const [analyzing, setAnalyzing] = useState(false);
 
   // ===================================================
-  // SELECT PDF
+  // ABORT CONTROLLER
   // ===================================================
+
+  const abortControllerRef =
+    useRef<AbortController | null>(null);
+
+  // ===================================================
+  // STOP REQUEST FLAG
+  // ===================================================
+
+  const stopRequestedRef =
+    useRef(false);
+
+  // =====================================================
+  // SELECT PDF
+  // =====================================================
 
   const selectReport = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
+      const result =
+        await DocumentPicker.getDocumentAsync({
+          type: "application/pdf",
 
-        copyToCacheDirectory: true,
+          copyToCacheDirectory: true,
 
-        multiple: false,
-      });
+          multiple: false,
+        });
 
-      // User cancelled
+      // =================================================
+      // USER CANCELLED
+      // =================================================
 
       if (result.canceled) {
         return;
@@ -92,7 +108,10 @@ export default function SimilarityScreen() {
         file.name.toLowerCase().endsWith(".pdf");
 
       if (!isPdf) {
-        Alert.alert("Invalid File", "Only PDF project reports are allowed.");
+        Alert.alert(
+          "Invalid File",
+          "Only PDF project reports are allowed."
+        );
 
         return;
       }
@@ -101,12 +120,16 @@ export default function SimilarityScreen() {
       // FILE SIZE VALIDATION
       // =================================================
 
-      const maxSize = 10 * 1024 * 1024;
+      const maxSize =
+        10 * 1024 * 1024;
 
-      if (file.size && file.size > maxSize) {
+      if (
+        file.size &&
+        file.size > maxSize
+      ) {
         Alert.alert(
           "File Too Large",
-          "The project report must be smaller than 10 MB.",
+          "The project report must be smaller than 10 MB."
         );
 
         return;
@@ -118,11 +141,20 @@ export default function SimilarityScreen() {
 
       setSelectedFile(file);
 
-      console.log("Selected PDF:", file.name);
+      console.log(
+        "Selected PDF:",
+        file.name
+      );
     } catch (error) {
-      console.error("Error selecting PDF:", error);
+      console.error(
+        "Error selecting PDF:",
+        error
+      );
 
-      Alert.alert("Error", "Unable to select the report.");
+      Alert.alert(
+        "Error",
+        "Unable to select the report."
+      );
     }
   };
 
@@ -131,6 +163,10 @@ export default function SimilarityScreen() {
   // =====================================================
 
   const removeReport = () => {
+    if (analyzing) {
+      return;
+    }
+
     Alert.alert(
       "Remove Report",
       "Are you sure you want to remove this PDF?",
@@ -149,7 +185,69 @@ export default function SimilarityScreen() {
             setSelectedFile(null);
           },
         },
-      ],
+      ]
+    );
+  };
+
+  // =====================================================
+  // STOP ANALYSIS
+  // =====================================================
+
+  const stopAnalysis = () => {
+    if (!analyzing) {
+      return;
+    }
+
+    Alert.alert(
+      "Stop Analysis",
+      "Are you sure you want to stop the similarity analysis?",
+
+      [
+        {
+          text: "Continue",
+          style: "cancel",
+        },
+
+        {
+          text: "Stop",
+          style: "destructive",
+
+          onPress: () => {
+            console.log(
+              "User requested to stop similarity analysis."
+            );
+
+            // =============================================
+            // MARK STOP REQUEST
+            // =============================================
+
+            stopRequestedRef.current = true;
+
+            // =============================================
+            // ABORT FETCH REQUEST
+            // =============================================
+
+            if (
+              abortControllerRef.current
+            ) {
+              abortControllerRef.current.abort();
+            }
+
+            // =============================================
+            // RESET STATE
+            // =============================================
+
+            setAnalyzing(false);
+
+            abortControllerRef.current =
+              null;
+
+            console.log(
+              "Similarity analysis stopped."
+            );
+          },
+        },
+      ]
     );
   };
 
@@ -161,132 +259,329 @@ export default function SimilarityScreen() {
     if (!selectedFile) {
       Alert.alert(
         "Report Required",
-        "Please upload your project report first.",
+        "Please upload your project report first."
       );
 
       return;
     }
 
+    // ===================================================
+    // PREVENT MULTIPLE ANALYSIS REQUESTS
+    // ===================================================
+
+    if (analyzing) {
+      return;
+    }
+
+    // ===================================================
+    // CREATE NEW ABORT CONTROLLER
+    // ===================================================
+
+    const controller =
+      new AbortController();
+
+    abortControllerRef.current =
+      controller;
+
+    stopRequestedRef.current =
+      false;
+
     try {
       setAnalyzing(true);
 
-      console.log("\n=================================");
+      console.log(
+        "\n================================="
+      );
 
-      console.log("Starting similarity analysis...");
+      console.log(
+        "Starting similarity analysis..."
+      );
 
-      console.log("Report:", selectedFile.name);
+      console.log(
+        "Report:",
+        selectedFile.name
+      );
 
-      console.log("=================================");
+      console.log(
+        "================================="
+      );
 
       // =================================================
       // CREATE FORM DATA
       // =================================================
 
-      const formData = new FormData();
+      const formData =
+        new FormData();
 
-      formData.append("file", {
-        uri: selectedFile.uri,
-        name: selectedFile.name,
-        type: "application/pdf",
-      } as any);
+      formData.append(
+        "file",
+        {
+          uri: selectedFile.uri,
+
+          name: selectedFile.name,
+
+          type: "application/pdf",
+        } as any
+      );
+
+      // =================================================
+      // CHECK IF STOPPED BEFORE REQUEST
+      // =================================================
+
+      if (
+        stopRequestedRef.current
+      ) {
+        return;
+      }
 
       // =================================================
       // SEND TO FASTAPI
       // =================================================
 
-      console.log("Sending PDF to:", `${API_URL}/analyze-similarity`);
+      const analysisUrl =
+        `${API_URL}/analyze-similarity`;
 
-      const response = await fetch(`${API_URL}/analyze-similarity`, {
-        method: "POST",
+      console.log(
+        "Sending PDF to:",
+        analysisUrl
+      );
 
-        body: formData,
+      const response =
+        await fetch(
+          analysisUrl,
+          {
+            method: "POST",
 
-        headers: {
-          Accept: "application/json",
-        },
-      });
+            body: formData,
+
+            headers: {
+              Accept:
+                "application/json",
+            },
+
+            // ===========================================
+            // ABORT SIGNAL
+            // ===========================================
+
+            signal:
+              controller.signal,
+          }
+        );
+
+      // =================================================
+      // CHECK IF USER STOPPED
+      // =================================================
+
+      if (
+        stopRequestedRef.current
+      ) {
+        console.log(
+          "Analysis was stopped by user."
+        );
+
+        return;
+      }
+
+      // =================================================
+      // HTTP STATUS
+      // =================================================
+
+      console.log(
+        "HTTP Status:",
+        response.status
+      );
+
+      // =================================================
+      // GET RESPONSE
+      // =================================================
+
+      const responseData =
+        await response.json();
+
+      console.log(
+        "FastAPI response:",
+        responseData
+      );
 
       // =================================================
       // CHECK HTTP RESPONSE
       // =================================================
 
-      console.log("HTTP Status:", response.status);
-
-      const responseData = await response.json();
-
-      console.log("FastAPI response:", responseData);
-
       if (!response.ok) {
-        throw new Error(responseData?.detail || "Similarity analysis failed.");
+        throw new Error(
+          responseData?.detail ||
+            "Similarity analysis failed."
+        );
+      }
+
+      // =================================================
+      // CHECK AGAIN BEFORE NAVIGATION
+      // =================================================
+
+      if (
+        stopRequestedRef.current
+      ) {
+        console.log(
+          "Analysis stopped before navigation."
+        );
+
+        return;
       }
 
       // =================================================
       // GET BACKEND DATA
       // =================================================
 
-      const analysisData: AnalysisData = responseData.data;
+      const analysisData:
+        AnalysisData =
+          responseData.data;
 
       if (!analysisData) {
-        throw new Error("Invalid response received from similarity backend.");
+        throw new Error(
+          "Invalid response received from similarity backend."
+        );
       }
 
       // =================================================
-      // CHECK RESULTS
+      // LOG RESULTS
       // =================================================
 
-      console.log("Approved projects:", analysisData.totalApprovedProjects);
+      console.log(
+        "Approved projects:",
+        analysisData.totalApprovedProjects
+      );
 
-      console.log("Processed projects:", analysisData.processedProjects);
+      console.log(
+        "Processed projects:",
+        analysisData.processedProjects
+      );
 
-      console.log("Similarity results:", analysisData.results);
+      console.log(
+        "Similarity results:",
+        analysisData.results
+      );
+
+      // =================================================
+      // CHECK STOP AGAIN
+      // =================================================
+
+      if (
+        stopRequestedRef.current
+      ) {
+        return;
+      }
 
       // =================================================
       // CONVERT RESULTS FOR ROUTER
       // =================================================
 
-      const resultsParam = encodeURIComponent(
-        JSON.stringify(analysisData.results || []),
-      );
-
-      const reportParam = analysisData.report
-        ? encodeURIComponent(analysisData.report)
-        : "";
+      const resultsParam =
+        encodeURIComponent(
+          JSON.stringify(
+            analysisData.results || []
+          )
+        );
 
       // =================================================
       // NAVIGATE TO RESULTS PAGE
       // =================================================
 
+      console.log(
+        "Opening similarity results..."
+      );
+
       router.push({
-        pathname: "/student/similarity-results",
+        pathname:
+          "/student/similarity-results",
 
         params: {
-          results: resultsParam,
+          results:
+            resultsParam,
 
-          totalApprovedProjects: String(analysisData.totalApprovedProjects),
+          totalApprovedProjects:
+            String(
+              analysisData.totalApprovedProjects
+            ),
 
-          processedProjects: String(analysisData.processedProjects),
+          processedProjects:
+            String(
+              analysisData.processedProjects
+            ),
 
-          uploadedCharacters: String(analysisData.uploadedCharacters),
+          uploadedCharacters:
+            String(
+              analysisData.uploadedCharacters
+            ),
 
-          // IMPORTANT:
-          // Expo Router params must be strings.
-          // Convert the report object into JSON.
-          report: JSON.stringify(analysisData.report),
+          report:
+            JSON.stringify(
+              analysisData.report || ""
+            ),
         },
       });
-    } 
-    
-    catch (error) {
-      console.error("Similarity analysis error:", error);
+    } catch (error: any) {
+      // =================================================
+      // HANDLE ABORT
+      // =================================================
+
+      if (
+        error?.name ===
+        "AbortError"
+      ) {
+        console.log(
+          "Similarity analysis request aborted."
+        );
+
+        return;
+      }
+
+      // =================================================
+      // HANDLE USER STOP
+      // =================================================
+
+      if (
+        stopRequestedRef.current
+      ) {
+        console.log(
+          "Similarity analysis stopped by user."
+        );
+
+        return;
+      }
+
+      // =================================================
+      // OTHER ERRORS
+      // =================================================
+
+      console.error(
+        "Similarity analysis error:",
+        error
+      );
 
       Alert.alert(
         "Analysis Failed",
         error instanceof Error
           ? error.message
-          : "Unable to analyze the report.",
+          : "Unable to analyze the report."
       );
     } finally {
+      // =================================================
+      // CLEANUP
+      // =================================================
+
+      if (
+        abortControllerRef.current ===
+        controller
+      ) {
+        abortControllerRef.current =
+          null;
+      }
+
       setAnalyzing(false);
+
+      console.log(
+        "Similarity analysis process finished."
+      );
     }
   };
 
@@ -295,17 +590,24 @@ export default function SimilarityScreen() {
   // =====================================================
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <SafeAreaView
+      style={styles.container}
+    >
+      <View
+        style={styles.content}
+      >
         {/* =================================================
             HEADER
         ================================================= */}
 
-        <View style={styles.header}>
-          
-          <Text style={styles.subtitle}>
-            Compare your project report with existing approved ProjectVerse
-            projects.
+        <View
+          style={styles.header}
+        >
+          <Text
+            style={styles.subtitle}
+          >
+            Compare your project report with existing approved
+            ProjectVerse projects.
           </Text>
         </View>
 
@@ -318,26 +620,57 @@ export default function SimilarityScreen() {
             style={styles.uploadCard}
             onPress={selectReport}
             activeOpacity={0.8}
+            disabled={analyzing}
           >
-            <View style={styles.uploadIcon}>
-              <Ionicons name="cloud-upload-outline" size={34} color="#4338CA" />
+            <View
+              style={styles.uploadIcon}
+            >
+              <Ionicons
+                name="cloud-upload-outline"
+                size={34}
+                color="#4338CA"
+              />
             </View>
 
-            <Text style={styles.uploadTitle}>Upload Project Report</Text>
+            <Text
+              style={styles.uploadTitle}
+            >
+              Upload Project Report
+            </Text>
 
-            <Text style={styles.uploadDescription}>
+            <Text
+              style={styles.uploadDescription}
+            >
               Select your project report in PDF format.
             </Text>
 
-            <View style={styles.chooseButton}>
-              <Ionicons name="document-outline" size={18} color="#FFFFFF" />
+            <View
+              style={styles.chooseButton}
+            >
+              <Ionicons
+                name="document-outline"
+                size={18}
+                color="#FFFFFF"
+              />
 
-              <Text style={styles.chooseButtonText}>Choose PDF</Text>
+              <Text
+                style={styles.chooseButtonText}
+              >
+                Choose PDF
+              </Text>
             </View>
           </TouchableOpacity>
         ) : (
-          <View style={styles.fileCard}>
-            <View style={styles.fileIcon}>
+          <View
+            style={styles.fileCard}
+          >
+            {/* =================================================
+                FILE ICON
+            ================================================= */}
+
+            <View
+              style={styles.fileIcon}
+            >
               <Ionicons
                 name="document-text-outline"
                 size={30}
@@ -345,34 +678,71 @@ export default function SimilarityScreen() {
               />
             </View>
 
-            <View style={styles.fileInfo}>
-              <Text style={styles.fileName} numberOfLines={2}>
+            {/* =================================================
+                FILE INFORMATION
+            ================================================= */}
+
+            <View
+              style={styles.fileInfo}
+            >
+              <Text
+                style={styles.fileName}
+                numberOfLines={2}
+              >
                 {selectedFile.name}
               </Text>
 
-              <Text style={styles.fileType}>PDF Report</Text>
+              <Text
+                style={styles.fileType}
+              >
+                PDF Report
+              </Text>
 
               {selectedFile.size ? (
-                <Text style={styles.fileSize}>
-                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                <Text
+                  style={styles.fileSize}
+                >
+                  {(
+                    selectedFile.size /
+                    (1024 * 1024)
+                  ).toFixed(2)}{" "}
+                  MB
                 </Text>
               ) : null}
             </View>
+
+            {/* =================================================
+                CHANGE FILE
+            ================================================= */}
 
             <TouchableOpacity
               onPress={selectReport}
               style={styles.changeButton}
               activeOpacity={0.7}
+              disabled={analyzing}
             >
-              <Ionicons name="refresh-outline" size={20} color="#4338CA" />
+              <Ionicons
+                name="refresh-outline"
+                size={20}
+                color="#4338CA"
+              />
             </TouchableOpacity>
+
+            {/* =================================================
+                REMOVE FILE
+            ================================================= */}
 
             <TouchableOpacity
               onPress={removeReport}
               style={styles.removeButton}
               activeOpacity={0.7}
+              disabled={analyzing}
             >
-              <Ionicons name="trash-outline" size={20} color="#DC2626" />
+              <Ionicons
+                name="trash-outline"
+                size={20}
+                color="#DC2626"
+              />
             </TouchableOpacity>
           </View>
         )}
@@ -381,241 +751,568 @@ export default function SimilarityScreen() {
             INFORMATION
         ================================================= */}
 
-        <View style={styles.infoCard}>
+        <View
+          style={styles.infoCard}
+        >
           <Ionicons
             name="information-circle-outline"
             size={22}
             color="#4338CA"
           />
 
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>How it works</Text>
+          <View
+            style={styles.infoContent}
+          >
+            <Text
+              style={styles.infoTitle}
+            >
+              How it works
+            </Text>
 
-            <Text style={styles.infoText}>
-              Your report will be compared with approved ProjectVerse reports
-              using text extraction, preprocessing, TF-IDF and cosine
-              similarity.
+            <Text
+              style={styles.infoText}
+            >
+              Your report will be compared with approved
+              ProjectVerse reports using text extraction,
+              preprocessing, TF-IDF and cosine similarity.
             </Text>
           </View>
         </View>
 
         {/* =================================================
-            ANALYZE BUTTON
+            ANALYZE / STOP BUTTON
         ================================================= */}
 
-        <TouchableOpacity
-          style={[styles.analyzeButton, !selectedFile && styles.disabledButton]}
-          onPress={analyzeReport}
-          disabled={!selectedFile || analyzing}
-          activeOpacity={0.8}
-        >
-          {analyzing ? (
-            <>
-              <ActivityIndicator color="#FFFFFF" />
+        {!analyzing ? (
+          <TouchableOpacity
+            style={[
+              styles.analyzeButton,
 
-              <Text style={styles.analyzeText}>Analyzing...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="analytics-outline" size={21} color="#FFFFFF" />
+              !selectedFile &&
+                styles.disabledButton,
+            ]}
+            onPress={
+              analyzeReport
+            }
+            disabled={
+              !selectedFile
+            }
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="analytics-outline"
+              size={21}
+              color="#FFFFFF"
+            />
 
-              <Text style={styles.analyzeText}>Analyze Report</Text>
-            </>
-          )}
-        </TouchableOpacity>
+            <Text
+              style={styles.analyzeText}
+            >
+              Analyze Report
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View>
+            {/* =================================================
+                ANALYZING STATUS
+            ================================================= */}
+
+            <View
+              style={
+                styles.analyzingContainer
+              }
+            >
+              <ActivityIndicator
+                size="small"
+                color="#4338CA"
+              />
+
+              <View
+                style={
+                  styles.analyzingTextContainer
+                }
+              >
+                <Text
+                  style={
+                    styles.analyzingTitle
+                  }
+                >
+                  Analyzing Report...
+                </Text>
+
+                <Text
+                  style={
+                    styles.analyzingSubtitle
+                  }
+                >
+                  Comparing with approved projects
+                </Text>
+              </View>
+            </View>
+
+            {/* =================================================
+                STOP BUTTON
+            ================================================= */}
+
+            <TouchableOpacity
+              style={
+                styles.stopButton
+              }
+              onPress={
+                stopAnalysis
+              }
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="stop-circle-outline"
+                size={21}
+                color="#DC2626"
+              />
+
+              <Text
+                style={
+                  styles.stopButtonText
+                }
+              >
+                Stop Analysis
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-// =====================================================
+// =======================================================
 // STYLES
-// =====================================================
+// =======================================================
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F7FB",
-  },
+const styles =
+  StyleSheet.create({
 
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+    // ===================================================
+    // CONTAINER
+    // ===================================================
 
-  header: {
-    marginBottom: 24,
-  },
+    container: {
+      flex: 1,
 
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
+      backgroundColor:
+        "#F5F7FB",
+    },
 
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#000000",
-  },
+    // ===================================================
+    // CONTENT
+    // ===================================================
 
-  uploadCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 28,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+    content: {
+      flex: 1,
 
-  uploadIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "#EEF2FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
+      padding: 20,
+    },
 
-  uploadTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 6,
-  },
+    // ===================================================
+    // HEADER
+    // ===================================================
 
-  uploadDescription: {
-    fontSize: 13,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 20,
-  },
+    header: {
+      marginBottom: 24,
+    },
 
-  chooseButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#4338CA",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
+    subtitle: {
+      fontSize: 14,
 
-  chooseButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+      lineHeight: 21,
 
-  fileCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+      color: "#000000",
+    },
 
-  fileIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    backgroundColor: "#EEF2FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
+    // ===================================================
+    // UPLOAD CARD
+    // ===================================================
 
-  fileInfo: {
-    flex: 1,
-  },
+    uploadCard: {
+      backgroundColor:
+        "#FFFFFF",
 
-  fileName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-  },
+      borderRadius: 16,
 
-  fileType: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 4,
-  },
+      padding: 28,
 
-  fileSize: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    marginTop: 3,
-  },
+      alignItems:
+        "center",
 
-  changeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#EEF2FF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+      borderWidth: 1,
 
-  removeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#FEF2F2",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-  },
+      borderColor:
+        "#E5E7EB",
+    },
 
-  infoCard: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    flexDirection: "row",
-  },
+    uploadIcon: {
+      width: 70,
 
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
+      height: 70,
 
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 5,
-  },
+      borderRadius: 35,
 
-  infoText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: "#6B7280",
-  },
+      backgroundColor:
+        "#EEF2FF",
 
-  analyzeButton: {
-    marginTop: 24,
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: "#4338CA",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 9,
-  },
+      justifyContent:
+        "center",
 
-  disabledButton: {
-    backgroundColor: "#A5B4FC",
-  },
+      alignItems:
+        "center",
 
-  analyzeText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-});
+      marginBottom: 16,
+    },
+
+    uploadTitle: {
+      fontSize: 18,
+
+      fontWeight: "700",
+
+      color: "#111827",
+
+      marginBottom: 6,
+    },
+
+    uploadDescription: {
+      fontSize: 13,
+
+      color: "#6B7280",
+
+      textAlign:
+        "center",
+
+      marginBottom: 20,
+    },
+
+    chooseButton: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      gap: 8,
+
+      backgroundColor:
+        "#4338CA",
+
+      paddingHorizontal:
+        20,
+
+      paddingVertical:
+        12,
+
+      borderRadius: 10,
+    },
+
+    chooseButtonText: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 14,
+
+      fontWeight:
+        "600",
+    },
+
+    // ===================================================
+    // FILE CARD
+    // ===================================================
+
+    fileCard: {
+      backgroundColor:
+        "#FFFFFF",
+
+      borderRadius: 16,
+
+      padding: 16,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      borderWidth: 1,
+
+      borderColor:
+        "#E5E7EB",
+    },
+
+    fileIcon: {
+      width: 54,
+
+      height: 54,
+
+      borderRadius: 12,
+
+      backgroundColor:
+        "#EEF2FF",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      marginRight: 12,
+    },
+
+    fileInfo: {
+      flex: 1,
+    },
+
+    fileName: {
+      fontSize: 15,
+
+      fontWeight:
+        "600",
+
+      color:
+        "#111827",
+    },
+
+    fileType: {
+      fontSize: 12,
+
+      color:
+        "#6B7280",
+
+      marginTop: 4,
+    },
+
+    fileSize: {
+      fontSize: 11,
+
+      color:
+        "#9CA3AF",
+
+      marginTop: 3,
+    },
+
+    changeButton: {
+      width: 40,
+
+      height: 40,
+
+      borderRadius: 10,
+
+      backgroundColor:
+        "#EEF2FF",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+    },
+
+    removeButton: {
+      width: 40,
+
+      height: 40,
+
+      borderRadius: 10,
+
+      backgroundColor:
+        "#FEF2F2",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      marginLeft: 8,
+    },
+
+    // ===================================================
+    // INFORMATION CARD
+    // ===================================================
+
+    infoCard: {
+      marginTop: 20,
+
+      padding: 16,
+
+      borderRadius: 14,
+
+      backgroundColor:
+        "#FFFFFF",
+
+      borderWidth: 1,
+
+      borderColor:
+        "#E5E7EB",
+
+      flexDirection:
+        "row",
+    },
+
+    infoContent: {
+      flex: 1,
+
+      marginLeft: 12,
+    },
+
+    infoTitle: {
+      fontSize: 14,
+
+      fontWeight:
+        "700",
+
+      color:
+        "#111827",
+
+      marginBottom: 5,
+    },
+
+    infoText: {
+      fontSize: 13,
+
+      lineHeight: 19,
+
+      color:
+        "#6B7280",
+    },
+
+    // ===================================================
+    // ANALYZE BUTTON
+    // ===================================================
+
+    analyzeButton: {
+      marginTop: 24,
+
+      height: 52,
+
+      borderRadius: 12,
+
+      backgroundColor:
+        "#4338CA",
+
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      gap: 9,
+    },
+
+    disabledButton: {
+      backgroundColor:
+        "#A5B4FC",
+    },
+
+    analyzeText: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 15,
+
+      fontWeight:
+        "700",
+    },
+
+    // ===================================================
+    // ANALYZING CONTAINER
+    // ===================================================
+
+    analyzingContainer: {
+      marginTop: 24,
+
+      minHeight: 64,
+
+      borderRadius: 12,
+
+      backgroundColor:
+        "#EEF2FF",
+
+      borderWidth: 1,
+
+      borderColor:
+        "#C7D2FE",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      paddingHorizontal: 16,
+    },
+
+    analyzingTextContainer: {
+      marginLeft: 12,
+
+      flex: 1,
+    },
+
+    analyzingTitle: {
+      fontSize: 14,
+
+      fontWeight:
+        "700",
+
+      color:
+        "#4338CA",
+    },
+
+    analyzingSubtitle: {
+      fontSize: 12,
+
+      color:
+        "#6B7280",
+
+      marginTop: 3,
+    },
+
+    // ===================================================
+    // STOP BUTTON
+    // ===================================================
+
+    stopButton: {
+      marginTop: 10,
+
+      height: 48,
+
+      borderRadius: 12,
+
+      backgroundColor:
+        "#FEF2F2",
+
+      borderWidth: 1,
+
+      borderColor:
+        "#FECACA",
+
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      gap: 8,
+    },
+
+    stopButtonText: {
+      color:
+        "#DC2626",
+
+      fontSize: 14,
+
+      fontWeight:
+        "700",
+    },
+  });

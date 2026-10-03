@@ -42,6 +42,12 @@ export default function StudentApproval() {
     useState<string | null>(null);
 
   // =====================================================
+  // APPROVE ALL LOADING
+  // =====================================================
+
+  const [approvingAll, setApprovingAll] = useState(false);
+
+  // =====================================================
   // LOAD STUDENTS
   // =====================================================
 
@@ -145,6 +151,55 @@ export default function StudentApproval() {
   };
 
   // =====================================================
+  // APPROVE ALL
+  // =====================================================
+
+  const approveAllStudents = async () => {
+    if (students.length === 0) {
+      return;
+    }
+
+    try {
+      setApprovingAll(true);
+
+      await Promise.all(
+        students.map((student) =>
+          updateDoc(
+            doc(db, "users", student.id),
+            {
+              approvalStatus: "approved",
+              status: "approved",
+            }
+          )
+        )
+      );
+
+      const approvedCount = students.length;
+
+      setStudents([]);
+
+      Alert.alert(
+        "Students Approved",
+        `${approvedCount} student${
+          approvedCount === 1 ? "" : "s"
+        } approved successfully.`
+      );
+    } catch (error) {
+      console.error(
+        "Error approving all students:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "Unable to approve all students. Please try again."
+      );
+    } finally {
+      setApprovingAll(false);
+    }
+  };
+
+  // =====================================================
   // REJECT
   // =====================================================
 
@@ -220,7 +275,6 @@ export default function StudentApproval() {
           />
         }
       >
-
         {/* HEADER */}
 
         <View style={styles.header}>
@@ -246,13 +300,44 @@ export default function StudentApproval() {
         {/* COUNT */}
 
         <View style={styles.countCard}>
-          <Text style={styles.countNumber}>
-            {students.length}
-          </Text>
+          <View style={styles.countInfo}>
+            <Text style={styles.countNumber}>
+              {students.length}
+            </Text>
 
-          <Text style={styles.countText}>
-            Pending Student Requests
-          </Text>
+            <Text style={styles.countText}>
+              Pending Student Requests
+            </Text>
+          </View>
+
+          {/* APPROVE ALL */}
+
+          {students.length > 0 && (
+            <TouchableOpacity
+              style={styles.approveAllButton}
+              disabled={approvingAll}
+              onPress={approveAllStudents}
+            >
+              {approvingAll ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                />
+              ) : (
+                <Ionicons
+                  name="checkmark-done-outline"
+                  size={19}
+                  color="#FFFFFF"
+                />
+              )}
+
+              <Text style={styles.approveAllText}>
+                {approvingAll
+                  ? "Approving..."
+                  : "Approve All"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* EMPTY */}
@@ -326,11 +411,11 @@ export default function StudentApproval() {
               <View style={styles.divider} />
 
               <View style={styles.actionRow}>
-
                 <TouchableOpacity
                   style={styles.rejectButton}
                   disabled={
-                    processingUser === student.id
+                    processingUser === student.id ||
+                    approvingAll
                   }
                   onPress={() =>
                     rejectStudent(student.id)
@@ -350,7 +435,8 @@ export default function StudentApproval() {
                 <TouchableOpacity
                   style={styles.approveButton}
                   disabled={
-                    processingUser === student.id
+                    processingUser === student.id ||
+                    approvingAll
                   }
                   onPress={() =>
                     approveStudent(student.id)
@@ -373,7 +459,6 @@ export default function StudentApproval() {
                     Approve
                   </Text>
                 </TouchableOpacity>
-
               </View>
             </View>
           ))
@@ -446,6 +531,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#E7EAF0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  countInfo: {
+    flex: 1,
   },
 
   countNumber: {
@@ -458,6 +550,27 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 13,
     color: "#6B7280",
+  },
+
+  // =====================================================
+  // APPROVE ALL BUTTON
+  // =====================================================
+
+  approveAllButton: {
+    minHeight: 44,
+    paddingHorizontal: 15,
+    borderRadius: 11,
+    backgroundColor: "#4338CA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  approveAllText: {
+    marginLeft: 6,
+    fontSize: 13.5,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 
   emptyCard: {

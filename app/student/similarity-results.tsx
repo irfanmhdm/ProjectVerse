@@ -11,8 +11,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import { useLocalSearchParams, router } from "expo-router";
-
+import {
+  useLocalSearchParams,
+  router,
+  Stack,
+} from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { File, Directory, Paths } from "expo-file-system";
@@ -48,18 +51,28 @@ const API_BASE_URL = "http://192.168.1.11:8000";
 // =====================================================
 
 function parseParam<T>(value: unknown): T | null {
-  if (value === undefined || value === null || value === "") {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
     return null;
   }
 
-  if (typeof value === "object" && !Array.isArray(value)) {
+  if (
+    typeof value === "object" &&
+    !Array.isArray(value)
+  ) {
     return value as T;
   }
 
   if (Array.isArray(value)) {
     const firstValue = value[0];
 
-    if (firstValue === undefined || firstValue === null) {
+    if (
+      firstValue === undefined ||
+      firstValue === null
+    ) {
       return null;
     }
 
@@ -74,7 +87,10 @@ function parseParam<T>(value: unknown): T | null {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      console.log("Parameter is not valid JSON:", value);
+      console.log(
+        "Parameter is not valid JSON:",
+        value
+      );
 
       return null;
     }
@@ -87,8 +103,15 @@ function parseParam<T>(value: unknown): T | null {
 // NORMALIZE REPORT
 // =====================================================
 
-function normalizeReport(value: unknown): SimilarityReport | null {
-  if (value === undefined || value === null || value === "") {
+function normalizeReport(
+  value: unknown
+): SimilarityReport | null {
+
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
     return null;
   }
 
@@ -96,16 +119,33 @@ function normalizeReport(value: unknown): SimilarityReport | null {
   // OBJECT
   // ---------------------------------------------------
 
-  if (typeof value === "object" && !Array.isArray(value)) {
-    const report = value as Partial<SimilarityReport>;
+  if (
+    typeof value === "object" &&
+    !Array.isArray(value)
+  ) {
+
+    const report =
+      value as Partial<SimilarityReport>;
 
     if (report.filename) {
+
       return {
-        reportId: String(report.reportId || ""),
+        reportId:
+          String(
+            report.reportId || ""
+          ),
 
-        filename: String(report.filename),
+        filename:
+          String(
+            report.filename
+          ),
 
-        filePath: report.filePath ? String(report.filePath) : undefined,
+        filePath:
+          report.filePath
+            ? String(
+                report.filePath
+              )
+            : undefined,
       };
     }
   }
@@ -115,7 +155,9 @@ function normalizeReport(value: unknown): SimilarityReport | null {
   // ---------------------------------------------------
 
   if (Array.isArray(value)) {
-    return normalizeReport(value[0]);
+    return normalizeReport(
+      value[0]
+    );
   }
 
   // ---------------------------------------------------
@@ -123,12 +165,22 @@ function normalizeReport(value: unknown): SimilarityReport | null {
   // ---------------------------------------------------
 
   if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
 
-      return normalizeReport(parsed);
+    try {
+
+      const parsed =
+        JSON.parse(value);
+
+      return normalizeReport(
+        parsed
+      );
+
     } catch (error) {
-      console.log("Could not parse report JSON:", value);
+
+      console.log(
+        "Could not parse report JSON:",
+        value
+      );
 
       return null;
     }
@@ -142,231 +194,346 @@ function normalizeReport(value: unknown): SimilarityReport | null {
 // =====================================================
 
 export default function SimilarityResultsScreen() {
-  const params = useLocalSearchParams();
 
-  const [isDownloading, setIsDownloading] = useState(false);
+  const params =
+    useLocalSearchParams();
+
+  const [
+    isDownloading,
+    setIsDownloading,
+  ] = useState(false);
+
+  // ===================================================
+  // BACK TO SIMILARITY PAGE
+  // ===================================================
+
+  const goBackToSimilarity = () => {
+
+    router.replace(
+      "/student/similarity"
+    );
+  };
 
   // ===================================================
   // PARSE RESULTS
   // ===================================================
 
-  const results: SimilarityResult[] = useMemo(() => {
-    const parsed = parseParam<SimilarityResult[]>(params.results);
+  const results:
+    SimilarityResult[] =
+    useMemo(() => {
 
-    if (!parsed || !Array.isArray(parsed)) {
-      return [];
-    }
+      const parsed =
+        parseParam<SimilarityResult[]>(
+          params.results
+        );
 
-    return parsed;
-  }, [params.results]);
+      if (
+        !parsed ||
+        !Array.isArray(parsed)
+      ) {
+        return [];
+      }
+
+      return parsed;
+
+    }, [params.results]);
 
   // ===================================================
   // TOTAL APPROVED PROJECTS
   // ===================================================
 
-  const totalApprovedProjects = Number(
-    Array.isArray(params.totalApprovedProjects)
-      ? params.totalApprovedProjects[0]
-      : params.totalApprovedProjects || 0,
-  );
+  const totalApprovedProjects =
+    Number(
+      Array.isArray(
+        params.totalApprovedProjects
+      )
+        ? params.totalApprovedProjects[0]
+        : params.totalApprovedProjects || 0
+    );
 
   // ===================================================
   // PROCESSED PROJECTS
   // ===================================================
 
-  const processedProjects = Number(
-    Array.isArray(params.processedProjects)
-      ? params.processedProjects[0]
-      : params.processedProjects || 0,
-  );
+  const processedProjects =
+    Number(
+      Array.isArray(
+        params.processedProjects
+      )
+        ? params.processedProjects[0]
+        : params.processedProjects || 0
+    );
 
   // ===================================================
   // UPLOADED CHARACTERS
   // ===================================================
 
-  const uploadedCharacters = Number(
-    Array.isArray(params.uploadedCharacters)
-      ? params.uploadedCharacters[0]
-      : params.uploadedCharacters || 0,
-  );
+  const uploadedCharacters =
+    Number(
+      Array.isArray(
+        params.uploadedCharacters
+      )
+        ? params.uploadedCharacters[0]
+        : params.uploadedCharacters || 0
+    );
 
   // ===================================================
   // PDF REPORT
   // ===================================================
 
-  const report = useMemo(() => {
-    console.log("=================================");
+  const report =
+    useMemo(() => {
 
-    console.log("Similarity results parameters:");
+      console.log(
+        "================================="
+      );
 
-    console.log(params);
+      console.log(
+        "Similarity results parameters:"
+      );
 
-    console.log("Report raw parameter:", params.report);
+      console.log(params);
 
-    const parsed = normalizeReport(params.report);
+      console.log(
+        "Report raw parameter:",
+        params.report
+      );
 
-    if (!parsed) {
-      console.log("❌ No valid similarity report received.");
+      const parsed =
+        normalizeReport(
+          params.report
+        );
 
-      return null;
-    }
+      if (!parsed) {
 
-    console.log("✅ Similarity PDF report:", parsed);
+        console.log(
+          "❌ No valid similarity report received."
+        );
 
-    return parsed;
-  }, [params.report]);
+        return null;
+      }
+
+      console.log(
+        "✅ Similarity PDF report:",
+        parsed
+      );
+
+      return parsed;
+
+    }, [params.report]);
 
   // ===================================================
   // DOWNLOAD EVIDENCE PDF
   // ===================================================
 
-  const downloadEvidence = async () => {
-    try {
-      // ------------------------------------------------
-      // CHECK REPORT
-      // ------------------------------------------------
+  const downloadEvidence =
+    async () => {
 
-      if (!report) {
-        Alert.alert(
-          "Evidence Not Available",
-          "The similarity evidence report is not available.",
+      try {
+
+        if (!report) {
+
+          Alert.alert(
+            "Evidence Not Available",
+            "The similarity evidence report is not available."
+          );
+
+          return;
+        }
+
+        if (!report.filename) {
+
+          Alert.alert(
+            "PDF Error",
+            "The generated PDF filename was not received."
+          );
+
+          return;
+        }
+
+        if (isDownloading) {
+          return;
+        }
+
+        setIsDownloading(true);
+
+        // ------------------------------------------------
+        // BUILD SERVER URL
+        // ------------------------------------------------
+
+        const encodedFilename =
+          encodeURIComponent(
+            report.filename
+          );
+
+        const pdfUrl =
+          `${API_BASE_URL}/similarity-report/${encodedFilename}`;
+
+        console.log(
+          "================================="
         );
 
-        return;
-      }
+        console.log(
+          "Starting PDF download..."
+        );
 
-      // ------------------------------------------------
-      // CHECK FILENAME
-      // ------------------------------------------------
+        console.log(
+          "PDF filename:",
+          report.filename
+        );
 
-      if (!report.filename) {
+        console.log(
+          "PDF report ID:",
+          report.reportId
+        );
+
+        console.log(
+          "PDF URL:",
+          pdfUrl
+        );
+
+        console.log(
+          "================================="
+        );
+
+        // ------------------------------------------------
+        // LOCAL DIRECTORY
+        // ------------------------------------------------
+
+        const pdfDirectory =
+          new Directory(
+            Paths.cache,
+            "similarity_reports"
+          );
+
+        if (!pdfDirectory.exists) {
+
+          pdfDirectory.create({
+            intermediates: true,
+          });
+        }
+
+        console.log(
+          "Local PDF directory:",
+          pdfDirectory.uri
+        );
+
+        // ------------------------------------------------
+        // LOCAL FILE
+        // ------------------------------------------------
+
+        const localFile =
+          new File(
+            pdfDirectory,
+            report.filename
+          );
+
+        console.log(
+          "Local PDF path:",
+          localFile.uri
+        );
+
+        // ------------------------------------------------
+        // DOWNLOAD
+        // ------------------------------------------------
+
+        const downloadedFile =
+          await File.downloadFileAsync(
+            pdfUrl,
+            localFile,
+            {
+              idempotent: true,
+            }
+          );
+
+        console.log(
+          "PDF downloaded successfully"
+        );
+
+        console.log(
+          "Local URI:",
+          downloadedFile.uri
+        );
+
+        console.log(
+          "File exists:",
+          downloadedFile.exists
+        );
+
+        // ------------------------------------------------
+        // CHECK FILE
+        // ------------------------------------------------
+
+        if (!downloadedFile.exists) {
+
+          throw new Error(
+            "Downloaded PDF file does not exist."
+          );
+        }
+
+        // ------------------------------------------------
+        // SHARING
+        // ------------------------------------------------
+
+        const sharingAvailable =
+          await Sharing.isAvailableAsync();
+
+        console.log(
+          "Sharing available:",
+          sharingAvailable
+        );
+
+        if (!sharingAvailable) {
+
+          Alert.alert(
+            "PDF Downloaded",
+            `The similarity report was downloaded successfully.\n\nFile:\n${downloadedFile.uri}`
+          );
+
+          return;
+        }
+
+        // ------------------------------------------------
+        // SHARE / SAVE
+        // ------------------------------------------------
+
+        await Sharing.shareAsync(
+          downloadedFile.uri,
+          {
+            mimeType:
+              "application/pdf",
+
+            dialogTitle:
+              "Save Similarity Evidence PDF",
+          }
+        );
+
+      } catch (error) {
+
+        console.error(
+          "================================="
+        );
+
+        console.error(
+          "❌ PDF DOWNLOAD ERROR"
+        );
+
+        console.error(error);
+
+        console.error(
+          "================================="
+        );
+
         Alert.alert(
           "PDF Error",
-          "The generated PDF filename was not received.",
+          "Unable to download the similarity evidence PDF."
         );
 
-        return;
+      } finally {
+
+        setIsDownloading(false);
       }
-
-      if (isDownloading) {
-        return;
-      }
-
-      setIsDownloading(true);
-
-      // ------------------------------------------------
-      // BUILD SERVER URL
-      // ------------------------------------------------
-
-      const encodedFilename = encodeURIComponent(report.filename);
-
-      const pdfUrl = `http://192.168.137.1:8000/similarity-report/${encodedFilename}`;
-
-      console.log("=================================");
-
-      console.log("Starting PDF download...");
-
-      console.log("PDF filename:", report.filename);
-
-      console.log("PDF report ID:", report.reportId);
-
-      console.log("PDF URL:", pdfUrl);
-
-      console.log("=================================");
-
-      // ------------------------------------------------
-      // DOWNLOAD TO LOCAL APP STORAGE
-      // ------------------------------------------------
-
-      const pdfDirectory = new Directory(Paths.cache, "similarity_reports");
-
-      // Create directory if required
-
-      if (!pdfDirectory.exists) {
-        pdfDirectory.create({
-          intermediates: true,
-        });
-      }
-
-      console.log("Local PDF directory:", pdfDirectory.uri);
-
-      // ------------------------------------------------
-      // CREATE LOCAL FILE
-      // ------------------------------------------------
-
-      const localFile = new File(pdfDirectory, report.filename);
-
-      console.log("Local PDF path:", localFile.uri);
-
-      // ------------------------------------------------
-      // DOWNLOAD PDF
-      // ------------------------------------------------
-
-      const downloadedFile = await File.downloadFileAsync(pdfUrl, localFile, {
-        idempotent: true,
-      });
-
-      console.log("=================================");
-
-      console.log("PDF downloaded successfully");
-
-      console.log("Local URI:", downloadedFile.uri);
-
-      console.log("File exists:", downloadedFile.exists);
-
-      console.log("=================================");
-
-      // ------------------------------------------------
-      // CHECK FILE
-      // ------------------------------------------------
-
-      if (!downloadedFile.exists) {
-        throw new Error("Downloaded PDF file does not exist.");
-      }
-
-      // ------------------------------------------------
-      // CHECK SHARING
-      // ------------------------------------------------
-
-      const sharingAvailable = await Sharing.isAvailableAsync();
-
-      console.log("Sharing available:", sharingAvailable);
-
-      if (!sharingAvailable) {
-        Alert.alert(
-          "PDF Downloaded",
-          `The similarity report was downloaded successfully.\n\nFile:\n${downloadedFile.uri}`,
-        );
-
-        return;
-      }
-
-      // ------------------------------------------------
-      // OPEN ANDROID SHARE / SAVE SHEET
-      // ------------------------------------------------
-
-      await Sharing.shareAsync(downloadedFile.uri, {
-        mimeType: "application/pdf",
-
-        dialogTitle: "Save Similarity Evidence PDF",
-      });
-    } catch (error) {
-      console.error("=================================");
-
-      console.error("❌ PDF DOWNLOAD ERROR");
-
-      console.error(error);
-
-      console.error("=================================");
-
-      Alert.alert(
-        "PDF Error",
-        "Unable to download the similarity evidence PDF.",
-      );
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+    };
 
   // ===================================================
   // RENDER RESULT
@@ -379,47 +546,107 @@ export default function SimilarityResultsScreen() {
     item: SimilarityResult;
     index: number;
   }) => {
+
     return (
-      <View style={styles.resultCard}>
+
+      <View
+        style={styles.resultCard}
+      >
+
         {/* NUMBER */}
 
-        <View style={styles.rankCircle}>
-          <Text style={styles.rankText}>{index + 1}</Text>
+        <View
+          style={styles.rankCircle}
+        >
+
+          <Text
+            style={styles.rankText}
+          >
+            {index + 1}
+          </Text>
+
         </View>
 
         {/* PROJECT INFORMATION */}
 
-        <View style={styles.resultContent}>
-          <Text style={styles.projectTitle} numberOfLines={2}>
+        <View
+          style={styles.resultContent}
+        >
+
+          <Text
+            style={styles.projectTitle}
+            numberOfLines={2}
+          >
             {item.title}
           </Text>
 
           {item.domain ? (
-            <View style={styles.metaRow}>
-              <Ionicons name="layers-outline" size={14} color="#6B7280" />
 
-              <Text style={styles.metaText}>{item.domain}</Text>
+            <View
+              style={styles.metaRow}
+            >
+
+              <Ionicons
+                name="layers-outline"
+                size={14}
+                color="#6B7280"
+              />
+
+              <Text
+                style={styles.metaText}
+              >
+                {item.domain}
+              </Text>
+
             </View>
+
           ) : null}
 
           {item.technologies ? (
-            <View style={styles.metaRow}>
-              <Ionicons name="code-slash-outline" size={14} color="#6B7280" />
 
-              <Text style={styles.metaText} numberOfLines={2}>
+            <View
+              style={styles.metaRow}
+            >
+
+              <Ionicons
+                name="code-slash-outline"
+                size={14}
+                color="#6B7280"
+              />
+
+              <Text
+                style={styles.metaText}
+                numberOfLines={2}
+              >
                 {item.technologies}
               </Text>
+
             </View>
+
           ) : null}
+
         </View>
 
         {/* SIMILARITY */}
 
-        <View style={styles.similarityBox}>
-          <Text style={styles.similarityValue}>{item.similarity}%</Text>
+        <View
+          style={styles.similarityBox}
+        >
 
-          <Text style={styles.similarityLabel}>Similar</Text>
+          <Text
+            style={styles.similarityValue}
+          >
+            {item.similarity}%
+          </Text>
+
+          <Text
+            style={styles.similarityLabel}
+          >
+            Similar
+          </Text>
+
         </View>
+
       </View>
     );
   };
@@ -429,27 +656,54 @@ export default function SimilarityResultsScreen() {
   // ===================================================
 
   return (
-    <SafeAreaView style={styles.container}>
+
+    <SafeAreaView
+      style={styles.container}
+    >
+
       {/* =================================================
-          HEADER
+          TOP NAVIGATION
       ================================================= */}
 
-      <View style={styles.header}>
+      {/* <View
+        style={styles.topBar}
+      >
+
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={
+            goBackToSimilarity
+          }
+          activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#1F2937" />
+
+          <Ionicons
+            name="arrow-back"
+            size={23}
+            color="#1F2937"
+          />
+
         </TouchableOpacity>
 
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>Similarity Results</Text>
+        <View
+          style={styles.topBarContent}
+        >
 
-          <Text style={styles.subtitle}>
-            Your report was compared with approved ProjectVerse projects.
+          <Text
+            style={styles.topBarTitle}
+          >
+            Similarity Results
           </Text>
+
+          <Text
+            style={styles.topBarSubtitle}
+          >
+            Analysis completed
+          </Text>
+
         </View>
-      </View>
+
+      </View> */}
 
       {/* =================================================
           RESULTS
@@ -457,57 +711,129 @@ export default function SimilarityResultsScreen() {
 
       <FlatList
         data={results}
-        renderItem={renderResult}
-        keyExtractor={(item, index) => item.projectId || `result-${index}`}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
+
+        renderItem={
+          renderResult
+        }
+
+        keyExtractor={(
+          item,
+          index
+        ) =>
+          item.projectId ||
+          `result-${index}`
+        }
+
+        showsVerticalScrollIndicator={
+          false
+        }
+
+        contentContainerStyle={
+          styles.list
+        }
+
         // =================================================
         // HEADER
         // =================================================
 
         ListHeaderComponent={
+
           <>
+
             {/* SUMMARY */}
 
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryIcon}>
-                <Ionicons name="analytics-outline" size={27} color="#4338CA" />
+            <View
+              style={styles.summaryCard}
+            >
+
+              <View
+                style={styles.summaryIcon}
+              >
+
+                <Ionicons
+                  name="analytics-outline"
+                  size={27}
+                  color="#4338CA"
+                />
+
               </View>
 
-              <View style={styles.summaryContent}>
-                <Text style={styles.summaryNumber}>{processedProjects}</Text>
+              <View
+                style={styles.summaryContent}
+              >
 
-                <Text style={styles.summaryLabel}>Projects Compared</Text>
+                <Text
+                  style={styles.summaryNumber}
+                >
+                  {processedProjects}
+                </Text>
+
+                <Text
+                  style={styles.summaryLabel}
+                >
+                  Projects Compared
+                </Text>
+
               </View>
 
-              <View style={styles.summaryStatus}>
-                <Ionicons name="checkmark-circle" size={17} color="#0F766E" />
+              <View
+                style={styles.summaryStatus}
+              >
 
-                <Text style={styles.summaryStatusText}>Analysis Complete</Text>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={17}
+                  color="#0F766E"
+                />
+
+                <Text
+                  style={styles.summaryStatusText}
+                >
+                  Analysis Complete
+                </Text>
+
               </View>
+
             </View>
 
             {/* INFORMATION */}
 
-            <View style={styles.infoCard}>
+            <View
+              style={styles.infoCard}
+            >
+
               <Ionicons
                 name="information-circle-outline"
                 size={22}
                 color="#4338CA"
               />
 
-              <View style={styles.infoContent}>
-                <Text style={styles.infoTitle}>Analysis Summary</Text>
+              <View
+                style={styles.infoContent}
+              >
 
-                <Text style={styles.infoText}>
+                <Text
+                  style={styles.infoTitle}
+                >
+                  Analysis Summary
+                </Text>
+
+                <Text
+                  style={styles.infoText}
+                >
+
                   {totalApprovedProjects} approved{" "}
+
                   {totalApprovedProjects === 1
                     ? "project was"
                     : "projects were"}{" "}
+
                   available for comparison.
+
                 </Text>
 
                 {uploadedCharacters > 0 && (
+
                   <Text
                     style={[
                       styles.infoText,
@@ -516,61 +842,121 @@ export default function SimilarityResultsScreen() {
                       },
                     ]}
                   >
-                    Processed report characters: {uploadedCharacters}
+
+                    Processed report characters:{" "}
+                    {uploadedCharacters}
+
                   </Text>
+
                 )}
+
               </View>
+
             </View>
 
             {/* RESULTS TITLE */}
 
             {results.length > 0 && (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Compared Projects</Text>
 
-                <Text style={styles.sectionSubtitle}>
+              <View
+                style={styles.sectionHeader}
+              >
+
+                <Text
+                  style={styles.sectionTitle}
+                >
+                  Compared Projects
+                </Text>
+
+                <Text
+                  style={styles.sectionSubtitle}
+                >
                   Highest similarity first
                 </Text>
+
               </View>
+
             )}
+
           </>
+
         }
+
         // =================================================
         // EMPTY
         // =================================================
 
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Ionicons name="search-outline" size={35} color="#4338CA" />
 
-            <Text style={styles.emptyTitle}>No Comparison Results</Text>
+          <View
+            style={styles.emptyCard}
+          >
 
-            <Text style={styles.emptyText}>
-              No processed approved projects were available for comparison.
+            <Ionicons
+              name="search-outline"
+              size={35}
+              color="#4338CA"
+            />
+
+            <Text
+              style={styles.emptyTitle}
+            >
+              No Comparison Results
             </Text>
+
+            <Text
+              style={styles.emptyText}
+            >
+              No processed approved projects were available
+              for comparison.
+            </Text>
+
           </View>
+
         }
+
         // =================================================
         // FOOTER
         // =================================================
 
         ListFooterComponent={
+
           results.length > 0 ? (
-            <View style={styles.evidenceCard}>
-              <View style={styles.evidenceIcon}>
+
+            <View
+              style={styles.evidenceCard}
+            >
+
+              <View
+                style={styles.evidenceIcon}
+              >
+
                 <Ionicons
                   name="document-text-outline"
                   size={25}
                   color="#4338CA"
                 />
+
               </View>
 
-              <View style={styles.evidenceContent}>
-                <Text style={styles.evidenceTitle}>Similarity Evidence</Text>
+              <View
+                style={styles.evidenceContent}
+              >
 
-                <Text style={styles.evidenceText}>
-                  Download the similarity analysis report as evidence for your
+                <Text
+                  style={styles.evidenceTitle}
+                >
+                  Similarity Evidence
+                </Text>
+
+                <Text
+                  style={styles.evidenceText}
+                >
+
+                  Download the similarity analysis
+                  report as evidence for your
                   project submission.
+
                 </Text>
 
                 {/* PDF BUTTON */}
@@ -578,49 +964,83 @@ export default function SimilarityResultsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.downloadButton,
-                    isDownloading && styles.downloadButtonDisabled,
+                    isDownloading &&
+                      styles.downloadButtonDisabled,
                   ]}
-                  onPress={downloadEvidence}
+                  onPress={
+                    downloadEvidence
+                  }
                   activeOpacity={0.8}
-                  disabled={isDownloading}
+                  disabled={
+                    isDownloading
+                  }
                 >
+
                   {isDownloading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+
+                    <ActivityIndicator
+                      size="small"
+                      color="#FFFFFF"
+                    />
+
                   ) : (
+
                     <Ionicons
                       name="download-outline"
                       size={19}
                       color="#FFFFFF"
                     />
+
                   )}
 
-                  <Text style={styles.downloadText}>
+                  <Text
+                    style={styles.downloadText}
+                  >
+
                     {isDownloading
                       ? "Downloading PDF..."
                       : "Download Evidence PDF"}
+
                   </Text>
+
                 </TouchableOpacity>
 
                 {/* PDF STATUS */}
 
                 {report && (
-                  <View style={styles.pdfReadyRow}>
+
+                  <View
+                    style={styles.pdfReadyRow}
+                  >
+
                     <Ionicons
                       name="checkmark-circle"
                       size={15}
                       color="#0F766E"
                     />
 
-                    <Text style={styles.pdfReadyText} numberOfLines={1}>
-                      PDF ready: {report.filename}
+                    <Text
+                      style={styles.pdfReadyText}
+                      numberOfLines={1}
+                    >
+
+                      PDF ready:{" "}
+                      {report.filename}
+
                     </Text>
+
                   </View>
+
                 )}
+
               </View>
+
             </View>
+
           ) : null
         }
       />
+
     </SafeAreaView>
   );
 }
@@ -629,52 +1049,52 @@ export default function SimilarityResultsScreen() {
 // STYLES
 // =====================================================
 
-const styles = StyleSheet.create({
+const styles =
+  StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F5F7FB",
   },
 
   // =================================================
-  // HEADER
+  // TOP BAR
   // =================================================
 
-  header: {
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 14,
     backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
 
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
+    width: 42,
+    height: 42,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    backgroundColor: "#F1F5F9",
   },
 
-  headerContent: {
+  topBarContent: {
     flex: 1,
+    marginLeft: 11,
   },
 
-  title: {
-    fontSize: 22,
+  topBarTitle: {
+    fontSize: 17,
     fontWeight: "700",
     color: "#111827",
   },
 
-  subtitle: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: "#6B7280",
-    marginTop: 3,
+  topBarSubtitle: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 2,
   },
 
   // =================================================
@@ -982,4 +1402,5 @@ const styles = StyleSheet.create({
     color: "#0F766E",
     marginLeft: 5,
   },
+
 });

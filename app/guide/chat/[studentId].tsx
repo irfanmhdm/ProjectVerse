@@ -25,6 +25,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -132,6 +133,60 @@ export default function GuideChatConversation() {
 
   const guide =
     auth.currentUser;
+
+  // =====================================================
+  // BACK NAVIGATION
+  // =====================================================
+
+  /*
+   * Always return to the Guide Chat List.
+   *
+   * We intentionally use router.replace()
+   * instead of router.back().
+   *
+   * This prevents the navigation stack from
+   * taking the user back to the Guide Home page.
+   */
+
+  const goBackToChatList = () => {
+
+    router.replace("/guide/chat");
+
+  };
+
+  // =====================================================
+  // ANDROID BACK BUTTON / GESTURE
+  // =====================================================
+
+  useEffect(() => {
+
+    if (Platform.OS !== "android") {
+      return;
+    }
+
+    const handleAndroidBack = () => {
+
+      goBackToChatList();
+
+      /*
+       * true means:
+       * "We handled the back action ourselves."
+       */
+
+      return true;
+    };
+
+    const subscription =
+      BackHandler.addEventListener(
+        "hardwareBackPress",
+        handleAndroidBack
+      );
+
+    return () => {
+      subscription.remove();
+    };
+
+  }, []);
 
   // =====================================================
   // LOAD STUDENT NAME
@@ -571,14 +626,6 @@ export default function GuideChatConversation() {
           ]}
         >
 
-          {/* =================================================
-              MESSAGE BUBBLE
-              
-              Sender name removed.
-              Student name is already shown
-              in the chat header.
-          ================================================= */}
-
           <View
             style={[
               styles.messageBubble,
@@ -665,7 +712,7 @@ export default function GuideChatConversation() {
     >
 
       {/* =================================================
-          ANDROID STATUS BAR
+          STATUS BAR
       ================================================= */}
 
       <StatusBar
@@ -700,9 +747,11 @@ export default function GuideChatConversation() {
             styles.backButton
           }
 
-          onPress={() =>
-            router.back()
+          onPress={
+            goBackToChatList
           }
+
+          hitSlop={8}
         >
 
           <Ionicons

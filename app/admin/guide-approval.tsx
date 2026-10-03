@@ -42,6 +42,13 @@ export default function GuideApproval() {
     useState<string | null>(null);
 
   // =====================================================
+  // APPROVE ALL LOADING
+  // =====================================================
+
+  const [approvingAll, setApprovingAll] =
+    useState(false);
+
+  // =====================================================
   // LOAD GUIDES
   // =====================================================
 
@@ -142,6 +149,51 @@ export default function GuideApproval() {
   };
 
   // =====================================================
+  // APPROVE ALL
+  // =====================================================
+
+  const approveAllGuides = async () => {
+    if (guides.length === 0) {
+      return;
+    }
+
+    try {
+      setApprovingAll(true);
+
+      await Promise.all(
+        guides.map((guide) =>
+          updateDoc(
+            doc(db, "users", guide.id),
+            {
+              approvalStatus: "approved",
+              status: "approved",
+            }
+          )
+        )
+      );
+
+      setGuides([]);
+
+      Alert.alert(
+        "Guides Approved",
+        "All pending guides have been approved successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Approve all guides error:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "Unable to approve all guides."
+      );
+    } finally {
+      setApprovingAll(false);
+    }
+  };
+
+  // =====================================================
   // REJECT
   // =====================================================
 
@@ -218,6 +270,10 @@ export default function GuideApproval() {
         }
       >
 
+        {/* =================================================
+            HEADER
+        ================================================= */}
+
         <View style={styles.header}>
           <View style={styles.iconBox}>
             <Ionicons
@@ -238,6 +294,10 @@ export default function GuideApproval() {
           </View>
         </View>
 
+        {/* =================================================
+            COUNT
+        ================================================= */}
+
         <View style={styles.countCard}>
           <Text style={styles.countNumber}>
             {guides.length}
@@ -247,6 +307,46 @@ export default function GuideApproval() {
             Pending Guide Requests
           </Text>
         </View>
+
+        {/* =================================================
+            APPROVE ALL
+        ================================================= */}
+
+        {guides.length > 0 && (
+          <TouchableOpacity
+            style={[
+              styles.approveAllButton,
+              approvingAll &&
+                styles.approveAllButtonDisabled,
+            ]}
+            onPress={approveAllGuides}
+            disabled={approvingAll}
+            activeOpacity={0.8}
+          >
+            {approvingAll ? (
+              <ActivityIndicator
+                size="small"
+                color="#FFFFFF"
+              />
+            ) : (
+              <Ionicons
+                name="checkmark-done-outline"
+                size={20}
+                color="#FFFFFF"
+              />
+            )}
+
+            <Text style={styles.approveAllText}>
+              {approvingAll
+                ? "Approving All..."
+                : "Approve All Guides"}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* =================================================
+            EMPTY
+        ================================================= */}
 
         {guides.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -273,6 +373,10 @@ export default function GuideApproval() {
               key={guide.id}
               style={styles.userCard}
             >
+              {/* =================================================
+                  USER INFO
+              ================================================= */}
+
               <View style={styles.userInfo}>
                 <View style={styles.avatar}>
                   <Ionicons
@@ -314,13 +418,26 @@ export default function GuideApproval() {
                 </View>
               </View>
 
+              {/* =================================================
+                  DIVIDER
+              ================================================= */}
+
               <View style={styles.divider} />
 
+              {/* =================================================
+                  ACTION BUTTONS
+              ================================================= */}
+
               <View style={styles.actionRow}>
+                {/* -------------------------------------------------
+                    REJECT
+                ------------------------------------------------- */}
+
                 <TouchableOpacity
                   style={styles.rejectButton}
                   disabled={
-                    processingUser === guide.id
+                    processingUser === guide.id ||
+                    approvingAll
                   }
                   onPress={() =>
                     rejectGuide(guide.id)
@@ -337,10 +454,15 @@ export default function GuideApproval() {
                   </Text>
                 </TouchableOpacity>
 
+                {/* -------------------------------------------------
+                    APPROVE
+                ------------------------------------------------- */}
+
                 <TouchableOpacity
                   style={styles.approveButton}
                   disabled={
-                    processingUser === guide.id
+                    processingUser === guide.id ||
+                    approvingAll
                   }
                   onPress={() =>
                     approveGuide(guide.id)
@@ -372,6 +494,10 @@ export default function GuideApproval() {
   );
 }
 
+// =====================================================
+// STYLES
+// =====================================================
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -395,6 +521,10 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontSize: 14,
   },
+
+  // =====================================================
+  // HEADER
+  // =====================================================
 
   header: {
     flexDirection: "row",
@@ -428,6 +558,10 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
+  // =====================================================
+  // COUNT
+  // =====================================================
+
   countCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -448,6 +582,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6B7280",
   },
+
+  // =====================================================
+  // APPROVE ALL
+  // =====================================================
+
+  approveAllButton: {
+    height: 46,
+    borderRadius: 11,
+    backgroundColor: "#4338CA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+  },
+
+  approveAllButtonDisabled: {
+    opacity: 0.7,
+  },
+
+  approveAllText: {
+    marginLeft: 7,
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  // =====================================================
+  // EMPTY
+  // =====================================================
 
   emptyCard: {
     backgroundColor: "#FFFFFF",
@@ -481,6 +644,10 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
   },
+
+  // =====================================================
+  // USER CARD
+  // =====================================================
 
   userCard: {
     backgroundColor: "#FFFFFF",
@@ -529,16 +696,28 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
+  // =====================================================
+  // DIVIDER
+  // =====================================================
+
   divider: {
     height: 1,
     backgroundColor: "#EEF0F4",
     marginVertical: 15,
   },
 
+  // =====================================================
+  // ACTION ROW
+  // =====================================================
+
   actionRow: {
     flexDirection: "row",
     gap: 10,
   },
+
+  // =====================================================
+  // REJECT
+  // =====================================================
 
   rejectButton: {
     flex: 1,
@@ -558,6 +737,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#DC2626",
   },
+
+  // =====================================================
+  // APPROVE
+  // =====================================================
 
   approveButton: {
     flex: 1,
