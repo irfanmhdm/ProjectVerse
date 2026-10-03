@@ -1503,11 +1503,11 @@ export default function Profile() {
 
                   <>
 
-                    <Ionicons
+                    {/* <Ionicons
                       name="checkmark-outline"
                       size={18}
                       color="#FFFFFF"
-                    />
+                    /> */}
 
                     <Text style={styles.modalSaveText}>
                       Update Password

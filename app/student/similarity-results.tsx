@@ -44,7 +44,7 @@ type SimilarityReport = {
 // API CONFIGURATION
 // =====================================================
 
-const API_BASE_URL = "http://192.168.1.11:8000";
+const API_BASE_URL = "http://192.168.94.51:8000";
 
 // =====================================================
 // SAFE PARAMETER PARSER

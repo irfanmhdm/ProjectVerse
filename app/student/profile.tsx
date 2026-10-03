@@ -1078,11 +1078,11 @@ export default function Profile() {
           <View style={styles.securityContent}>
 
             <Text style={styles.securityTitle}>
-              Change Password
+              Update Password
             </Text>
 
             <Text style={styles.securitySubtitle}>
-              Change your password using your current password
+              Update your password using your current password
             </Text>
 
           </View>

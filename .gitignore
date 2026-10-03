@@ -48,6 +48,12 @@ similarity_backend/venv/
 # Firebase Admin SDK credentials
 similarity_backend/serviceAccountKey.json
 
+
+# Generated similarity files
+similarity_backend/temp_reports/
+similarity_backend/similarity_reports/
+similarity_backend/generated_reports/
+
 # Python cache
 __pycache__/
 *.pyc

@@ -310,7 +310,7 @@ async def analyze_project_similarity(
 
         result = analyze_similarity(
             pdf_path,
-            decoded_filename
+            
         )
 
 

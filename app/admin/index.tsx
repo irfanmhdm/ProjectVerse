@@ -206,7 +206,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
         <View style={styles.loadingContainer}>
           <View style={styles.loadingIcon}>
             <Ionicons
@@ -229,7 +229,7 @@ export default function AdminDashboard() {
   // =====================================================
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}

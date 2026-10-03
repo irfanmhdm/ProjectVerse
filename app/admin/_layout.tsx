@@ -110,7 +110,7 @@ function CustomDrawerContent(props: any) {
         ================================================= */}
 
         <DrawerItem
-          label="Dashboard"
+          label="Home"
 
           focused={currentRoute === "index"}
 
@@ -127,7 +127,7 @@ function CustomDrawerContent(props: any) {
           }}
 
           activeTintColor="#4338CA"
-          inactiveTintColor="#374151"
+          inactiveTintColor="#4338CA"
           activeBackgroundColor="#D5F5F2"
 
           labelStyle={styles.drawerLabel}
@@ -156,7 +156,7 @@ function CustomDrawerContent(props: any) {
           }}
 
           activeTintColor="#4338CA"
-          inactiveTintColor="#374151"
+          inactiveTintColor="#4338CA"
           activeBackgroundColor="#D5F5F2"
 
           labelStyle={styles.drawerLabel}
@@ -185,7 +185,7 @@ function CustomDrawerContent(props: any) {
           }}
 
           activeTintColor="#4338CA"
-          inactiveTintColor="#374151"
+          inactiveTintColor="#4338CA"
           activeBackgroundColor="#D5F5F2"
 
           labelStyle={styles.drawerLabel}
@@ -214,7 +214,7 @@ function CustomDrawerContent(props: any) {
           }}
 
           activeTintColor="#4338CA"
-          inactiveTintColor="#374151"
+          inactiveTintColor="#4338CA"
           activeBackgroundColor="#D5F5F2"
 
           labelStyle={styles.drawerLabel}
@@ -243,7 +243,7 @@ function CustomDrawerContent(props: any) {
           }}
 
           activeTintColor="#4338CA"
-          inactiveTintColor="#374151"
+          inactiveTintColor="#4338CA"
           activeBackgroundColor="#D5F5F2"
 
           labelStyle={styles.drawerLabel}
@@ -315,7 +315,7 @@ export default function AdminLayout() {
         headerTintColor: "#1F2937",
 
         headerTitleStyle: {
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: "700",
         },
 
@@ -369,7 +369,7 @@ export default function AdminLayout() {
       <Drawer.Screen
         name="approved-students"
         options={{
-          title: "Admin - Approved Students",
+          title: "Approved Students",
 
           drawerLabel: "Approved Students",
 
@@ -390,7 +390,7 @@ export default function AdminLayout() {
       <Drawer.Screen
         name="approved-guides"
         options={{
-          title: "Admin - Approved Guides",
+          title: "Approved Guides",
 
           drawerLabel: "Approved Guides",
 
@@ -411,7 +411,7 @@ export default function AdminLayout() {
       <Drawer.Screen
         name="student-approval"
         options={{
-          title: "Admin - Student Approval",
+          title: "Student Approval",
 
           drawerLabel: "Student Approval",
 
@@ -432,7 +432,7 @@ export default function AdminLayout() {
       <Drawer.Screen
         name="guide-approval"
         options={{
-          title: "Admin - Guide Approval",
+          title: "Guide Approval",
 
           drawerLabel: "Guide Approval",
 
@@ -468,6 +468,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 40,
     paddingBottom: 20,
+    
   },
 
   // ===================================================
@@ -534,10 +535,10 @@ const styles = StyleSheet.create({
 
   drawerItem: {
     marginHorizontal: 10,
-    marginVertical: 2,
+    marginVertical: -10,
 
     borderRadius: 11,
-
+    marginTop:10,
     paddingVertical: 0,
   },
 
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: "600",
 
-    color: "#374151",
+    color: "#000102",
   },
 
   // ===================================================
