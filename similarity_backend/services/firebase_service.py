@@ -1,3 +1,5 @@
+import os
+import json
 import firebase_admin
 
 from firebase_admin import credentials
@@ -10,13 +12,13 @@ from firebase_admin import firestore
 
 if not firebase_admin._apps:
 
-    cred = credentials.Certificate(
-        "serviceAccountKey.json"
+    firebase_credentials = json.loads(
+        os.environ["FIREBASE_SERVICE_ACCOUNT_JSON"]
     )
 
-    firebase_admin.initialize_app(
-        cred
-    )
+    cred = credentials.Certificate(firebase_credentials)
+
+    firebase_admin.initialize_app(cred)
 
 
 # =========================================================
@@ -26,4 +28,3 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 print("Firebase connected successfully!")
-
