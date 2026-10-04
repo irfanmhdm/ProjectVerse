@@ -132,9 +132,9 @@ export default function RootLayout() {
         // =================================================
 
         if (pathname === "/student") {
-          console.log("Student Home - allowing Android to close app");
-
-          return false;
+          console.log("Student Home - exiting app");
+          BackHandler.exitApp();
+          return true;
         }
 
         // =================================================
@@ -154,9 +154,9 @@ export default function RootLayout() {
         // =================================================
 
         if (pathname === "/admin" || pathname === "/admin/index") {
-          console.log("Admin Home - allowing Android to close app");
-
-          return false;
+          console.log("Admin Home - exiting app");
+          BackHandler.exitApp();
+          return true;
         }
 
         // =================================================

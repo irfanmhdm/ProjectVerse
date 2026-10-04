@@ -898,14 +898,14 @@ export default function Profile() {
       showsVerticalScrollIndicator={false}
     >
 
-      {/* ===============================================
+      {/* {/* ===============================================
           PAGE TITLE
-      =============================================== */}
+      =============================================== 
 
       
       <Text style={styles.subtitle}>
         Manage your personal and academic information
-      </Text>
+      </Text> */}
 
 
       {/* ===============================================
