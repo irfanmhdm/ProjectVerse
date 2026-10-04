@@ -182,7 +182,6 @@ def analyze_similarity(
         )
 
         return {
-
             "uploadedCharacters":
                 len(uploaded_processed_text),
 
@@ -284,7 +283,6 @@ def analyze_similarity(
     if not comparison_projects:
 
         return {
-
             "uploadedCharacters":
                 len(uploaded_processed_text),
 
@@ -451,7 +449,6 @@ def analyze_similarity(
     )
 
     return {
-
         "uploadedCharacters":
             len(uploaded_processed_text),
 

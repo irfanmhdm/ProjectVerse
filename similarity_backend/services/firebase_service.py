@@ -24,3 +24,6 @@ if not firebase_admin._apps:
 # =========================================================
 
 db = firestore.client()
+
+print("Firebase connected successfully!")
+
