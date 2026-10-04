@@ -1,6 +1,6 @@
   import * as ImagePicker from "expo-image-picker";
   import { Ionicons } from "@expo/vector-icons";
-  const SIMILARITY_API_URL = "http://192.168.1.5:8000";
+  const SIMILARITY_API_URL = "https://projectverse-backend-3cwn.onrender.com";
 
   import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 

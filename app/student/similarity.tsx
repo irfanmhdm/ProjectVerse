@@ -20,7 +20,7 @@ import { router } from "expo-router";
 // FASTAPI URL
 // =====================================================
 
-const API_URL = "http://192.168.1.5:8000";
+const API_URL = "https://projectverse-backend-3cwn.onrender.com";
 
 // =====================================================
 // TYPES

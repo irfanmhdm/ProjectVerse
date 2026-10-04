@@ -60,7 +60,7 @@ type ProjectDetails = {
 // API CONFIGURATION
 // =====================================================
 
-const API_BASE_URL = "http://192.168.1.5:8000";
+const API_BASE_URL = "https://projectverse-backend-3cwn.onrender.com";
 
 // =====================================================
 // MAXIMUM RESULTS TO DISPLAY
