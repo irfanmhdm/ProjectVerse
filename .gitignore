@@ -57,3 +57,5 @@ similarity_backend/generated_reports/
 # Python cache
 __pycache__/
 *.pyc
+# Uploaded/test PDF files
+similarity_backend/*.pdf
