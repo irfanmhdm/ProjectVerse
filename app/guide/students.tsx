@@ -25,7 +25,6 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { auth, db } from "../../firebase/firebaseConfig";
 
-
 // =====================================================
 // STUDENT TYPE
 // =====================================================
@@ -36,29 +35,26 @@ type Student = {
   studentName: string;
   studentEmail: string;
   studentClass: string;
+  studentRegisterNumber: string;
   createdAt?: any;
 };
-
 
 // =====================================================
 // STUDENTS SCREEN
 // =====================================================
 
 export default function Students() {
-
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [removingStudentId, setRemovingStudentId] =
     useState<string | null>(null);
 
-
   // =====================================================
   // LOAD ASSIGNED STUDENTS
   // =====================================================
 
   useEffect(() => {
-
     const guide = auth.currentUser;
 
     if (!guide) {
@@ -75,23 +71,16 @@ export default function Students() {
       studentsQuery,
 
       (snapshot) => {
-
-        const studentList: Student[] =
-          snapshot.docs.map((studentDoc) => ({
-            id: studentDoc.id,
-            ...(studentDoc.data() as Omit<
-              Student,
-              "id"
-            >),
-          }));
+        const studentList: Student[] = snapshot.docs.map((studentDoc) => ({
+          id: studentDoc.id,
+          ...(studentDoc.data() as Omit<Student, "id">),
+        }));
 
         setStudents(studentList);
-
         setLoading(false);
       },
 
       (error) => {
-
         console.log(
           "Error fetching assigned students:",
           error,
@@ -107,20 +96,16 @@ export default function Students() {
     );
 
     return unsubscribe;
-
   }, []);
-
 
   // =====================================================
   // REMOVE STUDENT
   // =====================================================
 
   const removeStudent = (student: Student) => {
-
     const guide = auth.currentUser;
 
     if (!guide) {
-
       Alert.alert(
         "Authentication Error",
         "Guide is not logged in.",
@@ -128,7 +113,6 @@ export default function Students() {
 
       return;
     }
-
 
     Alert.alert(
       "Remove Student",
@@ -146,11 +130,8 @@ export default function Students() {
           style: "destructive",
 
           onPress: async () => {
-
             try {
-
               setRemovingStudentId(student.id);
-
 
               // -----------------------------------------
               // DELETE ASSIGNMENT
@@ -164,12 +145,10 @@ export default function Students() {
                 ),
               );
 
-
               Alert.alert(
                 "Student Removed",
                 `${student.studentName} has been removed from your students.`,
               );
-
 
               // -----------------------------------------
               // No manual reload required.
@@ -177,9 +156,7 @@ export default function Students() {
               // onSnapshot() above automatically
               // updates the student list.
               // -----------------------------------------
-
             } catch (error: any) {
-
               console.log(
                 "Error removing student:",
                 error,
@@ -195,17 +172,13 @@ export default function Students() {
                 error.message,
               );
 
-
               Alert.alert(
                 "Remove Failed",
                 error.message ||
                   "Something went wrong while removing the student.",
               );
-
             } finally {
-
               setRemovingStudentId(null);
-
             }
           },
         },
@@ -213,16 +186,13 @@ export default function Students() {
     );
   };
 
-
   // =====================================================
   // LOADING
   // =====================================================
 
   if (loading) {
-
     return (
       <View style={styles.loadingContainer}>
-
         <ActivityIndicator
           size="large"
           color="#4338CA"
@@ -231,30 +201,26 @@ export default function Students() {
         <Text style={styles.loadingText}>
           Loading students...
         </Text>
-
       </View>
     );
   }
-
 
   // =====================================================
   // MAIN UI
   // =====================================================
 
   return (
-
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-
-      {/* {/* =================================================
+      {/* =================================================
           HEADER
-      ================================================= 
+      ================================================= */}
 
+      {/*
       <View style={styles.header}>
-
         <Text style={styles.label}>
           GUIDE
         </Text>
@@ -266,31 +232,24 @@ export default function Students() {
         <Text style={styles.subtitle}>
           Students assigned under your guidance
         </Text>
-
-      </View> */}
-
+      </View>
+      */}
 
       {/* =================================================
           STUDENT COUNT
       ================================================= */}
 
       {students.length > 0 && (
-
         <View style={styles.countCard}>
-
           <View style={styles.countIcon}>
-
             <Ionicons
               name="people-outline"
               size={25}
               color="#0F766E"
             />
-
           </View>
 
-
           <View style={styles.countContent}>
-
             <Text style={styles.countNumber}>
               {students.length}
             </Text>
@@ -300,12 +259,9 @@ export default function Students() {
                 ? "Student"
                 : "Students"}
             </Text>
-
           </View>
 
-
           <View style={styles.countStatus}>
-
             <Ionicons
               name="checkmark-circle-outline"
               size={18}
@@ -315,43 +271,33 @@ export default function Students() {
             <Text style={styles.countStatusText}>
               Assigned
             </Text>
-
           </View>
-
         </View>
       )}
-
 
       {/* =================================================
           EMPTY STATE
       ================================================= */}
 
       {students.length === 0 ? (
-
         <View style={styles.emptyContainer}>
-
           <View style={styles.emptyIcon}>
-
             <Ionicons
               name="people-outline"
               size={34}
               color="#4338CA"
             />
-
           </View>
-
 
           <Text style={styles.emptyTitle}>
             No Students Yet
           </Text>
-
 
           <Text style={styles.emptyText}>
             You haven't added any students yet.
             Add a student to start managing their
             projects and progress.
           </Text>
-
 
           <Pressable
             style={({ pressed }) => [
@@ -362,7 +308,6 @@ export default function Students() {
               router.push("/guide/add-student")
             }
           >
-
             <Ionicons
               name="person-add-outline"
               size={19}
@@ -372,21 +317,15 @@ export default function Students() {
             <Text style={styles.addButtonText}>
               Add Student
             </Text>
-
           </Pressable>
-
         </View>
-
       ) : (
-
         <>
-
           {/* =================================================
               SECTION HEADER
           ================================================= */}
 
           <View style={styles.sectionHeader}>
-
             <Text style={styles.sectionTitle}>
               Assigned Students
             </Text>
@@ -394,42 +333,31 @@ export default function Students() {
             <Text style={styles.sectionSubtitle}>
               Students currently assigned to you
             </Text>
-
           </View>
-
 
           {/* =================================================
               STUDENT CARDS
           ================================================= */}
 
           {students.map((student) => (
-
             <View
               key={student.id}
               style={styles.studentCard}
             >
-
               {/* =================================================
                   STUDENT HEADER
               ================================================= */}
 
               <View style={styles.cardTop}>
-
                 <View style={styles.avatar}>
-
                   <Text style={styles.avatarText}>
-
                     {student.studentName
                       ?.charAt(0)
                       .toUpperCase() || "S"}
-
                   </Text>
-
                 </View>
 
-
                 <View style={styles.studentHeader}>
-
                   <Text
                     style={styles.studentName}
                     numberOfLines={1}
@@ -437,9 +365,7 @@ export default function Students() {
                     {student.studentName}
                   </Text>
 
-
                   <View style={styles.classBadge}>
-
                     <Ionicons
                       name="school-outline"
                       size={13}
@@ -450,33 +376,81 @@ export default function Students() {
                       {student.studentClass ||
                         "Not provided"}
                     </Text>
-
                   </View>
-
                 </View>
 
+                {/* =================================================
+                    REMOVE STUDENT ICON
+                ================================================= */}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.removeIconButton,
+                    pressed && styles.pressed,
+                    removingStudentId === student.id &&
+                      styles.disabledButton,
+                  ]}
+                  onPress={() =>
+                    removeStudent(student)
+                  }
+                  disabled={
+                    removingStudentId === student.id
+                  }
+                >
+                  {removingStudentId === student.id ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#DC2626"
+                    />
+                  ) : (
+                    <Ionicons
+                      name="log-out-outline"
+                      size={27}
+                      color="#DC2626"
+                    />
+                  )}
+                </Pressable>
               </View>
 
+              {/* =================================================
+                  REGISTER NUMBER
+              ================================================= */}
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons
+                    name="card-outline"
+                    size={17}
+                    color="#4338CA"
+                  />
+                </View>
+
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>
+                    Register Number
+                  </Text>
+
+                  <Text style={styles.infoValue}>
+                    {student.studentRegisterNumber ||
+                      "Not provided"}
+                  </Text>
+                </View>
+              </View>
 
               {/* =================================================
                   EMAIL
               ================================================= */}
 
               <View style={styles.infoRow}>
-
                 <View style={styles.infoIcon}>
-
                   <Ionicons
                     name="mail-outline"
                     size={17}
                     color="#6B7280"
                   />
-
                 </View>
 
-
                 <View style={styles.infoContent}>
-
                   <Text style={styles.infoLabel}>
                     Email
                   </Text>
@@ -487,36 +461,26 @@ export default function Students() {
                   >
                     {student.studentEmail}
                   </Text>
-
                 </View>
-
               </View>
 
-
-              {/* {/* =================================================
+              {/* =================================================
                   VIEW PROJECTS
-              ================================================= 
+              ================================================= */}
 
+              {/*
               <Pressable
                 style={({ pressed }) => [
                   styles.projectsButton,
                   pressed && styles.pressed,
                 ]}
                 onPress={() => {
-
                   console.log(
                     "Selected student:",
                     student.studentId,
                   );
-
-                  // -----------------------------------------
-                  // Keep your existing View Projects logic
-                  // here if it already exists.
-                  // -----------------------------------------
-
                 }}
               >
-
                 <Text style={styles.projectsButtonText}>
                   View Projects
                 </Text>
@@ -526,71 +490,18 @@ export default function Students() {
                   size={18}
                   color="#FFFFFF"
                 />
-
-              </Pressable> */}
-
-
-              {/* =================================================
-                  REMOVE STUDENT
-              ================================================= */}
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.removeButton,
-                  pressed && styles.pressed,
-                  removingStudentId === student.id &&
-                    styles.disabledButton,
-                ]}
-                onPress={() =>
-                  removeStudent(student)
-                }
-                disabled={
-                  removingStudentId === student.id
-                }
-              >
-
-                {removingStudentId === student.id ? (
-
-                  <ActivityIndicator
-                    size="small"
-                    color="#DC2626"
-                  />
-
-                ) : (
-
-                  <Ionicons
-                    name="person-remove-outline"
-                    size={18}
-                    color="#DC2626"
-                  />
-
-                )}
-
-                <Text style={styles.removeButtonText}>
-
-                  {removingStudentId === student.id
-                    ? "Removing..."
-                    : "Remove Student"}
-
-                </Text>
-
               </Pressable>
-
+              */}
             </View>
-
           ))}
-
         </>
-
       )}
-
 
       {/* =================================================
           FOOTER
       ================================================= */}
 
       <View style={styles.footer}>
-
         <Text style={styles.footerTitle}>
           ProjectVerse
         </Text>
@@ -598,20 +509,16 @@ export default function Students() {
         <Text style={styles.footerSubtitle}>
           Academic Project Management Platform
         </Text>
-
       </View>
-
     </ScrollView>
   );
 }
-
 
 // ======================================================
 // STYLES
 // ======================================================
 
 const styles = StyleSheet.create({
-
   // =====================================================
   // CONTAINER
   // =====================================================
@@ -625,7 +532,6 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 35,
   },
-
 
   // =====================================================
   // HEADER
@@ -656,7 +562,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginTop: 6,
   },
-
 
   // =====================================================
   // COUNT CARD
@@ -716,7 +621,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-
   // =====================================================
   // SECTION
   // =====================================================
@@ -736,7 +640,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
   },
-
 
   // =====================================================
   // STUDENT CARD
@@ -802,6 +705,21 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
+  // =====================================================
+  // REMOVE ICON
+  // =====================================================
+
+  removeIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
 
   // =====================================================
   // INFO
@@ -842,7 +760,6 @@ const styles = StyleSheet.create({
     color: "#374151",
   },
 
-
   // =====================================================
   // VIEW PROJECTS
   // =====================================================
@@ -863,30 +780,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginRight: 8,
   },
-
-
-  // =====================================================
-  // REMOVE STUDENT
-  // =====================================================
-
-  removeButton: {
-    height: 42,
-    backgroundColor: "#FEF2F2",
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  removeButtonText: {
-    color: "#DC2626",
-    fontSize: 13,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-
 
   // =====================================================
   // EMPTY STATE
@@ -944,7 +837,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-
   // =====================================================
   // LOADING
   // =====================================================
@@ -961,7 +853,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
   },
-
 
   // =====================================================
   // FOOTER
@@ -985,7 +876,6 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
   },
 
-
   // =====================================================
   // PRESS / DISABLED
   // =====================================================
@@ -997,5 +887,4 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
-
 });

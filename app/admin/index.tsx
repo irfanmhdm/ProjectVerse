@@ -118,7 +118,7 @@ export default function AdminDashboard() {
 
       const submittedQuery = query(
         collection(db, "projects"),
-        where("status", "==", "submitted"),
+        where("status", "==", "pending"),
       );
 
       const approvedQuery = query(
