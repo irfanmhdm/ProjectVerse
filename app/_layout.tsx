@@ -10,13 +10,7 @@ import { StatusBar } from "expo-status-bar";
 
 import { useEffect, useRef, useState } from "react";
 
-import {
-  BackHandler,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { BackHandler, View } from "react-native";
 
 import "react-native-reanimated";
 
@@ -28,6 +22,49 @@ import { auth, db } from "../firebase/firebaseConfig";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
+import * as SplashScreen from "expo-splash-screen";
+
+// =====================================================
+// KEEP NATIVE SPLASH SCREEN VISIBLE
+// =====================================================
+//
+// IMPORTANT:
+//
+// The native splash stays visible while Firebase checks
+// the saved authentication session.
+//
+// We DO NOT render the Expo Router Stack during this
+// initialization period.
+//
+// Therefore:
+//
+// SAVED SESSION
+//
+// Native Splash
+//      ↓
+// Firebase Auth
+//      ↓
+// Firestore profile
+//      ↓
+// Dashboard
+//
+//
+// NO SESSION
+//
+// Native Splash
+//      ↓
+// Firebase Auth
+//      ↓
+// Index
+//
+// There is no:
+//
+// Splash → Index → Dashboard
+//
+// =====================================================
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 // =====================================================
 // ROOT LAYOUT
 // =====================================================
@@ -38,30 +75,13 @@ export default function RootLayout() {
   const pathname = usePathname();
 
   // =====================================================
-  // AUTH INITIALIZATION STATE
-  // =====================================================
-  //
-  // IMPORTANT:
-  //
-  // This prevents the index page from appearing while
-  // Firebase is restoring the saved session.
-  //
-  // Flow:
-  //
-  // App opens
-  //      ↓
-  // Firebase restores session
-  //      ↓
-  // Check user profile
-  //      ↓
-  // Dashboard OR index
-  //
+  // AUTH INITIALIZATION
   // =====================================================
 
   const [isInitializing, setIsInitializing] = useState(true);
 
   // =====================================================
-  // KEEP CURRENT PATHNAME IN REF
+  // PATHNAME REF
   // =====================================================
 
   const pathnameRef = useRef(pathname);
@@ -69,6 +89,31 @@ export default function RootLayout() {
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  // =====================================================
+  // FINISH INITIALIZATION
+  // =====================================================
+  //
+  // This function:
+  //
+  // 1. Marks Firebase initialization as finished.
+  // 2. Hides native splash.
+  //
+  // The Stack is rendered only AFTER this decision.
+  //
+  // =====================================================
+
+  const finishInitialization = async () => {
+    setIsInitializing(false);
+
+    try {
+      await SplashScreen.hideAsync();
+
+      console.log("Native splash screen hidden.");
+    } catch (error) {
+      console.log("Error hiding native splash:", error);
+    }
+  };
 
   // =====================================================
   // ANDROID BACK HANDLING
@@ -84,15 +129,11 @@ export default function RootLayout() {
       () => {
         console.log("Android back pressed:", pathname);
 
-        // =====================================================
+        // =================================================
         // SIMILARITY RESULTS
-        // =====================================================
+        // =================================================
 
         if (pathname === "/student/similarity-results") {
-          console.log(
-            "Similarity Results - returning to Similarity Analysis"
-          );
-
           router.replace("/student/similarity");
 
           return true;
@@ -103,10 +144,6 @@ export default function RootLayout() {
         // =================================================
 
         if (pathname.includes("project-details")) {
-          console.log(
-            "Project Details flow - allowing normal navigation"
-          );
-
           return false;
         }
 
@@ -115,10 +152,6 @@ export default function RootLayout() {
         // =================================================
 
         if (pathname.startsWith("/guide/chat/")) {
-          console.log(
-            "Guide chat conversation - allowing normal navigation"
-          );
-
           return false;
         }
 
@@ -127,10 +160,6 @@ export default function RootLayout() {
         // =================================================
 
         if (pathname === "/guide") {
-          console.log(
-            "Guide Home - allowing Android to close app"
-          );
-
           return false;
         }
 
@@ -145,10 +174,6 @@ export default function RootLayout() {
           pathname === "/guide/chat" ||
           pathname === "/guide/profile"
         ) {
-          console.log(
-            "Guide main page - returning to Guide Home"
-          );
-
           router.replace("/guide");
 
           return true;
@@ -159,8 +184,6 @@ export default function RootLayout() {
         // =================================================
 
         if (pathname === "/student") {
-          console.log("Student Home - exiting app");
-
           BackHandler.exitApp();
 
           return true;
@@ -170,10 +193,37 @@ export default function RootLayout() {
         // STUDENT PAGES
         // =================================================
 
+        // =================================================
+        // PROJECT DETAILS / REVISE PROJECT
+        // =================================================
+        //
+        // These pages belong to a nested Stack:
+        //
+        // My Projects
+        //      ↓
+        // Project Details
+        //      ↓
+        // Revise Project
+        //
+        // Do NOT send these directly to Student Home.
+        // Let the nested project Stack handle back navigation.
+        // =================================================
+
+        if (
+          pathname === "/student/project/project-details" ||
+          pathname === "/student/project/revise-project"
+        ) {
+          console.log("Project nested page - allowing normal back navigation");
+
+          return false;
+        }
+
+        // =================================================
+        // OTHER STUDENT PAGES
+        // =================================================
+
         if (pathname.startsWith("/student/")) {
-          console.log(
-            "Student page - returning to Student Home"
-          );
+          console.log("Student page - returning to Student Home");
 
           router.replace("/student");
 
@@ -184,35 +234,18 @@ export default function RootLayout() {
         // ADMIN HOME
         // =================================================
 
-        if (
-          pathname === "/admin" ||
-          pathname === "/admin/index"
-        ) {
-          console.log("Admin Home - exiting app");
-
+        if (pathname === "/admin" || pathname === "/admin/index") {
           BackHandler.exitApp();
 
           return true;
         }
 
         // =================================================
-        // ADMIN PAGES
+        // DEFAULT
         // =================================================
-        //
-        // No custom admin route replacement.
-        //
-        // =================================================
-
-        // =================================================
-        // OTHER PAGES
-        // =================================================
-
-        console.log(
-          "No custom back rule - allowing normal navigation"
-        );
 
         return false;
-      }
+      },
     );
 
     // =====================================================
@@ -225,7 +258,7 @@ export default function RootLayout() {
   }, [pathname]);
 
   // =====================================================
-  // FIREBASE SESSION RESTORATION
+  // FIREBASE AUTH INITIALIZATION
   // =====================================================
 
   useEffect(() => {
@@ -233,478 +266,390 @@ export default function RootLayout() {
 
     console.log("CREATING FIREBASE AUTH LISTENER");
 
-    console.log(
-      "Initial pathname:",
-      pathnameRef.current
-    );
+    console.log("Initial pathname:", pathnameRef.current);
 
     console.log("====================================");
 
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (user) => {
-        console.log("====================================");
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("====================================");
 
-        console.log("AUTH STATE CHANGED");
+      console.log("AUTH STATE CHANGED");
 
-        console.log(
-          "CURRENT PATH:",
-          pathnameRef.current
-        );
+      console.log("CURRENT PATH:", pathnameRef.current);
+
+      // =================================================
+      // NO SAVED SESSION
+      // =================================================
+      //
+      // This is the important part.
+      //
+      // Firebase has confirmed that there is no
+      // authenticated user.
+      //
+      // We simply hide the native splash.
+      //
+      // Since Stack is now allowed to render,
+      // Expo Router will show index.tsx.
+      //
+      // =================================================
+
+      if (!user) {
+        console.log("No saved session.");
+
+        console.log("Opening index page.");
+
+        await finishInitialization();
+
+        return;
+      }
+
+      // =================================================
+      // SAVED SESSION FOUND
+      // =================================================
+
+      console.log("SESSION RESTORED");
+
+      console.log("UID:", user.uid);
+
+      console.log("Email:", user.email);
+
+      // =================================================
+      // REGISTRATION PROTECTION
+      // =================================================
+      //
+      // During registration Firebase automatically
+      // changes the authentication state.
+      //
+      // Do NOT redirect the newly registered user
+      // before the registration process finishes.
+      //
+      // =================================================
+
+      if (pathnameRef.current === "/register") {
+        console.log("REGISTER PAGE ACTIVE");
+
+        console.log("Skipping session restoration.");
+
+        await finishInitialization();
+
+        return;
+      }
+
+      try {
+        // =================================================
+        // LOAD USER PROFILE
+        // =================================================
+
+        const userRef = doc(db, "users", user.uid);
+
+        console.log("Loading user profile...");
+
+        const userDoc = await getDoc(userRef);
 
         // =================================================
-        // NO USER
-        // =================================================
-
-        if (!user) {
-          console.log("No saved session");
-
-          console.log(
-            "Showing normal authentication screen."
-          );
-
-          // ---------------------------------------------
-          // Firebase has finished checking persistence.
-          // Therefore it is now safe to show index/login.
-          // ---------------------------------------------
-
-          setIsInitializing(false);
-
-          console.log("====================================");
-
-          return;
-        }
-
-        // =================================================
-        // USER EXISTS
-        // =================================================
-
-        console.log("SESSION RESTORED");
-
-        console.log("UID:", user.uid);
-
-        console.log("Email:", user.email);
-
-        // =================================================
-        // REGISTRATION PROTECTION
-        // =================================================
-        //
-        // During registration:
-        //
-        // createUserWithEmailAndPassword()
-        //          ↓
-        // Auth state changes
-        //
-        // But users/{uid} may not exist yet.
-        //
-        // Therefore NEVER perform session restoration
-        // while register screen is active.
-        //
+        // CHECK REGISTER AGAIN
         // =================================================
 
         if (pathnameRef.current === "/register") {
-          console.log("REGISTER PAGE ACTIVE");
+          console.log("Route changed to register.");
 
-          console.log(
-            "Skipping session restoration."
-          );
-
-          // Registration page should be visible normally.
-          setIsInitializing(false);
-
-          console.log("====================================");
+          await finishInitialization();
 
           return;
         }
 
-        try {
-          // =================================================
-          // GET USER PROFILE
-          // =================================================
-
-          const userRef = doc(
-            db,
-            "users",
-            user.uid
-          );
-
-          console.log("Loading user profile...");
-
-          const userDoc = await getDoc(userRef);
-
-          // =================================================
-          // CHECK REGISTER AGAIN
-          // =================================================
-
-          if (pathnameRef.current === "/register") {
-            console.log(
-              "Route is now register."
-            );
-
-            console.log(
-              "Stopping session restoration."
-            );
-
-            setIsInitializing(false);
-
-            return;
-          }
-
-          // =================================================
-          // PROFILE NOT FOUND
-          // =================================================
-
-          if (!userDoc.exists()) {
-            console.log(
-              "User profile not found"
-            );
-
-            await signOut(auth);
-
-            setIsInitializing(false);
-
-            router.replace("/login");
-
-            return;
-          }
-
-          // =================================================
-          // USER DATA
-          // =================================================
-
-          const userData = userDoc.data();
-
-          console.log(
-            "User role:",
-            userData.role
-          );
-
-          console.log(
-            "User status:",
-            userData.status
-          );
-
-          // =================================================
-          // ADMIN
-          // =================================================
-
-          if (userData.role === "admin") {
-            console.log(
-              "Admin session verified."
-            );
-
-            const currentPath =
-              pathnameRef.current;
-
-            const isAuthPage =
-              currentPath === "/" ||
-              currentPath === "/login";
-
-            if (isAuthPage) {
-              console.log(
-                "Admin is on auth/root page."
-              );
-
-              console.log(
-                "Redirecting to Admin Dashboard."
-              );
-
-              router.replace("/admin");
-            } else {
-              console.log(
-                "Admin is already inside application."
-              );
-
-              console.log(
-                "Keeping current route:",
-                currentPath
-              );
-            }
-
-            // ---------------------------------------------
-            // Initial authentication check completed.
-            // ---------------------------------------------
-
-            setIsInitializing(false);
-
-            return;
-          }
-
-          // =================================================
-          // STUDENT
-          // =================================================
-
-          if (userData.role === "student") {
-            // ---------------------------------------------
-            // APPROVED STUDENT
-            // ---------------------------------------------
-
-            if (userData.status === "approved") {
-              const currentPath =
-                pathnameRef.current;
-
-              const isAuthPage =
-                currentPath === "/" ||
-                currentPath === "/login";
-
-              if (isAuthPage) {
-                console.log(
-                  "Approved student."
-                );
-
-                console.log(
-                  "Redirecting to Student Dashboard."
-                );
-
-                router.replace("/student");
-              } else {
-                console.log(
-                  "Student already inside application."
-                );
-
-                console.log(
-                  "Keeping current route:",
-                  currentPath
-                );
-              }
-
-              setIsInitializing(false);
-
-              return;
-            }
-
-            // ---------------------------------------------
-            // PENDING STUDENT
-            // ---------------------------------------------
-
-            if (userData.status === "pending") {
-              console.log(
-                "Student account is pending approval."
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace("/login");
-
-              return;
-            }
-
-            // ---------------------------------------------
-            // REJECTED STUDENT
-            // ---------------------------------------------
-
-            if (userData.status === "rejected") {
-              console.log(
-                "Student registration was rejected."
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace("/login");
-
-              return;
-            }
-
-            // ---------------------------------------------
-            // INVALID STATUS
-            // ---------------------------------------------
-
-            console.log(
-              "Student has invalid status:",
-              userData.status
-            );
-
-            await signOut(auth);
-
-            setIsInitializing(false);
-
-            router.replace("/login");
-
-            return;
-          }
-
-          // =================================================
-          // GUIDE
-          // =================================================
-
-          if (userData.role === "guide") {
-            // ---------------------------------------------
-            // APPROVED GUIDE
-            // ---------------------------------------------
-
-            if (userData.status === "approved") {
-              const currentPath =
-                pathnameRef.current;
-
-              const isAuthPage =
-                currentPath === "/" ||
-                currentPath === "/login";
-
-              if (isAuthPage) {
-                console.log(
-                  "Approved guide."
-                );
-
-                console.log(
-                  "Redirecting to Guide Dashboard."
-                );
-
-                router.replace("/guide");
-              } else {
-                console.log(
-                  "Guide already inside application."
-                );
-
-                console.log(
-                  "Keeping current route:",
-                  currentPath
-                );
-              }
-
-              setIsInitializing(false);
-
-              return;
-            }
-
-            // ---------------------------------------------
-            // PENDING GUIDE
-            // ---------------------------------------------
-
-            if (userData.status === "pending") {
-              console.log(
-                "Guide account is pending approval."
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace("/login");
-
-              return;
-            }
-
-            // ---------------------------------------------
-            // REJECTED GUIDE
-            // ---------------------------------------------
-
-            if (userData.status === "rejected") {
-              console.log(
-                "Guide registration was rejected."
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace("/login");
-
-              return;
-            }
-
-            // ---------------------------------------------
-            // INVALID STATUS
-            // ---------------------------------------------
-
-            console.log(
-              "Guide has invalid status:",
-              userData.status
-            );
-
-            await signOut(auth);
-
-            setIsInitializing(false);
-
-            router.replace("/login");
-
-            return;
-          }
-
-          // =================================================
-          // UNKNOWN ROLE
-          // =================================================
-
-          console.log(
-            "Unknown role:",
-            userData.role
-          );
+        // =================================================
+        // PROFILE DOES NOT EXIST
+        // =================================================
+
+        if (!userDoc.exists()) {
+          console.log("User profile not found.");
 
           await signOut(auth);
 
-          setIsInitializing(false);
+          // No valid session.
+          // Show login instead of exposing index.
+
+          await finishInitialization();
 
           router.replace("/login");
 
-        } catch (error: any) {
-          console.log("====================================");
-
-          console.log(
-            "ERROR LOADING USER PROFILE"
-          );
-
-          console.log(
-            "ERROR CODE:",
-            error?.code
-          );
-
-          console.log(
-            "ERROR MESSAGE:",
-            error?.message
-          );
-
-          console.log("====================================");
-
-          // ---------------------------------------------
-          // IMPORTANT:
-          //
-          // We do not automatically navigate to /admin
-          // or /login here.
-          //
-          // If Firestore is temporarily offline,
-          // keep the current screen.
-          //
-          // But we MUST stop the initial loading screen,
-          // otherwise the app could remain stuck forever.
-          // ---------------------------------------------
-
-          setIsInitializing(false);
+          return;
         }
+
+        // =================================================
+        // USER DATA
+        // =================================================
+
+        const userData = userDoc.data();
+
+        console.log("User role:", userData.role);
+
+        console.log("User status:", userData.status);
+
+        // =================================================
+        // ADMIN
+        // =================================================
+
+        if (userData.role === "admin") {
+          console.log("Admin session verified.");
+
+          const currentPath = pathnameRef.current;
+
+          const isAuthPage = currentPath === "/" || currentPath === "/login";
+
+          if (isAuthPage) {
+            console.log("Redirecting to Admin Dashboard.");
+
+            router.replace("/admin");
+          } else {
+            console.log("Admin already inside application.");
+          }
+
+          // Important:
+          //
+          // Routing decision has been made.
+          // Only now reveal the app.
+
+          await finishInitialization();
+
+          return;
+        }
+
+        // =================================================
+        // STUDENT
+        // =================================================
+
+        if (userData.role === "student") {
+          // =================================================
+          // APPROVED STUDENT
+          // =================================================
+
+          if (userData.status === "approved") {
+            console.log("Approved student.");
+
+            const currentPath = pathnameRef.current;
+
+            const isAuthPage = currentPath === "/" || currentPath === "/login";
+
+            if (isAuthPage) {
+              console.log("Redirecting to Student Dashboard.");
+
+              router.replace("/student");
+            } else {
+              console.log("Student already inside application.");
+            }
+
+            await finishInitialization();
+
+            return;
+          }
+
+          // =================================================
+          // PENDING STUDENT
+          // =================================================
+
+          if (userData.status === "pending") {
+            console.log("Student account is pending approval.");
+
+            await signOut(auth);
+
+            await finishInitialization();
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // =================================================
+          // REJECTED STUDENT
+          // =================================================
+
+          if (userData.status === "rejected") {
+            console.log("Student registration was rejected.");
+
+            await signOut(auth);
+
+            await finishInitialization();
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // =================================================
+          // INVALID STUDENT STATUS
+          // =================================================
+
+          console.log("Invalid student status:", userData.status);
+
+          await signOut(auth);
+
+          await finishInitialization();
+
+          router.replace("/login");
+
+          return;
+        }
+
+        // =================================================
+        // GUIDE
+        // =================================================
+
+        if (userData.role === "guide") {
+          // =================================================
+          // APPROVED GUIDE
+          // =================================================
+
+          if (userData.status === "approved") {
+            console.log("Approved guide.");
+
+            const currentPath = pathnameRef.current;
+
+            const isAuthPage = currentPath === "/" || currentPath === "/login";
+
+            if (isAuthPage) {
+              console.log("Redirecting to Guide Dashboard.");
+
+              router.replace("/guide");
+            } else {
+              console.log("Guide already inside application.");
+            }
+
+            await finishInitialization();
+
+            return;
+          }
+
+          // =================================================
+          // PENDING GUIDE
+          // =================================================
+
+          if (userData.status === "pending") {
+            console.log("Guide account is pending approval.");
+
+            await signOut(auth);
+
+            await finishInitialization();
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // =================================================
+          // REJECTED GUIDE
+          // =================================================
+
+          if (userData.status === "rejected") {
+            console.log("Guide registration was rejected.");
+
+            await signOut(auth);
+
+            await finishInitialization();
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // =================================================
+          // INVALID GUIDE STATUS
+          // =================================================
+
+          console.log("Invalid guide status:", userData.status);
+
+          await signOut(auth);
+
+          await finishInitialization();
+
+          router.replace("/login");
+
+          return;
+        }
+
+        // =================================================
+        // UNKNOWN ROLE
+        // =================================================
+
+        console.log("Unknown role:", userData.role);
+
+        await signOut(auth);
+
+        await finishInitialization();
+
+        router.replace("/login");
+      } catch (error: any) {
+        console.log("====================================");
+
+        console.log("ERROR LOADING USER PROFILE");
+
+        console.log("ERROR CODE:", error?.code);
+
+        console.log("ERROR MESSAGE:", error?.message);
+
+        console.log("====================================");
+
+        // =================================================
+        // FIRESTORE ERROR
+        // =================================================
+        //
+        // We cannot safely determine the user's role.
+        //
+        // Hide the native splash so the current route
+        // can remain visible.
+        //
+        // =================================================
+
+        await finishInitialization();
       }
-    );
+    });
 
     // =====================================================
     // CLEANUP
     // =====================================================
 
     return () => {
-      console.log(
-        "Firebase Auth listener removed."
-      );
+      console.log("Firebase Auth listener removed.");
 
       unsubscribe();
     };
   }, []);
 
   // =====================================================
-  // UI
+  // IMPORTANT INITIALIZATION GATE
+  // =====================================================
+  //
+  // THIS IS THE MAIN FIX.
+  //
+  // While Firebase is checking the saved session:
+  //
+  //      DO NOT RENDER STACK
+  //
+  // The native Android splash remains visible.
+  //
+  // This means index.tsx cannot appear for 1–2 seconds.
+  //
+  // =====================================================
+
+  if (isInitializing) {
+    return null;
+  }
+
+  // =====================================================
+  // APP UI
   // =====================================================
 
   return (
-    <ThemeProvider
-      value={
-        colorScheme === "dark"
-          ? DarkTheme
-          : DefaultTheme
-      }
-    >
-      <View style={styles.rootContainer}>
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <View
+        style={{
+          flex: 1,
+        }}
+      >
         <Stack>
           {/* =================================================
-              HOME
+              INDEX / HOME
           ================================================= */}
 
           <Stack.Screen
@@ -783,38 +728,6 @@ export default function RootLayout() {
             }}
           />
         </Stack>
-
-        {/* =================================================
-            INITIAL AUTH LOADING SCREEN
-        =================================================
-        
-        This sits ABOVE the Stack.
-
-        Therefore the index page may technically exist
-        underneath, but the user cannot see it until
-        Firebase finishes restoring the session.
-        
-        ================================================= */}
-
-        {isInitializing && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingLogoContainer}>
-              <Image
-                source={require("../assets/images/logo.png")}
-                style={styles.loadingLogo}
-                resizeMode="contain"
-              />
-            </View>
-
-            <Text style={styles.loadingAppName}>
-              ProjectVerse
-            </Text>
-
-            <Text style={styles.loadingText}>
-              Loading...
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* =================================================
@@ -825,82 +738,3 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
-
-// ==========================================================
-// STYLES
-// ==========================================================
-
-const styles = StyleSheet.create({
-  rootContainer: {
-    flex: 1,
-  },
-
-  // ========================================================
-  // INITIAL LOADING SCREEN
-  // ========================================================
-
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-
-    backgroundColor: "#F5F7FB",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    zIndex: 9999,
-
-    elevation: 9999,
-  },
-
-  loadingLogoContainer: {
-    width: 110,
-    height: 110,
-
-    borderRadius: 30,
-
-    backgroundColor: "#FFFFFF",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-
-    shadowColor: "#1F2937",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-
-    elevation: 4,
-
-    marginBottom: 18,
-  },
-
-  loadingLogo: {
-    width: 82,
-    height: 82,
-  },
-
-  loadingAppName: {
-    fontSize: 30,
-    fontWeight: "800",
-
-    color: "#4338CA",
-
-    letterSpacing: -0.8,
-  },
-
-  loadingText: {
-    marginTop: 8,
-
-    fontSize: 13,
-    fontWeight: "500",
-
-    color: "#6B7280",
-
-    letterSpacing: 0.2,
-  },
-});

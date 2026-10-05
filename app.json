@@ -16,11 +16,7 @@
     },
 
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/logo.png",
-        "monochromeImage": "./assets/images/logo.png"
-      },
+      "icon": "./assets/images/logo.png",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.irfanmhdm.ProjectVerse"
@@ -33,18 +29,18 @@
 
     "plugins": [
       "expo-router",
+
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "backgroundColor": "#F5F7FB",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#F5F7FB"
           }
         }
       ],
+
       "expo-video"
     ],
 

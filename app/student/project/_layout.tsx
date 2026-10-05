@@ -6,12 +6,15 @@ export default function ProjectLayout() {
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
+        gestureEnabled: true,
+        gestureDirection: "horizontal",
       }}
     >
       <Stack.Screen
         name="project-details"
         options={{
           headerShown: false,
+          gestureEnabled: true,
         }}
       />
 
@@ -19,9 +22,9 @@ export default function ProjectLayout() {
         name="revise-project"
         options={{
           headerShown: false,
+          gestureEnabled: true,
         }}
       />
     </Stack>
-    
   );
 }

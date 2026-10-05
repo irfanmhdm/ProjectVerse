@@ -1,9 +1,12 @@
 import { Drawer } from "expo-router/drawer";
-import { router } from "expo-router";
+
+import { router, usePathname } from "expo-router";
+
 import { signOut } from "firebase/auth";
 
 import {
   Alert,
+  BackHandler,
   Image,
   Pressable,
   StyleSheet,
@@ -19,6 +22,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { auth } from "../../firebase/firebaseConfig";
+
+import { useEffect } from "react";
 
 // =====================================================
 // CUSTOM DRAWER
@@ -50,7 +55,6 @@ function CustomDrawerContent(props: any) {
 
   return (
     <View style={styles.drawerContainer}>
-
       {/* =================================================
           DRAWER CONTENT
       ================================================= */}
@@ -59,15 +63,12 @@ function CustomDrawerContent(props: any) {
         {...props}
         contentContainerStyle={styles.drawerContent}
       >
-
         {/* =================================================
             DRAWER HEADER
         ================================================= */}
 
         <View style={styles.drawerHeader}>
-
           <View style={styles.logoContainer}>
-
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.logo}
@@ -75,7 +76,6 @@ function CustomDrawerContent(props: any) {
             />
 
             <View>
-
               <Text style={styles.appName}>
                 ProjectVerse
               </Text>
@@ -83,11 +83,8 @@ function CustomDrawerContent(props: any) {
               <Text style={styles.role}>
                 Student Portal
               </Text>
-
             </View>
-
           </View>
-
         </View>
 
         {/* =================================================
@@ -95,7 +92,6 @@ function CustomDrawerContent(props: any) {
         ================================================= */}
 
         <DrawerItemList {...props} />
-
       </DrawerContentScrollView>
 
       {/* =================================================
@@ -103,12 +99,10 @@ function CustomDrawerContent(props: any) {
       ================================================= */}
 
       <View style={styles.logoutContainer}>
-
         <Pressable
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-
           <Ionicons
             name="log-out-outline"
             size={21}
@@ -118,11 +112,8 @@ function CustomDrawerContent(props: any) {
           <Text style={styles.logoutText}>
             Logout
           </Text>
-
         </Pressable>
-
       </View>
-
     </View>
   );
 }
@@ -132,26 +123,150 @@ function CustomDrawerContent(props: any) {
 // =====================================================
 
 export default function StudentLayout() {
+  // =====================================================
+  // CURRENT ROUTE
+  // =====================================================
+
+  const pathname = usePathname();
+
+  // =====================================================
+  // PROJECT HEADER TITLE
+  // =====================================================
+
+  let projectHeaderTitle = "Project";
+
+  if (
+    pathname.includes(
+      "/project/project-details"
+    )
+  ) {
+    projectHeaderTitle = "Project Details";
+  }
+
+  if (
+    pathname.includes(
+      "/project/revise-project"
+    )
+  ) {
+    projectHeaderTitle = "Revise Project";
+  }
+
+  // =====================================================
+  // PROJECT BACK HANDLING
+  // =====================================================
+  //
+  // IMPORTANT:
+  //
+  // app/_layout.tsx contains a general rule:
+  //
+  // /student/*
+  //       ↓
+  // /student
+  //
+  // That rule is useful for normal Student pages,
+  // but it would incorrectly send:
+  //
+  // Revise Project
+  //       ↓
+  // Project Details
+  //
+  // directly to:
+  //
+  // Student Home
+  //
+  // Therefore this Student layout handles the nested
+  // Project Stack first.
+  //
+  // =====================================================
+
+  useEffect(() => {
+    const backHandler =
+      BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          // =================================================
+          // REVISE PROJECT
+          // =================================================
+
+          if (
+            pathname.includes(
+              "/student/project/revise-project"
+            )
+          ) {
+            console.log(
+              "Revise Project -> Project Details"
+            );
+
+            // -----------------------------------------------
+            // Let the nested project Stack pop.
+            //
+            // This returns to:
+            //
+            // /student/project/project-details
+            // -----------------------------------------------
+
+            router.back();
+
+            return true;
+          }
+
+          // =================================================
+          // PROJECT DETAILS
+          // =================================================
+
+          if (
+            pathname.includes(
+              "/student/project/project-details"
+            )
+          ) {
+            console.log(
+              "Project Details -> previous Student page"
+            );
+
+            // -----------------------------------------------
+            // Project Details was entered from My Projects.
+            //
+            // router.back() returns to the previous route
+            // instead of forcing Student Home.
+            // -----------------------------------------------
+
+            router.back();
+
+            return true;
+          }
+
+          // =================================================
+          // ALL OTHER STUDENT ROUTES
+          // =================================================
+
+          // -----------------------------------------------
+          // Return false.
+          //
+          // The root app/_layout.tsx will handle these
+          // routes using your existing Student back logic.
+          // -----------------------------------------------
+
+          return false;
+        }
+      );
+
+    // =====================================================
+    // CLEANUP
+    // =====================================================
+
+    return () => {
+      backHandler.remove();
+    };
+  }, [pathname]);
+
+  // =====================================================
+  // DRAWER
+  // =====================================================
+
   return (
     <Drawer
-
       // =================================================
       // DRAWER BACK BEHAVIOR
-      // =================================================
-      //
-      // IMPORTANT:
-      //
-      // Use navigation history instead of always going
-      // back to the first Drawer route (Home).
-      //
-      // This allows:
-      //
-      // Similarity
-      //      ↓
-      // Similarity Results
-      //      ↓ swipe back
-      // Similarity
-      //
       // =================================================
 
       backBehavior="history"
@@ -161,7 +276,6 @@ export default function StudentLayout() {
       )}
 
       screenOptions={{
-
         // =================================================
         // DEFAULT HEADER
         // =================================================
@@ -210,7 +324,6 @@ export default function StudentLayout() {
         headerTintColor: "#4338CA",
       }}
     >
-
       {/* =================================================
           HOME
       ================================================= */}
@@ -218,7 +331,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="index"
         options={{
-
           drawerLabel: "Home",
 
           title: "ProjectVerse",
@@ -233,7 +345,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -244,7 +355,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="my-projects"
         options={{
-
           drawerLabel: "My Projects",
 
           title: "My Projects",
@@ -259,7 +369,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -270,7 +379,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="add-project"
         options={{
-
           drawerLabel: "Upload Project",
 
           title: "Upload Project",
@@ -285,7 +393,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -296,7 +403,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="explore"
         options={{
-
           drawerLabel: "Explore Projects",
 
           title: "Explore Projects",
@@ -311,7 +417,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -322,7 +427,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="similarity"
         options={{
-
           drawerLabel: "Similarity Analysis",
 
           title: "Similarity Analysis",
@@ -337,7 +441,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -348,7 +451,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="profile"
         options={{
-
           drawerLabel: "My Profile",
 
           title: "My Profile",
@@ -363,7 +465,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -374,7 +475,6 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="chat"
         options={{
-
           drawerLabel: "Chat",
 
           title: "Chat",
@@ -391,7 +491,6 @@ export default function StudentLayout() {
               color={color}
             />
           ),
-
         }}
       />
 
@@ -403,22 +502,34 @@ export default function StudentLayout() {
           INTERNAL FLOW:
 
           My Projects
-               ↓
+                ↓
           Project Details
-               ↓
-             Revise
+                ↓
+          Revise Project
       ================================================= */}
 
       <Drawer.Screen
         name="project"
         options={{
+          // -----------------------------------------------
+          // HIDDEN FROM DRAWER
+          // -----------------------------------------------
 
           drawerItemStyle: {
             display: "none",
           },
 
+          // -----------------------------------------------
+          // ONLY ONE HEADER
+          // -----------------------------------------------
+
           headerShown: true,
 
+          // -----------------------------------------------
+          // DYNAMIC HEADER
+          // -----------------------------------------------
+
+          title: projectHeaderTitle,
         }}
       />
 
@@ -426,42 +537,36 @@ export default function StudentLayout() {
           SIMILARITY RESULTS
 
           HIDDEN FROM DRAWER
-
-          INTERNAL FLOW:
-
-          Similarity Analysis
-                 ↓
-          Similarity Results
-
-          IMPORTANT:
-          This remains an internal Drawer route.
-          It is NOT shown in the Drawer.
       ================================================= */}
 
       <Drawer.Screen
         name="similarity-results"
         options={{
+          // -----------------------------------------------
+          // HIDDEN FROM DRAWER
+          // -----------------------------------------------
 
           drawerItemStyle: {
             display: "none",
           },
 
+          // -----------------------------------------------
+          // HEADER
+          // -----------------------------------------------
+
           headerShown: true,
 
           title: "Similarity Results",
 
-          // Keep the drawer swipe disabled on this screen.
-          // This does NOT control the Android system back
-          // gesture. backBehavior="history" above handles
-          // the back navigation.
+          // -----------------------------------------------
+          // DISABLE DRAWER SWIPE
+          // -----------------------------------------------
 
           swipeEnabled: false,
 
-          // =================================================
+          // -----------------------------------------------
           // HEADER BACK BUTTON
-          //
-          // Keep your existing working behavior.
-          // =================================================
+          // -----------------------------------------------
 
           headerLeft: () => (
             <Pressable
@@ -473,19 +578,15 @@ export default function StudentLayout() {
               style={styles.resultsBackButton}
               hitSlop={8}
             >
-
               <Ionicons
                 name="arrow-back"
                 size={24}
                 color="#4338CA"
               />
-
             </Pressable>
           ),
-
         }}
       />
-
     </Drawer>
   );
 }
@@ -495,7 +596,6 @@ export default function StudentLayout() {
 // =====================================================
 
 const styles = StyleSheet.create({
-
   // =====================================================
   // DRAWER CONTAINER
   // =====================================================
@@ -637,5 +737,4 @@ const styles = StyleSheet.create({
 
     marginLeft: 4,
   },
-
 });
