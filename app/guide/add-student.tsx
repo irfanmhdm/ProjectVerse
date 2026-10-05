@@ -502,7 +502,7 @@ export default function AddStudent() {
 
           <TextInput
             style={styles.input}
-            placeholder="FIT25MCA-2041"
+            placeholder="FIT25MCA-2000"
             placeholderTextColor="#9CA3AF"
             value={registerNumber}
             onChangeText={(text) =>
