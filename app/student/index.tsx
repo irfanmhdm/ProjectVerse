@@ -353,6 +353,7 @@ export default function StudentDashboard() {
 
         <Text style={styles.footerSubtitle}>
           Innovate • Collaborate • Succeed
+        </Text>
 
       </View>
 
