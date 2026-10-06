@@ -1,45 +1,54 @@
-import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
-import { VideoView, useVideoPlayer } from "expo-video";
-import { router } from "expo-router";
+// import { useEffect } from "react";
+// import { StyleSheet, View } from "react-native";
+// import { VideoView, useVideoPlayer } from "expo-video";
 
-export default function IntroScreen() {
-  const player = useVideoPlayer(
-    require("../assets/videos/projectverse-intro.mp4"),
-    (player) => {
-      player.loop = false;
-      player.play();
-    }
-  );
+// type Props = {
+//   onFinished: () => void;
+// };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace("/");
-    }, 4000);
+// export default function IntroVideo({ onFinished }: Props) {
+//   const player = useVideoPlayer(
+//     require("../assets/videos/projectverse-intro.mp4"),
+//     (player) => {
+//       player.loop = false;
+//       player.muted = true;
+//     }
+//   );
 
-    return () => clearTimeout(timer);
-  }, []);
+//   useEffect(() => {
+//     const subscription = player.addListener("playToEnd", () => {
+//       console.log("ProjectVerse intro finished.");
+//       onFinished();
+//     });
 
-  return (
-    <View style={styles.container}>
-      <VideoView
-        player={player}
-        style={styles.video}
-        contentFit="cover"
-        nativeControls={false}
-      />
-    </View>
-  );
-}
+//     // Start playback only after the player is mounted.
+//     player.play();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F7FB",
-  },
+//     return () => {
+//       subscription.remove();
+//     };
+//   }, [player, onFinished]);
 
-  video: {
-    width: "100%",
-    height: "100%",
-  },
-});
+//   return (
+//     <View style={styles.container}>
+//       <VideoView
+//         player={player}
+//         style={styles.video}
+//         contentFit="cover"
+//         nativeControls={false}
+//       />
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: "#F5F7FB",
+//   },
+
+//   video: {
+//     width: "100%",
+//     height: "100%",
+//   },
+// });
