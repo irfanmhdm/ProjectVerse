@@ -10,7 +10,7 @@ import { StatusBar } from "expo-status-bar";
 
 import { useEffect, useRef, useState } from "react";
 
-import { BackHandler, View } from "react-native";
+import { BackHandler, View, StyleSheet } from "react-native";
 
 import "react-native-reanimated";
 
@@ -26,13 +26,11 @@ import * as SplashScreen from "expo-splash-screen";
 
 import IntroVideo from "../components/IntroVideo";
 
-
 // =====================================================
 // KEEP NATIVE SPLASH SCREEN VISIBLE
 // =====================================================
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-
 
 // =====================================================
 // ROOT LAYOUT
@@ -43,31 +41,24 @@ export default function RootLayout() {
 
   const pathname = usePathname();
 
-
   // =====================================================
   // AUTH INITIALIZATION
   // =====================================================
 
   const [isInitializing, setIsInitializing] = useState(true);
 
-
   // =====================================================
   // NATIVE SPLASH COMPLETED
   // =====================================================
 
-  // This prevents the intro video from starting
-  // underneath the native splash screen.
-
   const [nativeSplashFinished, setNativeSplashFinished] =
     useState(false);
-
 
   // =====================================================
   // PROJECTVERSE INTRO
   // =====================================================
 
   const [showIntro, setShowIntro] = useState(true);
-
 
   // =====================================================
   // PATHNAME REF
@@ -79,34 +70,6 @@ export default function RootLayout() {
     pathnameRef.current = pathname;
   }, [pathname]);
 
-
-  // =====================================================
-  // HIDE NATIVE SPLASH
-  // =====================================================
-
-  const hideNativeSplash = async () => {
-    try {
-      await SplashScreen.hideAsync();
-
-      console.log("Native splash screen hidden.");
-
-      // IMPORTANT:
-      // Only after the native splash is hidden,
-      // allow the IntroVideo component to mount.
-
-      setNativeSplashFinished(true);
-
-    } catch (error) {
-      console.log("Error hiding native splash:", error);
-
-      // Even if hideAsync fails, don't permanently
-      // block the application.
-
-      setNativeSplashFinished(true);
-    }
-  };
-
-
   // =====================================================
   // NATIVE SPLASH TIMER
   // =====================================================
@@ -114,20 +77,29 @@ export default function RootLayout() {
   useEffect(() => {
     console.log("Native splash timer started.");
 
-    const splashTimer = setTimeout(() => {
-      console.log("2 seconds completed.");
+    const splashTimer = setTimeout(async () => {
+      console.log("1 second completed.");
 
-      hideNativeSplash();
+      try {
+        await SplashScreen.hideAsync();
 
-    }, 2000);
+        console.log("Native splash screen hidden.");
 
+        setNativeSplashFinished(true);
+      } catch (error) {
+        console.log(
+          "Error hiding native splash:",
+          error
+        );
+
+        setNativeSplashFinished(true);
+      }
+    }, 1000);
 
     return () => {
       clearTimeout(splashTimer);
     };
-
   }, []);
-
 
   // =====================================================
   // ANDROID BACK HANDLING
@@ -138,16 +110,13 @@ export default function RootLayout() {
       return;
     }
 
-
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-
         console.log(
           "Android back pressed:",
           pathname
         );
-
 
         // =================================================
         // SIMILARITY RESULTS
@@ -164,7 +133,6 @@ export default function RootLayout() {
           return true;
         }
 
-
         // =================================================
         // PROJECT DETAILS
         // =================================================
@@ -176,7 +144,6 @@ export default function RootLayout() {
         ) {
           return false;
         }
-
 
         // =================================================
         // GUIDE CHAT CONVERSATION
@@ -190,7 +157,6 @@ export default function RootLayout() {
           return false;
         }
 
-
         // =================================================
         // GUIDE HOME
         // =================================================
@@ -200,7 +166,6 @@ export default function RootLayout() {
         ) {
           return false;
         }
-
 
         // =================================================
         // GUIDE MAIN PAGES
@@ -227,7 +192,6 @@ export default function RootLayout() {
           return true;
         }
 
-
         // =================================================
         // STUDENT HOME
         // =================================================
@@ -239,7 +203,6 @@ export default function RootLayout() {
 
           return true;
         }
-
 
         // =================================================
         // PROJECT DETAILS / REVISE PROJECT
@@ -259,7 +222,6 @@ export default function RootLayout() {
           return false;
         }
 
-
         // =================================================
         // OTHER STUDENT PAGES
         // =================================================
@@ -278,7 +240,6 @@ export default function RootLayout() {
           return true;
         }
 
-
         // =================================================
         // ADMIN HOME
         // =================================================
@@ -292,7 +253,6 @@ export default function RootLayout() {
           return true;
         }
 
-
         // =================================================
         // DEFAULT
         // =================================================
@@ -301,20 +261,16 @@ export default function RootLayout() {
       }
     );
 
-
     return () => {
       backHandler.remove();
     };
-
   }, [pathname]);
-
 
   // =====================================================
   // FIREBASE AUTH INITIALIZATION
   // =====================================================
 
   useEffect(() => {
-
     console.log(
       "===================================="
     );
@@ -332,12 +288,10 @@ export default function RootLayout() {
       "===================================="
     );
 
-
     const unsubscribe =
       onAuthStateChanged(
         auth,
         async (user) => {
-
           console.log(
             "===================================="
           );
@@ -351,13 +305,11 @@ export default function RootLayout() {
             pathnameRef.current
           );
 
-
           // =================================================
           // NO SAVED SESSION
           // =================================================
 
           if (!user) {
-
             console.log(
               "No saved session."
             );
@@ -366,12 +318,10 @@ export default function RootLayout() {
               "Opening index page."
             );
 
-
             setIsInitializing(false);
 
             return;
           }
-
 
           // =================================================
           // SAVED SESSION FOUND
@@ -391,7 +341,6 @@ export default function RootLayout() {
             user.email
           );
 
-
           // =================================================
           // REGISTRATION PROTECTION
           // =================================================
@@ -400,7 +349,6 @@ export default function RootLayout() {
             pathnameRef.current ===
             "/register"
           ) {
-
             console.log(
               "REGISTER PAGE ACTIVE"
             );
@@ -409,15 +357,12 @@ export default function RootLayout() {
               "Skipping session restoration."
             );
 
-
             setIsInitializing(false);
 
             return;
           }
 
-
           try {
-
             // =================================================
             // LOAD USER PROFILE
             // =================================================
@@ -429,15 +374,12 @@ export default function RootLayout() {
                 user.uid
               );
 
-
             console.log(
               "Loading user profile..."
             );
 
-
             const userDoc =
               await getDoc(userRef);
-
 
             // =================================================
             // CHECK REGISTER AGAIN
@@ -447,34 +389,27 @@ export default function RootLayout() {
               pathnameRef.current ===
               "/register"
             ) {
-
               console.log(
                 "Route changed to register."
               );
-
 
               setIsInitializing(false);
 
               return;
             }
 
-
             // =================================================
             // PROFILE DOES NOT EXIST
             // =================================================
 
             if (!userDoc.exists()) {
-
               console.log(
                 "User profile not found."
               );
 
-
               await signOut(auth);
 
-
               setIsInitializing(false);
-
 
               router.replace(
                 "/login"
@@ -483,14 +418,12 @@ export default function RootLayout() {
               return;
             }
 
-
             // =================================================
             // USER DATA
             // =================================================
 
             const userData =
               userDoc.data();
-
 
             console.log(
               "User role:",
@@ -502,7 +435,6 @@ export default function RootLayout() {
               userData.status
             );
 
-
             // =================================================
             // ADMIN
             // =================================================
@@ -511,45 +443,35 @@ export default function RootLayout() {
               userData.role ===
               "admin"
             ) {
-
               console.log(
                 "Admin session verified."
               );
 
-
               const currentPath =
                 pathnameRef.current;
-
 
               const isAuthPage =
                 currentPath === "/" ||
                 currentPath === "/login";
 
-
               if (isAuthPage) {
-
                 console.log(
                   "Redirecting to Admin Dashboard."
                 );
 
-
                 router.replace(
                   "/admin"
                 );
-
               } else {
-
                 console.log(
                   "Admin already inside application."
                 );
               }
 
-
               setIsInitializing(false);
 
               return;
             }
-
 
             // =================================================
             // STUDENT
@@ -559,8 +481,6 @@ export default function RootLayout() {
               userData.role ===
               "student"
             ) {
-
-
               // =================================================
               // APPROVED STUDENT
               // =================================================
@@ -569,45 +489,35 @@ export default function RootLayout() {
                 userData.status ===
                 "approved"
               ) {
-
                 console.log(
                   "Approved student."
                 );
 
-
                 const currentPath =
                   pathnameRef.current;
-
 
                 const isAuthPage =
                   currentPath === "/" ||
                   currentPath === "/login";
 
-
                 if (isAuthPage) {
-
                   console.log(
                     "Redirecting to Student Dashboard."
                   );
 
-
                   router.replace(
                     "/student"
                   );
-
                 } else {
-
                   console.log(
                     "Student already inside application."
                   );
                 }
 
-
                 setIsInitializing(false);
 
                 return;
               }
-
 
               // =================================================
               // PENDING STUDENT
@@ -617,17 +527,13 @@ export default function RootLayout() {
                 userData.status ===
                 "pending"
               ) {
-
                 console.log(
                   "Student account is pending approval."
                 );
 
-
                 await signOut(auth);
 
-
                 setIsInitializing(false);
-
 
                 router.replace(
                   "/login"
@@ -635,7 +541,6 @@ export default function RootLayout() {
 
                 return;
               }
-
 
               // =================================================
               // REJECTED STUDENT
@@ -645,17 +550,13 @@ export default function RootLayout() {
                 userData.status ===
                 "rejected"
               ) {
-
                 console.log(
                   "Student registration was rejected."
                 );
 
-
                 await signOut(auth);
 
-
                 setIsInitializing(false);
-
 
                 router.replace(
                   "/login"
@@ -663,7 +564,6 @@ export default function RootLayout() {
 
                 return;
               }
-
 
               // =================================================
               // INVALID STUDENT STATUS
@@ -674,12 +574,9 @@ export default function RootLayout() {
                 userData.status
               );
 
-
               await signOut(auth);
 
-
               setIsInitializing(false);
-
 
               router.replace(
                 "/login"
@@ -687,7 +584,6 @@ export default function RootLayout() {
 
               return;
             }
-
 
             // =================================================
             // GUIDE
@@ -697,8 +593,6 @@ export default function RootLayout() {
               userData.role ===
               "guide"
             ) {
-
-
               // =================================================
               // APPROVED GUIDE
               // =================================================
@@ -707,45 +601,35 @@ export default function RootLayout() {
                 userData.status ===
                 "approved"
               ) {
-
                 console.log(
                   "Approved guide."
                 );
 
-
                 const currentPath =
                   pathnameRef.current;
-
 
                 const isAuthPage =
                   currentPath === "/" ||
                   currentPath === "/login";
 
-
                 if (isAuthPage) {
-
                   console.log(
                     "Redirecting to Guide Dashboard."
                   );
 
-
                   router.replace(
                     "/guide"
                   );
-
                 } else {
-
                   console.log(
                     "Guide already inside application."
                   );
                 }
 
-
                 setIsInitializing(false);
 
                 return;
               }
-
 
               // =================================================
               // PENDING GUIDE
@@ -755,17 +639,13 @@ export default function RootLayout() {
                 userData.status ===
                 "pending"
               ) {
-
                 console.log(
                   "Guide account is pending approval."
                 );
 
-
                 await signOut(auth);
 
-
                 setIsInitializing(false);
-
 
                 router.replace(
                   "/login"
@@ -773,7 +653,6 @@ export default function RootLayout() {
 
                 return;
               }
-
 
               // =================================================
               // REJECTED GUIDE
@@ -783,17 +662,13 @@ export default function RootLayout() {
                 userData.status ===
                 "rejected"
               ) {
-
                 console.log(
                   "Guide registration was rejected."
                 );
 
-
                 await signOut(auth);
 
-
                 setIsInitializing(false);
-
 
                 router.replace(
                   "/login"
@@ -801,7 +676,6 @@ export default function RootLayout() {
 
                 return;
               }
-
 
               // =================================================
               // INVALID GUIDE STATUS
@@ -812,12 +686,9 @@ export default function RootLayout() {
                 userData.status
               );
 
-
               await signOut(auth);
 
-
               setIsInitializing(false);
-
 
               router.replace(
                 "/login"
@@ -825,7 +696,6 @@ export default function RootLayout() {
 
               return;
             }
-
 
             // =================================================
             // UNKNOWN ROLE
@@ -836,19 +706,14 @@ export default function RootLayout() {
               userData.role
             );
 
-
             await signOut(auth);
 
-
             setIsInitializing(false);
-
 
             router.replace(
               "/login"
             );
-
           } catch (error: any) {
-
             console.log(
               "===================================="
             );
@@ -871,81 +736,23 @@ export default function RootLayout() {
               "===================================="
             );
 
-
             setIsInitializing(false);
           }
         }
       );
-
 
     // =====================================================
     // CLEANUP
     // =====================================================
 
     return () => {
-
       console.log(
         "Firebase Auth listener removed."
       );
 
-
       unsubscribe();
     };
-
   }, []);
-
-
-  // =====================================================
-  // PROJECTVERSE INTRO VIDEO
-  // =====================================================
-  //
-  // IMPORTANT:
-  //
-  // The intro video is NOT mounted until the native
-  // Android splash screen has completely disappeared.
-  //
-  // This guarantees that the video starts from 0:00
-  // visibly on screen.
-  //
-  // =====================================================
-
-  if (
-    nativeSplashFinished &&
-    showIntro
-  ) {
-
-    return (
-      <IntroVideo
-        onFinished={() => {
-
-          console.log(
-            "ProjectVerse intro finished."
-          );
-
-
-          setShowIntro(false);
-        }}
-      />
-    );
-  }
-
-
-  // =====================================================
-  // WAIT FOR INITIALIZATION
-  // =====================================================
-  //
-  // If the video finishes before Firebase has completed,
-  // keep the application hidden until Firebase finishes.
-  //
-  // =====================================================
-
-  if (
-    !nativeSplashFinished ||
-    isInitializing
-  ) {
-    return null;
-  }
-
 
   // =====================================================
   // APP UI
@@ -959,18 +766,15 @@ export default function RootLayout() {
           : DefaultTheme
       }
     >
+      <View style={styles.root}>
 
-      <View
-        style={{
-          flex: 1,
-        }}
-      >
+        {/* =================================================
+            EXPO ROUTER APP
+        ================================================= */}
 
         <Stack>
 
-          {/* =================================================
-              INDEX / HOME
-          ================================================= */}
+          {/* INDEX / HOME */}
 
           <Stack.Screen
             name="index"
@@ -979,10 +783,7 @@ export default function RootLayout() {
             }}
           />
 
-
-          {/* =================================================
-              LOGIN
-          ================================================= */}
+          {/* LOGIN */}
 
           <Stack.Screen
             name="login"
@@ -991,10 +792,7 @@ export default function RootLayout() {
             }}
           />
 
-
-          {/* =================================================
-              REGISTER
-          ================================================= */}
+          {/* REGISTER */}
 
           <Stack.Screen
             name="register"
@@ -1003,10 +801,7 @@ export default function RootLayout() {
             }}
           />
 
-
-          {/* =================================================
-              STUDENT
-          ================================================= */}
+          {/* STUDENT */}
 
           <Stack.Screen
             name="student"
@@ -1016,10 +811,7 @@ export default function RootLayout() {
             }}
           />
 
-
-          {/* =================================================
-              GUIDE
-          ================================================= */}
+          {/* GUIDE */}
 
           <Stack.Screen
             name="guide"
@@ -1029,10 +821,7 @@ export default function RootLayout() {
             }}
           />
 
-
-          {/* =================================================
-              ADMIN
-          ================================================= */}
+          {/* ADMIN */}
 
           <Stack.Screen
             name="admin"
@@ -1041,10 +830,7 @@ export default function RootLayout() {
             }}
           />
 
-
-          {/* =================================================
-              MODAL
-          ================================================= */}
+          {/* MODAL */}
 
           <Stack.Screen
             name="modal"
@@ -1056,8 +842,27 @@ export default function RootLayout() {
 
         </Stack>
 
-      </View>
+        {/* =================================================
+            PROJECTVERSE INTRO OVERLAY
+        ================================================= */}
 
+        {nativeSplashFinished && showIntro && (
+          <View
+            style={styles.introOverlay}
+          >
+            <IntroVideo
+              onFinished={() => {
+                console.log(
+                  "ProjectVerse intro finished."
+                );
+
+                setShowIntro(false);
+              }}
+            />
+          </View>
+        )}
+
+      </View>
 
       {/* =====================================================
           STATUS BAR
@@ -1068,3 +873,20 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+// =====================================================
+// STYLES
+// =====================================================
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+
+  introOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
+    backgroundColor: "#F5F7FB",
+  },
+});

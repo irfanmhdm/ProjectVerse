@@ -4,58 +4,49 @@
     "slug": "ProjectVerse",
     "version": "1.0.0",
     "orientation": "portrait",
-
     "icon": "./assets/images/logo.png",
-
     "scheme": "projectverse",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
       "icon": "./assets/images/logo.png",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.irfanmhdm.ProjectVerse"
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
-
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.png",
+          "image": "./assets/images/splash-logo.png",
           "backgroundColor": "#F5F7FB",
           "resizeMode": "contain",
           "dark": {
-            "image": "./assets/images/logo.png",
+            "image": "./assets/images/splash-logo.png",
             "backgroundColor": "#F5F7FB"
           }
         }
       ],
-
       "expo-video"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
-
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3aa8782f-c702-4f05-9772-dcaa0210a5d9"
+        "projectId": "6fab474b-562b-49cd-bbdc-4682ceff4487"
       }
-    }
+    },
+    "owner": "irfanmhd"
   }
 }

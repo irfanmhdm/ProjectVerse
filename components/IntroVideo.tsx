@@ -8,6 +8,7 @@ type Props = {
 
 export default function IntroVideo({ onFinished }: Props) {
   const finishedRef = useRef(false);
+  const startedRef = useRef(false);
 
   const player = useVideoPlayer(
     require("../assets/videos/projectverse-intro.mp4"),
@@ -17,11 +18,19 @@ export default function IntroVideo({ onFinished }: Props) {
     }
   );
 
+  // Detect video completion
   useEffect(() => {
     const subscription = player.addListener("playToEnd", () => {
       if (finishedRef.current) return;
 
       finishedRef.current = true;
+
+      // Stop playback completely
+      try {
+        player.pause();
+      } catch (error) {
+        console.log("Video pause error:", error);
+      }
 
       console.log("ProjectVerse intro finished.");
 
@@ -33,17 +42,25 @@ export default function IntroVideo({ onFinished }: Props) {
     };
   }, [player, onFinished]);
 
+  // Start video only once
   useEffect(() => {
+    if (startedRef.current) return;
+
+    startedRef.current = true;
+
     const timer = setTimeout(() => {
       try {
         player.currentTime = 0;
         player.play();
+        console.log("ProjectVerse intro started.");
       } catch (error) {
         console.log("Video playback error:", error);
       }
     }, 150);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [player]);
 
   return (
