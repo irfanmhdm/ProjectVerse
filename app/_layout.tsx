@@ -3,27 +3,16 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-
 import { Stack, router, usePathname } from "expo-router";
-
 import { StatusBar } from "expo-status-bar";
-
 import { useEffect, useRef, useState } from "react";
-
 import { BackHandler, View, StyleSheet } from "react-native";
-
 import "react-native-reanimated";
-
 import { onAuthStateChanged, signOut } from "firebase/auth";
-
 import { doc, getDoc } from "firebase/firestore";
-
 import { auth, db } from "../firebase/firebaseConfig";
-
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
 import * as SplashScreen from "expo-splash-screen";
-
 import IntroVideo from "../components/IntroVideo";
 
 // =====================================================
@@ -38,7 +27,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
   const pathname = usePathname();
 
   // =====================================================
@@ -51,8 +39,7 @@ export default function RootLayout() {
   // NATIVE SPLASH COMPLETED
   // =====================================================
 
-  const [nativeSplashFinished, setNativeSplashFinished] =
-    useState(false);
+  const [nativeSplashFinished, setNativeSplashFinished] = useState(false);
 
   // =====================================================
   // PROJECTVERSE INTRO
@@ -82,16 +69,10 @@ export default function RootLayout() {
 
       try {
         await SplashScreen.hideAsync();
-
         console.log("Native splash screen hidden.");
-
         setNativeSplashFinished(true);
       } catch (error) {
-        console.log(
-          "Error hiding native splash:",
-          error
-        );
-
+        console.log("Error hiding native splash:", error);
         setNativeSplashFinished(true);
       }
     }, 1000);
@@ -113,23 +94,14 @@ export default function RootLayout() {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        console.log(
-          "Android back pressed:",
-          pathname
-        );
+        console.log("Android back pressed:", pathname);
 
         // =================================================
         // SIMILARITY RESULTS
         // =================================================
 
-        if (
-          pathname ===
-          "/student/similarity-results"
-        ) {
-          router.replace(
-            "/student/similarity"
-          );
-
+        if (pathname === "/student/similarity-results") {
+          router.replace("/student/similarity");
           return true;
         }
 
@@ -137,11 +109,7 @@ export default function RootLayout() {
         // PROJECT DETAILS
         // =================================================
 
-        if (
-          pathname.includes(
-            "project-details"
-          )
-        ) {
+        if (pathname.includes("project-details")) {
           return false;
         }
 
@@ -149,11 +117,7 @@ export default function RootLayout() {
         // GUIDE CHAT CONVERSATION
         // =================================================
 
-        if (
-          pathname.startsWith(
-            "/guide/chat/"
-          )
-        ) {
+        if (pathname.startsWith("/guide/chat/")) {
           return false;
         }
 
@@ -161,9 +125,7 @@ export default function RootLayout() {
         // GUIDE HOME
         // =================================================
 
-        if (
-          pathname === "/guide"
-        ) {
+        if (pathname === "/guide") {
           return false;
         }
 
@@ -172,23 +134,13 @@ export default function RootLayout() {
         // =================================================
 
         if (
-          pathname ===
-            "/guide/students" ||
-
-          pathname ===
-            "/guide/add-student" ||
-
-          pathname ===
-            "/guide/projects" ||
-
-          pathname ===
-            "/guide/chat" ||
-
-          pathname ===
-            "/guide/profile"
+          pathname === "/guide/students" ||
+          pathname === "/guide/add-student" ||
+          pathname === "/guide/projects" ||
+          pathname === "/guide/chat" ||
+          pathname === "/guide/profile"
         ) {
           router.replace("/guide");
-
           return true;
         }
 
@@ -196,11 +148,8 @@ export default function RootLayout() {
         // STUDENT HOME
         // =================================================
 
-        if (
-          pathname === "/student"
-        ) {
+        if (pathname === "/student") {
           BackHandler.exitApp();
-
           return true;
         }
 
@@ -209,16 +158,10 @@ export default function RootLayout() {
         // =================================================
 
         if (
-          pathname ===
-            "/student/project/project-details" ||
-
-          pathname ===
-            "/student/project/revise-project"
+          pathname === "/student/project/project-details" ||
+          pathname === "/student/project/revise-project"
         ) {
-          console.log(
-            "Project nested page - allowing normal back navigation"
-          );
-
+          console.log("Project nested page - allowing normal back navigation");
           return false;
         }
 
@@ -226,17 +169,9 @@ export default function RootLayout() {
         // OTHER STUDENT PAGES
         // =================================================
 
-        if (
-          pathname.startsWith(
-            "/student/"
-          )
-        ) {
-          console.log(
-            "Student page - returning to Student Home"
-          );
-
+        if (pathname.startsWith("/student/")) {
+          console.log("Student page - returning to Student Home");
           router.replace("/student");
-
           return true;
         }
 
@@ -244,12 +179,8 @@ export default function RootLayout() {
         // ADMIN HOME
         // =================================================
 
-        if (
-          pathname === "/admin" ||
-          pathname === "/admin/index"
-        ) {
+        if (pathname === "/admin" || pathname === "/admin/index") {
           BackHandler.exitApp();
-
           return true;
         }
 
@@ -258,7 +189,7 @@ export default function RootLayout() {
         // =================================================
 
         return false;
-      }
+      },
     );
 
     return () => {
@@ -271,52 +202,139 @@ export default function RootLayout() {
   // =====================================================
 
   useEffect(() => {
-    console.log(
-      "===================================="
-    );
+    console.log("====================================");
+    console.log("CREATING FIREBASE AUTH LISTENER");
+    console.log("Initial pathname:", pathnameRef.current);
+    console.log("====================================");
 
-    console.log(
-      "CREATING FIREBASE AUTH LISTENER"
-    );
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("====================================");
+      console.log("AUTH STATE CHANGED");
+      console.log("CURRENT PATH:", pathnameRef.current);
 
-    console.log(
-      "Initial pathname:",
-      pathnameRef.current
-    );
+      // =================================================
+      // NO SAVED SESSION
+      // =================================================
 
-    console.log(
-      "===================================="
-    );
+      if (!user) {
+        console.log("No saved session.");
+        console.log("Opening index page.");
+        setIsInitializing(false);
+        return;
+      }
 
-    const unsubscribe =
-      onAuthStateChanged(
-        auth,
-        async (user) => {
-          console.log(
-            "===================================="
-          );
+      // =================================================
+      // SAVED SESSION FOUND
+      // =================================================
 
-          console.log(
-            "AUTH STATE CHANGED"
-          );
+      console.log("SESSION RESTORED");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
 
-          console.log(
-            "CURRENT PATH:",
-            pathnameRef.current
-          );
+      // =================================================
+      // REGISTRATION PROTECTION
+      // =================================================
 
+      if (pathnameRef.current === "/register") {
+        console.log("REGISTER PAGE ACTIVE");
+        console.log("Skipping session restoration.");
+        setIsInitializing(false);
+        return;
+      }
+
+      try {
+        // =================================================
+        // LOAD USER PROFILE
+        // =================================================
+
+        const userRef = doc(db, "users", user.uid);
+
+        console.log("Loading user profile...");
+
+        const userDoc = await getDoc(userRef);
+
+        // =================================================
+        // CHECK REGISTER AGAIN
+        // =================================================
+
+        if (pathnameRef.current === "/register") {
+          console.log("Route changed to register.");
+          setIsInitializing(false);
+          return;
+        }
+
+        // =================================================
+        // PROFILE DOES NOT EXIST
+        // =================================================
+
+        if (!userDoc.exists()) {
+          console.log("User profile not found.");
+
+          await signOut(auth);
+
+          setIsInitializing(false);
+
+          router.replace("/login");
+
+          return;
+        }
+
+        // =================================================
+        // USER DATA
+        // =================================================
+
+        const userData = userDoc.data();
+
+        console.log("User role:", userData.role);
+        console.log("User status:", userData.status);
+
+        // =================================================
+        // ADMIN
+        // =================================================
+
+        if (userData.role === "admin") {
+          console.log("Admin session verified.");
+
+          const currentPath = pathnameRef.current;
+
+          const isAuthPage = currentPath === "/" || currentPath === "/login";
+
+          if (isAuthPage) {
+            console.log("Redirecting to Admin Dashboard.");
+
+            router.replace("/admin");
+          } else {
+            console.log("Admin already inside application.");
+          }
+
+          setIsInitializing(false);
+
+          return;
+        }
+
+        // =================================================
+        // STUDENT
+        // =================================================
+
+        if (userData.role === "student") {
           // =================================================
-          // NO SAVED SESSION
+          // APPROVED STUDENT
           // =================================================
 
-          if (!user) {
-            console.log(
-              "No saved session."
-            );
+          if (userData.status === "approved") {
+            console.log("Approved student.");
 
-            console.log(
-              "Opening index page."
-            );
+            const currentPath = pathnameRef.current;
+
+            const isAuthPage = currentPath === "/" || currentPath === "/login";
+
+            if (isAuthPage) {
+              console.log("Redirecting to Student Dashboard.");
+
+              router.replace("/student");
+            } else {
+              console.log("Student already inside application.");
+            }
 
             setIsInitializing(false);
 
@@ -324,432 +342,156 @@ export default function RootLayout() {
           }
 
           // =================================================
-          // SAVED SESSION FOUND
+          // PENDING STUDENT
           // =================================================
 
-          console.log(
-            "SESSION RESTORED"
-          );
-
-          console.log(
-            "UID:",
-            user.uid
-          );
-
-          console.log(
-            "Email:",
-            user.email
-          );
-
-          // =================================================
-          // REGISTRATION PROTECTION
-          // =================================================
-
-          if (
-            pathnameRef.current ===
-            "/register"
-          ) {
-            console.log(
-              "REGISTER PAGE ACTIVE"
-            );
-
-            console.log(
-              "Skipping session restoration."
-            );
-
-            setIsInitializing(false);
-
-            return;
-          }
-
-          try {
-            // =================================================
-            // LOAD USER PROFILE
-            // =================================================
-
-            const userRef =
-              doc(
-                db,
-                "users",
-                user.uid
-              );
-
-            console.log(
-              "Loading user profile..."
-            );
-
-            const userDoc =
-              await getDoc(userRef);
-
-            // =================================================
-            // CHECK REGISTER AGAIN
-            // =================================================
-
-            if (
-              pathnameRef.current ===
-              "/register"
-            ) {
-              console.log(
-                "Route changed to register."
-              );
-
-              setIsInitializing(false);
-
-              return;
-            }
-
-            // =================================================
-            // PROFILE DOES NOT EXIST
-            // =================================================
-
-            if (!userDoc.exists()) {
-              console.log(
-                "User profile not found."
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace(
-                "/login"
-              );
-
-              return;
-            }
-
-            // =================================================
-            // USER DATA
-            // =================================================
-
-            const userData =
-              userDoc.data();
-
-            console.log(
-              "User role:",
-              userData.role
-            );
-
-            console.log(
-              "User status:",
-              userData.status
-            );
-
-            // =================================================
-            // ADMIN
-            // =================================================
-
-            if (
-              userData.role ===
-              "admin"
-            ) {
-              console.log(
-                "Admin session verified."
-              );
-
-              const currentPath =
-                pathnameRef.current;
-
-              const isAuthPage =
-                currentPath === "/" ||
-                currentPath === "/login";
-
-              if (isAuthPage) {
-                console.log(
-                  "Redirecting to Admin Dashboard."
-                );
-
-                router.replace(
-                  "/admin"
-                );
-              } else {
-                console.log(
-                  "Admin already inside application."
-                );
-              }
-
-              setIsInitializing(false);
-
-              return;
-            }
-
-            // =================================================
-            // STUDENT
-            // =================================================
-
-            if (
-              userData.role ===
-              "student"
-            ) {
-              // =================================================
-              // APPROVED STUDENT
-              // =================================================
-
-              if (
-                userData.status ===
-                "approved"
-              ) {
-                console.log(
-                  "Approved student."
-                );
-
-                const currentPath =
-                  pathnameRef.current;
-
-                const isAuthPage =
-                  currentPath === "/" ||
-                  currentPath === "/login";
-
-                if (isAuthPage) {
-                  console.log(
-                    "Redirecting to Student Dashboard."
-                  );
-
-                  router.replace(
-                    "/student"
-                  );
-                } else {
-                  console.log(
-                    "Student already inside application."
-                  );
-                }
-
-                setIsInitializing(false);
-
-                return;
-              }
-
-              // =================================================
-              // PENDING STUDENT
-              // =================================================
-
-              if (
-                userData.status ===
-                "pending"
-              ) {
-                console.log(
-                  "Student account is pending approval."
-                );
-
-                await signOut(auth);
-
-                setIsInitializing(false);
-
-                router.replace(
-                  "/login"
-                );
-
-                return;
-              }
-
-              // =================================================
-              // REJECTED STUDENT
-              // =================================================
-
-              if (
-                userData.status ===
-                "rejected"
-              ) {
-                console.log(
-                  "Student registration was rejected."
-                );
-
-                await signOut(auth);
-
-                setIsInitializing(false);
-
-                router.replace(
-                  "/login"
-                );
-
-                return;
-              }
-
-              // =================================================
-              // INVALID STUDENT STATUS
-              // =================================================
-
-              console.log(
-                "Invalid student status:",
-                userData.status
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace(
-                "/login"
-              );
-
-              return;
-            }
-
-            // =================================================
-            // GUIDE
-            // =================================================
-
-            if (
-              userData.role ===
-              "guide"
-            ) {
-              // =================================================
-              // APPROVED GUIDE
-              // =================================================
-
-              if (
-                userData.status ===
-                "approved"
-              ) {
-                console.log(
-                  "Approved guide."
-                );
-
-                const currentPath =
-                  pathnameRef.current;
-
-                const isAuthPage =
-                  currentPath === "/" ||
-                  currentPath === "/login";
-
-                if (isAuthPage) {
-                  console.log(
-                    "Redirecting to Guide Dashboard."
-                  );
-
-                  router.replace(
-                    "/guide"
-                  );
-                } else {
-                  console.log(
-                    "Guide already inside application."
-                  );
-                }
-
-                setIsInitializing(false);
-
-                return;
-              }
-
-              // =================================================
-              // PENDING GUIDE
-              // =================================================
-
-              if (
-                userData.status ===
-                "pending"
-              ) {
-                console.log(
-                  "Guide account is pending approval."
-                );
-
-                await signOut(auth);
-
-                setIsInitializing(false);
-
-                router.replace(
-                  "/login"
-                );
-
-                return;
-              }
-
-              // =================================================
-              // REJECTED GUIDE
-              // =================================================
-
-              if (
-                userData.status ===
-                "rejected"
-              ) {
-                console.log(
-                  "Guide registration was rejected."
-                );
-
-                await signOut(auth);
-
-                setIsInitializing(false);
-
-                router.replace(
-                  "/login"
-                );
-
-                return;
-              }
-
-              // =================================================
-              // INVALID GUIDE STATUS
-              // =================================================
-
-              console.log(
-                "Invalid guide status:",
-                userData.status
-              );
-
-              await signOut(auth);
-
-              setIsInitializing(false);
-
-              router.replace(
-                "/login"
-              );
-
-              return;
-            }
-
-            // =================================================
-            // UNKNOWN ROLE
-            // =================================================
-
-            console.log(
-              "Unknown role:",
-              userData.role
-            );
+          if (userData.status === "pending") {
+            console.log("Student account is pending approval.");
 
             await signOut(auth);
 
             setIsInitializing(false);
 
-            router.replace(
-              "/login"
-            );
-          } catch (error: any) {
-            console.log(
-              "===================================="
-            );
+            router.replace("/login");
 
-            console.log(
-              "ERROR LOADING USER PROFILE"
-            );
+            return;
+          }
 
-            console.log(
-              "ERROR CODE:",
-              error?.code
-            );
+          // =================================================
+          // REJECTED STUDENT
+          // =================================================
 
-            console.log(
-              "ERROR MESSAGE:",
-              error?.message
-            );
+          if (userData.status === "rejected") {
+            console.log("Student registration was rejected.");
 
-            console.log(
-              "===================================="
-            );
+            await signOut(auth);
 
             setIsInitializing(false);
+
+            router.replace("/login");
+
+            return;
           }
+
+          // =================================================
+          // INVALID STUDENT STATUS
+          // =================================================
+
+          console.log("Invalid student status:", userData.status);
+
+          await signOut(auth);
+
+          setIsInitializing(false);
+
+          router.replace("/login");
+
+          return;
         }
-      );
+
+        // =================================================
+        // GUIDE
+        // =================================================
+
+        if (userData.role === "guide") {
+          // =================================================
+          // APPROVED GUIDE
+          // =================================================
+
+          if (userData.status === "approved") {
+            console.log("Approved guide.");
+
+            const currentPath = pathnameRef.current;
+
+            const isAuthPage = currentPath === "/" || currentPath === "/login";
+
+            if (isAuthPage) {
+              console.log("Redirecting to Guide Dashboard.");
+
+              router.replace("/guide");
+            } else {
+              console.log("Guide already inside application.");
+            }
+
+            setIsInitializing(false);
+
+            return;
+          }
+
+          // =================================================
+          // PENDING GUIDE
+          // =================================================
+
+          if (userData.status === "pending") {
+            console.log("Guide account is pending approval.");
+
+            await signOut(auth);
+
+            setIsInitializing(false);
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // =================================================
+          // REJECTED GUIDE
+          // =================================================
+
+          if (userData.status === "rejected") {
+            console.log("Guide registration was rejected.");
+
+            await signOut(auth);
+
+            setIsInitializing(false);
+
+            router.replace("/login");
+
+            return;
+          }
+
+          // =================================================
+          // INVALID GUIDE STATUS
+          // =================================================
+
+          console.log("Invalid guide status:", userData.status);
+
+          await signOut(auth);
+
+          setIsInitializing(false);
+
+          router.replace("/login");
+
+          return;
+        }
+
+        // =================================================
+        // UNKNOWN ROLE
+        // =================================================
+
+        console.log("Unknown role:", userData.role);
+
+        await signOut(auth);
+
+        setIsInitializing(false);
+
+        router.replace("/login");
+      } catch (error: any) {
+        console.log("====================================");
+        console.log("ERROR LOADING USER PROFILE");
+        console.log("ERROR CODE:", error?.code);
+        console.log("ERROR MESSAGE:", error?.message);
+        console.log("====================================");
+
+        setIsInitializing(false);
+      }
+    });
 
     // =====================================================
     // CLEANUP
     // =====================================================
 
     return () => {
-      console.log(
-        "Firebase Auth listener removed."
-      );
-
+      console.log("Firebase Auth listener removed.");
       unsubscribe();
     };
   }, []);
@@ -759,21 +501,13 @@ export default function RootLayout() {
   // =====================================================
 
   return (
-    <ThemeProvider
-      value={
-        colorScheme === "dark"
-          ? DarkTheme
-          : DefaultTheme
-      }
-    >
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <View style={styles.root}>
-
         {/* =================================================
             EXPO ROUTER APP
         ================================================= */}
 
         <Stack>
-
           {/* INDEX / HOME */}
 
           <Stack.Screen
@@ -839,29 +573,23 @@ export default function RootLayout() {
               title: "Modal",
             }}
           />
-
         </Stack>
 
         {/* =================================================
             PROJECTVERSE INTRO OVERLAY
         ================================================= */}
 
-        {nativeSplashFinished && showIntro && (
-          <View
-            style={styles.introOverlay}
-          >
+        {showIntro && (
+          <View style={styles.introOverlay}>
             <IntroVideo
+              startPlayback={nativeSplashFinished}
               onFinished={() => {
-                console.log(
-                  "ProjectVerse intro finished."
-                );
-
+                console.log("ProjectVerse intro finished.");
                 setShowIntro(false);
               }}
             />
           </View>
         )}
-
       </View>
 
       {/* =====================================================
@@ -869,7 +597,6 @@ export default function RootLayout() {
       ===================================================== */}
 
       <StatusBar style="dark" />
-
     </ThemeProvider>
   );
 }
@@ -882,7 +609,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-
   introOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,

@@ -4,9 +4,13 @@ import { VideoView, useVideoPlayer } from "expo-video";
 
 type Props = {
   onFinished: () => void;
+  startPlayback: boolean;
 };
 
-export default function IntroVideo({ onFinished }: Props) {
+export default function IntroVideo({
+  onFinished,
+  startPlayback,
+}: Props) {
   const finishedRef = useRef(false);
   const startedRef = useRef(false);
 
@@ -15,17 +19,17 @@ export default function IntroVideo({ onFinished }: Props) {
     (player) => {
       player.loop = false;
       player.muted = true;
-    }
+      player.pause();
+      player.currentTime = 0;
+    },
   );
 
-  // Detect video completion
   useEffect(() => {
     const subscription = player.addListener("playToEnd", () => {
       if (finishedRef.current) return;
 
       finishedRef.current = true;
 
-      // Stop playback completely
       try {
         player.pause();
       } catch (error) {
@@ -33,7 +37,6 @@ export default function IntroVideo({ onFinished }: Props) {
       }
 
       console.log("ProjectVerse intro finished.");
-
       onFinished();
     });
 
@@ -42,26 +45,21 @@ export default function IntroVideo({ onFinished }: Props) {
     };
   }, [player, onFinished]);
 
-  // Start video only once
   useEffect(() => {
+    if (!startPlayback) return;
     if (startedRef.current) return;
 
     startedRef.current = true;
 
-    const timer = setTimeout(() => {
-      try {
-        player.currentTime = 0;
-        player.play();
-        console.log("ProjectVerse intro started.");
-      } catch (error) {
-        console.log("Video playback error:", error);
-      }
-    }, 150);
+    try {
+      player.currentTime = 0;
+      player.play();
 
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [player]);
+      console.log("ProjectVerse intro started from 0:00.");
+    } catch (error) {
+      console.log("Video playback error:", error);
+    }
+  }, [player, startPlayback]);
 
   return (
     <View style={styles.container}>
@@ -80,7 +78,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F5F7FB",
   },
-
   video: {
     width: "100%",
     height: "100%",
