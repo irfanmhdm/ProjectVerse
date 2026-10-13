@@ -1,6 +1,8 @@
 import {
   collection,
   getDocs,
+  getDoc,
+  doc,
   onSnapshot,
   query,
   where,
@@ -25,28 +27,21 @@ import { auth, db } from "../../firebase/firebaseConfig";
 
 type Project = {
   id: string;
-
   title: string;
   description: string;
   domain: string;
   technologies: string;
-
   studentId: string;
   studentName: string;
   studentEmail: string;
-
+  registerNumber: string;
   liveDemoUrl?: string;
-
   videoUrl?: string;
   videoName?: string;
-
   screenshotUrls?: string[];
-
   reportUrl?: string;
   reportName?: string;
-
   githubUrl?: string;
-
   status?: string;
 };
 
@@ -82,7 +77,6 @@ export default function Projects() {
 
       if (studentSnapshot.empty) {
         console.log("No students assigned to this guide.");
-
         setProjects([]);
         setLoading(false);
         return;
@@ -95,57 +89,69 @@ export default function Projects() {
       console.log("Guide's students:", studentIds);
 
       // =================================================
-      // 2. GET PROJECTS
+      // 2. GET PROJECTS AND REGISTER NUMBERS
       // =================================================
 
-      const projectSnapshot = await getDocs(collection(db, "projects"));
+      const projectSnapshot = await getDocs(
+        collection(db, "projects"),
+      );
 
-      const projectList: Project[] = [];
+      const projectList: Project[] = await Promise.all(
+        projectSnapshot.docs
+          .filter((projectDoc) => {
+            const data = projectDoc.data();
+            return studentIds.includes(data.studentId);
+          })
+          .map(async (projectDoc) => {
+            const data = projectDoc.data();
 
-      projectSnapshot.docs.forEach((projectDoc) => {
-        const data = projectDoc.data();
+            let registerNumber = "";
 
-        // Only projects belonging to
-        // students assigned to this guide
-        if (studentIds.includes(data.studentId)) {
-          projectList.push({
-            id: projectDoc.id,
+            if (data.studentId) {
+              try {
+                const studentDoc = await getDoc(
+                  doc(db, "users", data.studentId),
+                );
 
-            title: data.title || "Untitled Project",
+                if (studentDoc.exists()) {
+                  registerNumber =
+                    studentDoc.data().registerNumber || "";
+                }
+              } catch (error) {
+                console.log(
+                  "Error fetching register number:",
+                  error,
+                );
+              }
+            }
 
-            description: data.description || "No description available.",
-
-            domain: data.domain || "Not specified",
-
-            technologies: data.technologies || "Not specified",
-
-            studentId: data.studentId || "",
-
-            studentName: data.studentName || "Unknown Student",
-
-            studentEmail: data.studentEmail || "",
-
-            liveDemoUrl: data.liveDemoUrl || "",
-
-            videoUrl: data.videoUrl || "",
-
-            videoName: data.videoName || "",
-
-            screenshotUrls: data.screenshotUrls || [],
-
-            reportUrl: data.reportUrl || "",
-
-            reportName: data.reportName || "",
-
-            githubUrl: data.githubUrl || "",
-
-            status: data.status || "pending",
-          });
-        }
-      });
+            return {
+              id: projectDoc.id,
+              title: data.title || "Untitled Project",
+              description:
+                data.description ||
+                "No description available.",
+              domain: data.domain || "Not specified",
+              technologies:
+                data.technologies || "Not specified",
+              studentId: data.studentId || "",
+              studentName:
+                data.studentName || "Unknown Student",
+              studentEmail: data.studentEmail || "",
+              registerNumber,
+              liveDemoUrl: data.liveDemoUrl || "",
+              videoUrl: data.videoUrl || "",
+              videoName: data.videoName || "",
+              screenshotUrls: data.screenshotUrls || [],
+              reportUrl: data.reportUrl || "",
+              reportName: data.reportName || "",
+              githubUrl: data.githubUrl || "",
+              status: data.status || "pending",
+            };
+          }),
+      );
 
       console.log("Guide projects found:", projectList.length);
-
       setProjects(projectList);
     } catch (error) {
       console.log("Error loading guide projects:", error);
@@ -156,6 +162,7 @@ export default function Projects() {
 
   useEffect(() => {
     let unsubscribeProjects: (() => void) | null = null;
+    let isMounted = true;
 
     const setupProjectListener = async () => {
       try {
@@ -181,7 +188,6 @@ export default function Projects() {
 
         if (studentSnapshot.empty) {
           console.log("No students assigned to this guide.");
-
           setProjects([]);
           setLoading(false);
           return;
@@ -199,66 +205,103 @@ export default function Projects() {
 
         unsubscribeProjects = onSnapshot(
           collection(db, "projects"),
-          (projectSnapshot) => {
-            const projectList: Project[] = [];
+          async (projectSnapshot) => {
+            try {
+              const projectList: Project[] = await Promise.all(
+                projectSnapshot.docs
+                  .filter((projectDoc) => {
+                    const data = projectDoc.data();
+                    return studentIds.includes(data.studentId);
+                  })
+                  .map(async (projectDoc) => {
+                    const data = projectDoc.data();
 
-            projectSnapshot.docs.forEach((projectDoc) => {
-              const data = projectDoc.data();
+                    let registerNumber = "";
 
-              // Only projects belonging to
-              // students assigned to this guide
-              if (studentIds.includes(data.studentId)) {
-                projectList.push({
-                  id: projectDoc.id,
+                    if (data.studentId) {
+                      try {
+                        const studentDoc = await getDoc(
+                          doc(db, "users", data.studentId),
+                        );
 
-                  title: data.title || "Untitled Project",
+                        if (studentDoc.exists()) {
+                          registerNumber =
+                            studentDoc.data().registerNumber || "";
+                        }
+                      } catch (error) {
+                        console.log(
+                          "Error fetching register number:",
+                          error,
+                        );
+                      }
+                    }
 
-                  description: data.description || "No description available.",
+                    return {
+                      id: projectDoc.id,
+                      title: data.title || "Untitled Project",
+                      description:
+                        data.description ||
+                        "No description available.",
+                      domain: data.domain || "Not specified",
+                      technologies:
+                        data.technologies || "Not specified",
+                      studentId: data.studentId || "",
+                      studentName:
+                        data.studentName || "Unknown Student",
+                      studentEmail: data.studentEmail || "",
+                      registerNumber,
+                      liveDemoUrl: data.liveDemoUrl || "",
+                      videoUrl: data.videoUrl || "",
+                      videoName: data.videoName || "",
+                      screenshotUrls: data.screenshotUrls || [],
+                      reportUrl: data.reportUrl || "",
+                      reportName: data.reportName || "",
+                      githubUrl: data.githubUrl || "",
+                      status: data.status || "pending",
+                    };
+                  }),
+              );
 
-                  domain: data.domain || "Not specified",
+              if (!isMounted) return;
 
-                  technologies: data.technologies || "Not specified",
+              console.log(
+                "Guide projects updated:",
+                projectList.length,
+              );
 
-                  studentId: data.studentId || "",
+              setProjects(projectList);
+              setLoading(false);
+            } catch (error) {
+              console.log(
+                "Error processing guide projects:",
+                error,
+              );
 
-                  studentName: data.studentName || "Unknown Student",
-
-                  studentEmail: data.studentEmail || "",
-
-                  liveDemoUrl: data.liveDemoUrl || "",
-
-                  videoUrl: data.videoUrl || "",
-
-                  videoName: data.videoName || "",
-
-                  screenshotUrls: data.screenshotUrls || [],
-
-                  reportUrl: data.reportUrl || "",
-
-                  reportName: data.reportName || "",
-
-                  githubUrl: data.githubUrl || "",
-
-                  status: data.status || "pending",
-                });
+              if (isMounted) {
+                setLoading(false);
               }
-            });
-
-            console.log("Guide projects updated:", projectList.length);
-
-            setProjects(projectList);
-            setLoading(false);
+            }
           },
           (error) => {
-            console.log("Error listening to guide projects:", error);
+            console.log(
+              "Error listening to guide projects:",
+              error,
+            );
 
-            setLoading(false);
+            if (isMounted) {
+              setLoading(false);
+            }
           },
         );
       } catch (error) {
-        console.log("Error setting up project listener:", error);
+        console.log(
+          "Error setting up guide project listener:",
+          error,
+        );
 
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -269,6 +312,8 @@ export default function Projects() {
     // =================================================
 
     return () => {
+      isMounted = false;
+
       if (unsubscribeProjects) {
         unsubscribeProjects();
       }
@@ -299,17 +344,17 @@ export default function Projects() {
   const getStatusIcon = (status?: string) => {
     switch (status?.toLowerCase()) {
       case "approved":
-        return "checkmark-circle-outline";
+        return "checkmark-circle-outline" as const;
 
       case "revision_required":
       case "revision required":
-        return "refresh-circle-outline";
+        return "refresh-circle-outline" as const;
 
       case "rejected":
-        return "close-circle-outline";
+        return "close-circle-outline" as const;
 
       default:
-        return "time-outline";
+        return "time-outline" as const;
     }
   };
 
@@ -339,9 +384,14 @@ export default function Projects() {
 
     if (project.liveDemoUrl) count++;
     if (project.videoUrl) count++;
-    if (project.screenshotUrls && project.screenshotUrls.length > 0) {
+
+    if (
+      project.screenshotUrls &&
+      project.screenshotUrls.length > 0
+    ) {
       count++;
     }
+
     if (project.reportUrl) count++;
     if (project.githubUrl) count++;
 
@@ -376,33 +426,56 @@ export default function Projects() {
 
         <View style={styles.cardTop}>
           <View style={styles.projectIcon}>
-            <Ionicons name="document-text-outline" size={24} color="#4338CA" />
+            <Ionicons
+              name="document-text-outline"
+              size={24}
+              color="#4338CA"
+            />
           </View>
 
           <View style={styles.titleContainer}>
-            <Text style={styles.projectTitle} numberOfLines={2}>
+            <Text
+              style={styles.projectTitle}
+              numberOfLines={2}
+            >
               {item.title}
             </Text>
 
+            {/* REGISTER NUMBER UNDER PROJECT TITLE */}
             <View style={styles.studentRow}>
-              <Ionicons name="person-outline" size={13} color="#6B7280" />
+              <Ionicons
+                name="card-outline"
+                size={13}
+                color="#6B7280"
+              />
 
-              <Text style={styles.studentName} numberOfLines={1}>
-                {item.studentName}
+              <Text
+                style={styles.studentName}
+                numberOfLines={1}
+              >
+                {item.registerNumber ||
+                  "Register number unavailable"}
               </Text>
             </View>
           </View>
 
           {/* STATUS */}
 
-          <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
+          <View
+            style={[
+              styles.statusBadge,
+              getStatusStyle(item.status),
+            ]}
+          >
             <Ionicons
               name={getStatusIcon(item.status)}
               size={13}
               color="#FFFFFF"
             />
 
-            <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+            <Text style={styles.statusText}>
+              {getStatusText(item.status)}
+            </Text>
           </View>
         </View>
 
@@ -412,9 +485,16 @@ export default function Projects() {
 
         {item.studentEmail ? (
           <View style={styles.emailRow}>
-            <Ionicons name="mail-outline" size={15} color="#9CA3AF" />
+            <Ionicons
+              name="mail-outline"
+              size={15}
+              color="#9CA3AF"
+            />
 
-            <Text style={styles.email} numberOfLines={1}>
+            <Text
+              style={styles.email}
+              numberOfLines={1}
+            >
               {item.studentEmail}
             </Text>
           </View>
@@ -434,13 +514,20 @@ export default function Projects() {
 
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
-            <Ionicons name="layers-outline" size={16} color="#4338CA" />
+            <Ionicons
+              name="layers-outline"
+              size={16}
+              color="#4338CA"
+            />
           </View>
 
           <View style={styles.detailContent}>
             <Text style={styles.detailLabel}>Domain</Text>
 
-            <Text style={styles.detailValue} numberOfLines={1}>
+            <Text
+              style={styles.detailValue}
+              numberOfLines={1}
+            >
               {item.domain}
             </Text>
           </View>
@@ -452,13 +539,22 @@ export default function Projects() {
 
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
-            <Ionicons name="code-slash-outline" size={16} color="#4338CA" />
+            <Ionicons
+              name="code-slash-outline"
+              size={16}
+              color="#4338CA"
+            />
           </View>
 
           <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Technologies</Text>
+            <Text style={styles.detailLabel}>
+              Technologies
+            </Text>
 
-            <Text style={styles.detailValue} numberOfLines={2}>
+            <Text
+              style={styles.detailValue}
+              numberOfLines={2}
+            >
               {item.technologies}
             </Text>
           </View>
@@ -471,42 +567,65 @@ export default function Projects() {
         <View style={styles.resourcesSection}>
           <View style={styles.resourcesHeader}>
             <View>
-              <Text style={styles.resourcesTitle}>Project Resources</Text>
+              <Text style={styles.resourcesTitle}>
+                Project Resources
+              </Text>
 
               <Text style={styles.resourcesSubtitle}>
                 {resourceCount === 0
                   ? "No resources uploaded"
                   : `${resourceCount} ${
-                      resourceCount === 1 ? "resource" : "resources"
+                      resourceCount === 1
+                        ? "resource"
+                        : "resources"
                     } available`}
               </Text>
             </View>
 
             <View style={styles.resourceCount}>
-              <Text style={styles.resourceCountText}>{resourceCount}</Text>
+              <Text style={styles.resourceCountText}>
+                {resourceCount}
+              </Text>
             </View>
           </View>
 
           <View style={styles.resourceRow}>
             {item.liveDemoUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons name="globe-outline" size={14} color="#0F766E" />
+                <Ionicons
+                  name="globe-outline"
+                  size={14}
+                  color="#0F766E"
+                />
 
-                <Text style={styles.resourceText}>Live Demo</Text>
+                <Text style={styles.resourceText}>
+                  Live Demo
+                </Text>
               </View>
             ) : null}
 
             {item.videoUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons name="videocam-outline" size={14} color="#4338CA" />
+                <Ionicons
+                  name="videocam-outline"
+                  size={14}
+                  color="#4338CA"
+                />
 
-                <Text style={styles.resourceText}>Video</Text>
+                <Text style={styles.resourceText}>
+                  Video
+                </Text>
               </View>
             ) : null}
 
-            {item.screenshotUrls && item.screenshotUrls.length > 0 ? (
+            {item.screenshotUrls &&
+            item.screenshotUrls.length > 0 ? (
               <View style={styles.resourceBadge}>
-                <Ionicons name="images-outline" size={14} color="#4338CA" />
+                <Ionicons
+                  name="images-outline"
+                  size={14}
+                  color="#4338CA"
+                />
 
                 <Text style={styles.resourceText}>
                   {item.screenshotUrls.length}{" "}
@@ -519,17 +638,29 @@ export default function Projects() {
 
             {item.reportUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons name="document-outline" size={14} color="#4338CA" />
+                <Ionicons
+                  name="document-outline"
+                  size={14}
+                  color="#4338CA"
+                />
 
-                <Text style={styles.resourceText}>Report</Text>
+                <Text style={styles.resourceText}>
+                  Report
+                </Text>
               </View>
             ) : null}
 
             {item.githubUrl ? (
               <View style={styles.resourceBadge}>
-                <Ionicons name="logo-github" size={14} color="#1F2937" />
+                <Ionicons
+                  name="logo-github"
+                  size={14}
+                  color="#1F2937"
+                />
 
-                <Text style={styles.resourceText}>GitHub</Text>
+                <Text style={styles.resourceText}>
+                  GitHub
+                </Text>
               </View>
             ) : null}
           </View>
@@ -541,13 +672,21 @@ export default function Projects() {
 
         <View style={styles.reviewRow}>
           <View>
-            <Text style={styles.reviewTitle}>Review Project</Text>
+            <Text style={styles.reviewTitle}>
+              Review Project
+            </Text>
 
-            <Text style={styles.reviewSubtitle}>Open project details</Text>
+            <Text style={styles.reviewSubtitle}>
+              Open project details
+            </Text>
           </View>
 
           <View style={styles.arrowCircle}>
-            <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+            <Ionicons
+              name="arrow-forward"
+              size={17}
+              color="#FFFFFF"
+            />
           </View>
         </View>
       </Pressable>
@@ -562,12 +701,21 @@ export default function Projects() {
     return (
       <View style={styles.loadingContainer}>
         <View style={styles.loadingIcon}>
-          <Ionicons name="folder-open-outline" size={25} color="#4338CA" />
+          <Ionicons
+            name="folder-open-outline"
+            size={25}
+            color="#4338CA"
+          />
         </View>
 
-        <ActivityIndicator size="small" color="#4338CA" />
+        <ActivityIndicator
+          size="small"
+          color="#4338CA"
+        />
 
-        <Text style={styles.loadingText}>Loading projects...</Text>
+        <Text style={styles.loadingText}>
+          Loading projects...
+        </Text>
       </View>
     );
   }
@@ -585,21 +733,35 @@ export default function Projects() {
       {projects.length > 0 && (
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
-            <Ionicons name="folder-outline" size={24} color="#4338CA" />
+            <Ionicons
+              name="folder-outline"
+              size={24}
+              color="#4338CA"
+            />
           </View>
 
           <View style={styles.summaryContent}>
-            <Text style={styles.summaryNumber}>{projects.length}</Text>
+            <Text style={styles.summaryNumber}>
+              {projects.length}
+            </Text>
 
             <Text style={styles.summaryLabel}>
-              {projects.length === 1 ? "Student Project" : "Student Projects"}
+              {projects.length === 1
+                ? "Student Project"
+                : "Student Projects"}
             </Text>
           </View>
 
           <View style={styles.summaryStatus}>
-            <Ionicons name="people-outline" size={15} color="#0F766E" />
+            <Ionicons
+              name="people-outline"
+              size={15}
+              color="#0F766E"
+            />
 
-            <Text style={styles.summaryStatusText}>Assigned Students</Text>
+            <Text style={styles.summaryStatusText}>
+              Assigned Students
+            </Text>
           </View>
         </View>
       )}
@@ -611,13 +773,20 @@ export default function Projects() {
       {projects.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="folder-open-outline" size={34} color="#4338CA" />
+            <Ionicons
+              name="folder-open-outline"
+              size={34}
+              color="#4338CA"
+            />
           </View>
 
-          <Text style={styles.emptyTitle}>No Projects Yet</Text>
+          <Text style={styles.emptyTitle}>
+            No Projects Yet
+          </Text>
 
           <Text style={styles.emptyText}>
-            Projects submitted by your assigned students will appear here.
+            Projects submitted by your assigned students
+            will appear here.
           </Text>
         </View>
       ) : (

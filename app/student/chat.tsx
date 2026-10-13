@@ -891,7 +891,7 @@ export default function StudentChat() {
             styles.backButton
           }
           onPress={() =>
-            router.back()
+            router.replace("/student")
           }
         >
           <Ionicons

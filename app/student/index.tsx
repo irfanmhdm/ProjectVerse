@@ -15,8 +15,7 @@ import { auth, db } from "../../firebase/firebaseConfig";
 export default function StudentDashboard() {
   const router = useRouter();
 
-  const [studentName, setStudentName] =
-    useState("Student");
+  const [studentName, setStudentName] = useState("Student");
 
   // =====================================================
   // LOAD STUDENT NAME
@@ -31,15 +30,8 @@ export default function StudentDashboard() {
           return;
         }
 
-        const userRef = doc(
-          db,
-          "users",
-          user.uid
-        );
-
-        const userSnap = await getDoc(
-          userRef
-        );
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -49,10 +41,7 @@ export default function StudentDashboard() {
           }
         }
       } catch (error) {
-        console.log(
-          "Error loading student:",
-          error
-        );
+        console.log("Error loading student:", error);
       }
     };
 
@@ -89,53 +78,41 @@ export default function StudentDashboard() {
           HERO SECTION
       ================================================= */}
 
-      {/* =================================================
-    HERO SECTION
-================================================= */}
+      <View style={styles.heroCard}>
+        {/* Decorative mint circle */}
+        <View style={styles.decorCircle} />
 
-<View style={styles.heroCard}>
+        <View style={styles.heroContent}>
+          <Text style={styles.studentLabel}>
+            STUDENT
+          </Text>
 
-  {/* Decorative mint circle */}
-  <View style={styles.decorCircle} />
+          <Text style={styles.greeting}>
+            Welcome back,{" "}
+            <Text style={styles.studentName}>
+              {studentName}
+            </Text>
+          </Text>
 
-  <View style={styles.heroContent}>
+          <Text style={styles.heroDescription}>
+            {"\n"}
+            Manage your projects, track progress,
+            and collaborate with your guide.
+          </Text>
 
-    <Text style={styles.studentLabel}>
-      STUDENT
-    </Text>
+          <View style={styles.mintAccent} />
 
-    <Text style={styles.greeting}>
-      Welcome back,{"\t"}<Text style={styles.studentName}>
-      {studentName}
-    </Text>
-    </Text>
-
-    <Text style={styles.heroDescription}>
-   
-        {"\n"}
-      Manage your projects, track progress,
-      and collaborate with your guide.
-    </Text>
-
-    <View style={styles.mintAccent} />
-
-    <Text style={styles.quote}>
-      "Good ideas become
-      {"\n"}
-      better projects."
-    </Text>
-
-  </View>
-
-</View>
-        
+          <Text style={styles.quote}>
+            {"Good ideas become\nbetter projects."}
+          </Text>
+        </View>
+      </View>
 
       {/* =================================================
           QUICK ACCESS HEADER
       ================================================= */}
 
       <View style={styles.sectionHeader}>
-
         <Text style={styles.sectionTitle}>
           Quick Access
         </Text>
@@ -143,7 +120,6 @@ export default function StudentDashboard() {
         <Text style={styles.sectionSubtitle}>
           Manage your ProjectVerse workspace
         </Text>
-
       </View>
 
       {/* =================================================
@@ -151,7 +127,6 @@ export default function StudentDashboard() {
       ================================================= */}
 
       <View style={styles.cardsContainer}>
-
         {/* =================================================
             MY PROJECTS
         ================================================= */}
@@ -164,9 +139,7 @@ export default function StudentDashboard() {
           ]}
           onPress={goToProjects}
         >
-
           <View style={styles.cardTop}>
-
             <View
               style={[
                 styles.iconBox,
@@ -187,7 +160,6 @@ export default function StudentDashboard() {
                 color="#4338CA"
               />
             </View>
-
           </View>
 
           <Text style={styles.cardTitle}>
@@ -200,7 +172,6 @@ export default function StudentDashboard() {
           </Text>
 
           <View style={styles.waveIndigo} />
-
         </Pressable>
 
         {/* =================================================
@@ -215,9 +186,7 @@ export default function StudentDashboard() {
           ]}
           onPress={goToExplore}
         >
-
           <View style={styles.cardTop}>
-
             <View
               style={[
                 styles.iconBox,
@@ -243,7 +212,6 @@ export default function StudentDashboard() {
                 color="#238F89"
               />
             </View>
-
           </View>
 
           <Text style={styles.cardTitle}>
@@ -256,7 +224,6 @@ export default function StudentDashboard() {
           </Text>
 
           <View style={styles.waveMint} />
-
         </Pressable>
 
         {/* =================================================
@@ -271,9 +238,7 @@ export default function StudentDashboard() {
           ]}
           onPress={goToAddProject}
         >
-
           <View style={styles.cardTop}>
-
             <View
               style={[
                 styles.iconBox,
@@ -294,7 +259,6 @@ export default function StudentDashboard() {
                 color="#4338CA"
               />
             </View>
-
           </View>
 
           <Text style={styles.cardTitle}>
@@ -307,9 +271,7 @@ export default function StudentDashboard() {
           </Text>
 
           <View style={styles.waveIndigoLight} />
-
         </Pressable>
-
       </View>
 
       {/* =================================================
@@ -317,7 +279,6 @@ export default function StudentDashboard() {
       ================================================= */}
 
       <View style={styles.inspirationCard}>
-
         <View style={styles.inspirationIcon}>
           <Ionicons
             name="leaf-outline"
@@ -327,7 +288,6 @@ export default function StudentDashboard() {
         </View>
 
         <View style={styles.inspirationContent}>
-
           <Text style={styles.inspirationTitle}>
             Every great project
             starts with a curious mind.
@@ -336,9 +296,7 @@ export default function StudentDashboard() {
           <Text style={styles.inspirationSubtitle}>
             Keep learning. Keep building.
           </Text>
-
         </View>
-
       </View>
 
       {/* =================================================
@@ -346,7 +304,6 @@ export default function StudentDashboard() {
       ================================================= */}
 
       <View style={styles.footer}>
-
         <Text style={styles.footerTitle}>
           ProjectVerse
         </Text>
@@ -354,9 +311,7 @@ export default function StudentDashboard() {
         <Text style={styles.footerSubtitle}>
           Innovate • Collaborate • Succeed
         </Text>
-
       </View>
-
     </ScrollView>
   );
 }
@@ -366,7 +321,6 @@ export default function StudentDashboard() {
 // =======================================================
 
 const styles = StyleSheet.create({
-
   // =====================================================
   // PAGE
   // =====================================================

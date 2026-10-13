@@ -1,9 +1,6 @@
 import { Drawer } from "expo-router/drawer";
-
 import { router, usePathname } from "expo-router";
-
 import { signOut } from "firebase/auth";
-
 import {
   Alert,
   BackHandler,
@@ -13,16 +10,12 @@ import {
   Text,
   View,
 } from "react-native";
-
 import {
   DrawerContentScrollView,
   DrawerItemList,
 } from "@react-navigation/drawer";
-
 import { Ionicons } from "@expo/vector-icons";
-
 import { auth } from "../../firebase/firebaseConfig";
-
 import { useEffect } from "react";
 
 // =====================================================
@@ -37,11 +30,9 @@ function CustomDrawerContent(props: any) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-
       router.replace("/");
     } catch (error) {
       console.log("Logout error:", error);
-
       Alert.alert(
         "Logout Failed",
         "Something went wrong while logging out."
@@ -154,8 +145,6 @@ export default function StudentLayout() {
   // =====================================================
   // PROJECT BACK HANDLING
   // =====================================================
-  //
-  // IMPORTANT:
   //
   // app/_layout.tsx contains a general rule:
   //
@@ -332,9 +321,7 @@ export default function StudentLayout() {
         name="index"
         options={{
           drawerLabel: "Home",
-
           title: "ProjectVerse",
-
           drawerIcon: ({
             color,
             size,
@@ -356,9 +343,7 @@ export default function StudentLayout() {
         name="my-projects"
         options={{
           drawerLabel: "My Projects",
-
           title: "My Projects",
-
           drawerIcon: ({
             color,
             size,
@@ -380,9 +365,7 @@ export default function StudentLayout() {
         name="add-project"
         options={{
           drawerLabel: "Upload Project",
-
           title: "Upload Project",
-
           drawerIcon: ({
             color,
             size,
@@ -404,9 +387,7 @@ export default function StudentLayout() {
         name="explore"
         options={{
           drawerLabel: "Explore Projects",
-
           title: "Explore Projects",
-
           drawerIcon: ({
             color,
             size,
@@ -428,9 +409,7 @@ export default function StudentLayout() {
         name="similarity"
         options={{
           drawerLabel: "Similarity Analysis",
-
           title: "Similarity Analysis",
-
           drawerIcon: ({
             color,
             size,
@@ -452,9 +431,7 @@ export default function StudentLayout() {
         name="profile"
         options={{
           drawerLabel: "My Profile",
-
           title: "My Profile",
-
           drawerIcon: ({
             color,
             size,
@@ -476,11 +453,8 @@ export default function StudentLayout() {
         name="chat"
         options={{
           drawerLabel: "Chat",
-
           title: "Chat",
-
           headerShown: false,
-
           drawerIcon: ({
             color,
             size,
@@ -496,11 +470,9 @@ export default function StudentLayout() {
 
       {/* =================================================
           PROJECT
-
           HIDDEN FROM DRAWER
 
           INTERNAL FLOW:
-
           My Projects
                 ↓
           Project Details
@@ -535,7 +507,6 @@ export default function StudentLayout() {
 
       {/* =================================================
           SIMILARITY RESULTS
-
           HIDDEN FROM DRAWER
       ================================================= */}
 
@@ -602,7 +573,6 @@ const styles = StyleSheet.create({
 
   drawerContainer: {
     flex: 1,
-
     backgroundColor: "#FFFFFF",
   },
 
@@ -620,15 +590,10 @@ const styles = StyleSheet.create({
 
   drawerHeader: {
     paddingHorizontal: 20,
-
     paddingTop: 65,
-
     paddingBottom: 24,
-
     borderBottomWidth: 1,
-
     borderBottomColor: "#E5E7EB",
-
     marginBottom: 8,
   },
 
@@ -638,7 +603,6 @@ const styles = StyleSheet.create({
 
   logoContainer: {
     flexDirection: "row",
-
     alignItems: "center",
   },
 
@@ -648,9 +612,7 @@ const styles = StyleSheet.create({
 
   logo: {
     width: 48,
-
     height: 48,
-
     marginRight: 12,
   },
 
@@ -660,9 +622,7 @@ const styles = StyleSheet.create({
 
   appName: {
     fontSize: 21,
-
     fontWeight: "700",
-
     color: "#4338CA",
   },
 
@@ -672,9 +632,7 @@ const styles = StyleSheet.create({
 
   role: {
     fontSize: 13,
-
     color: "#6B7280",
-
     marginTop: 3,
   },
 
@@ -684,11 +642,8 @@ const styles = StyleSheet.create({
 
   logoutContainer: {
     borderTopWidth: 1,
-
     borderTopColor: "#E5E7EB",
-
     paddingHorizontal: 15,
-
     paddingVertical: 12,
   },
 
@@ -698,13 +653,9 @@ const styles = StyleSheet.create({
 
   logoutButton: {
     flexDirection: "row",
-
     alignItems: "center",
-
     paddingVertical: 13,
-
     paddingHorizontal: 15,
-
     borderRadius: 10,
   },
 
@@ -714,11 +665,8 @@ const styles = StyleSheet.create({
 
   logoutText: {
     fontSize: 15,
-
     fontWeight: "600",
-
     color: "#DC2626",
-
     marginLeft: 12,
   },
 
@@ -728,13 +676,9 @@ const styles = StyleSheet.create({
 
   resultsBackButton: {
     width: 44,
-
     height: 44,
-
     alignItems: "center",
-
     justifyContent: "center",
-
     marginLeft: 4,
   },
 });
