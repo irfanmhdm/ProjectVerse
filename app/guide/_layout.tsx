@@ -333,7 +333,7 @@ export default function GuideLayout() {
       // Android back/swipe behavior.
       // =================================================
 
-      backBehavior="firstRoute"
+      backBehavior="history"
 
       screenOptions={{
 
