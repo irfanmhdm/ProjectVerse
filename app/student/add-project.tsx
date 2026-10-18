@@ -7,6 +7,7 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
+  getDoc,
   getDocs,
   query,
   where,
@@ -784,9 +785,24 @@ export default function AddProject() {
 // =====================================================
 
 try {
+  const studentRef = doc(db, "users", user.uid);
+const studentSnap = await getDoc(studentRef);
+const studentData = studentSnap.exists()
+  ? studentSnap.data()
+  : {};
+
+const studentName =
+  typeof studentData.name === "string" && studentData.name.trim()
+    ? studentData.name.trim()
+    : user.displayName || "Student";
+const registerNumber =
+  typeof studentData.registerNumber === "string" && studentData.registerNumber.trim()
+    ? studentData.registerNumber.trim()
+    : "Register number unavailable";
   const assignmentQuery = query(
     collection(db, "guideStudents"),
     where("studentId", "==", user.uid),
+    
   );
 
   const assignmentSnapshot = await getDocs(assignmentQuery);
@@ -807,7 +823,7 @@ try {
       sendNotification({
         recipientUid: guideId,
         title: "New Project Submission",
-        message: `A student you supervise has submitted "${title.trim()}".`,
+        message: `${studentName} (${registerNumber}) submitted "${title.trim()}" for your review.`,
         type: "project_submitted",
         projectId,
       }),

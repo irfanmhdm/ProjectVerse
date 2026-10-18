@@ -100,7 +100,14 @@ export default function Projects() {
         projectSnapshot.docs
           .filter((projectDoc) => {
             const data = projectDoc.data();
-            return studentIds.includes(data.studentId);
+            const status = String(data.status || "pending").toLowerCase();
+            return (
+              studentIds.includes(data.studentId) &&
+              (status === "pending" ||
+                status === "revision_required" ||
+                status === "revision required" ||
+                status === "revision-required")
+            );
           })
           .map(async (projectDoc) => {
             const data = projectDoc.data();
@@ -152,6 +159,11 @@ export default function Projects() {
       );
 
       console.log("Guide projects found:", projectList.length);
+      projectList.sort((a, b) => {
+        const priority = (status?: string) =>
+          String(status || "pending").toLowerCase() === "pending" ? 0 : 1;
+        return priority(a.status) - priority(b.status);
+      });
       setProjects(projectList);
     } catch (error) {
       console.log("Error loading guide projects:", error);
@@ -211,7 +223,14 @@ export default function Projects() {
                 projectSnapshot.docs
                   .filter((projectDoc) => {
                     const data = projectDoc.data();
-                    return studentIds.includes(data.studentId);
+                    const status = String(data.status || "pending").toLowerCase();
+                    return (
+                    studentIds.includes(data.studentId) &&
+                    (status === "pending" ||
+                      status === "revision_required" ||
+                      status === "revision required" ||
+                      status === "revision-required")
+                  );
                   })
                   .map(async (projectDoc) => {
                     const data = projectDoc.data();
@@ -269,6 +288,12 @@ export default function Projects() {
                 projectList.length,
               );
 
+              // Keep pending projects first, followed by revision-required projects.
+              projectList.sort((a, b) => {
+                const priority = (status?: string) =>
+                  String(status || "pending").toLowerCase() === "pending" ? 0 : 1;
+                return priority(a.status) - priority(b.status);
+              });
               setProjects(projectList);
               setLoading(false);
             } catch (error) {
@@ -747,8 +772,8 @@ export default function Projects() {
 
             <Text style={styles.summaryLabel}>
               {projects.length === 1
-                ? "Student Project"
-                : "Student Projects"}
+                ? "Project Requiring Review"
+                : "Projects Requiring Review"}
             </Text>
           </View>
 
@@ -760,7 +785,7 @@ export default function Projects() {
             />
 
             <Text style={styles.summaryStatusText}>
-              Assigned Students
+              Needs Review
             </Text>
           </View>
         </View>
@@ -781,12 +806,11 @@ export default function Projects() {
           </View>
 
           <Text style={styles.emptyTitle}>
-            No Projects Yet
+            No Projects Awaiting Review
           </Text>
 
           <Text style={styles.emptyText}>
-            Projects submitted by your assigned students
-            will appear here.
+            Projects awaiting your review will appear here.
           </Text>
         </View>
       ) : (

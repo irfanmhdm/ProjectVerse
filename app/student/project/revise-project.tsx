@@ -871,7 +871,22 @@ export default function ReviseProject() {
       console.log("Main project updated successfully");
 
       // Notify the assigned guide after the revision is saved.
+      // Read the student's profile so studentName/registerNumber are defined.
       try {
+        const studentRef = doc(db, "users", student.uid);
+        const studentSnap = await getDoc(studentRef);
+        const studentData = studentSnap.exists() ? studentSnap.data() : {};
+
+        const studentName =
+          typeof studentData.name === "string" && studentData.name.trim()
+            ? studentData.name.trim()
+            : student.displayName || "Student";
+        const registerNumber =
+          typeof studentData.registerNumber === "string" &&
+          studentData.registerNumber.trim()
+            ? studentData.registerNumber.trim()
+            : "Register number unavailable";
+
         const assignmentsQuery = query(
           collection(db, "guideStudents"),
           where("studentId", "==", student.uid),
@@ -883,19 +898,30 @@ export default function ReviseProject() {
           console.warn("Revision saved, but no guide assignment was found.");
         }
 
-        for (const assignmentDoc of assignmentsSnapshot.docs) {
-          const assignment = assignmentDoc.data();
+        // Avoid sending duplicate notifications if duplicate assignment
+        // documents exist for the same guide.
+        const guideIds = [
+          ...new Set(
+            assignmentsSnapshot.docs
+              .map((assignmentDoc) => assignmentDoc.data().guideId)
+              .filter(
+                (guideId): guideId is string =>
+                  typeof guideId === "string" && guideId.trim().length > 0,
+              ),
+          ),
+        ];
 
-          if (!assignment.guideId) continue;
-
-          await sendNotification({
-            recipientUid: assignment.guideId,
-            title: "Project Revision Submitted",
-            message: `"${title.trim()}" has been revised and is ready for your review.`,
-            type: "project_revision",
-            projectId: id,
-          });
-        }
+        await Promise.all(
+          guideIds.map((guideId) =>
+            sendNotification({
+              recipientUid: guideId,
+              title: "Project Revision Submitted",
+              message: `${studentName} (${registerNumber}) submitted "${title.trim()}" for your review.`,
+              type: "project_revision",
+              projectId: id,
+            }),
+          ),
+        );
       } catch (notificationError) {
         // Keep the successful revision even if notification fails.
         console.error(

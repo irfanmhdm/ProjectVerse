@@ -438,6 +438,7 @@ export default function GuideLayout() {
         "/guide/students",
         "/guide/add-student",
         "/guide/projects",
+        "/guide/approved_rejected_projects",
         "/guide/chat",
         "/guide/profile",
       ];
@@ -590,11 +591,45 @@ export default function GuideLayout() {
       <Drawer.Screen
         name="projects"
         options={{
-          title: "Projects",
-          drawerLabel: "Projects",
+          title: "Project Review",
+          drawerLabel: "Project Review",
           drawerIcon: ({ color, size }) => (
             <Ionicons
               name="folder-open-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+
+       {/* APPROVED AND REJECTED PROJECTS */}
+
+      <Drawer.Screen
+        name="approved_rejected_projects"
+        options={{
+          title: "View Projects",
+          drawerLabel: "View Projects",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="folder-open-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+
+      {/* PROFILE */}
+
+      <Drawer.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          drawerLabel: "Profile",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons
+              name="person-circle-outline"
               size={size}
               color={color}
             />
@@ -642,22 +677,7 @@ export default function GuideLayout() {
         }}
       />
 
-      {/* PROFILE */}
-
-      <Drawer.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          drawerLabel: "Profile",
-          drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="person-circle-outline"
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
+     
 
       {/* PROJECT DETAILS - HIDDEN */}
 
