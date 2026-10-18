@@ -1902,7 +1902,8 @@ export default function GuideProjectDetails() {
 
         ================================================== */}
 
-      {project.status?.toLowerCase() !== "approved" && (
+      {project.status?.toLowerCase() !== "approved" &&
+        project.status?.toLowerCase() !== "rejected" && (
 
         <View style={styles.reviewSection}>
 

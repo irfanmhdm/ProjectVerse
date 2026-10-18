@@ -24,6 +24,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { auth, db } from "../../firebase/firebaseConfig";
+import { sendNotification } from "../../utils/notifications";
 
 // =====================================================
 // STUDENT TYPE
@@ -132,6 +133,30 @@ export default function Students() {
           onPress: async () => {
             try {
               setRemovingStudentId(student.id);
+
+              // -----------------------------------------
+              // NOTIFY STUDENT BEFORE DELETING ASSIGNMENT
+              // The assignment must still exist while the
+              // Firestore rule validates this notification.
+              // -----------------------------------------
+
+              try {
+                await sendNotification({
+                  recipientUid: student.studentId,
+                  title: "Guide Assignment Removed",
+                  message: `${guide.displayName || "Your guide"} has removed you from their assigned students in ProjectVerse.`,
+                  type: "student_removed",
+                });
+              } catch (notificationError: any) {
+                // Keep the assignment if notification creation fails and show
+                // the underlying Firestore error directly on the device.
+                console.error("Could not notify student about removal:", notificationError);
+                Alert.alert(
+                  "Removal Notification Failed",
+                  `The assignment was NOT removed.\n\nCode: ${notificationError?.code || "unknown"}\nMessage: ${notificationError?.message || String(notificationError)}`
+                );
+                return;
+              }
 
               // -----------------------------------------
               // DELETE ASSIGNMENT

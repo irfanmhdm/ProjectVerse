@@ -27,6 +27,7 @@ import { auth } from "../../firebase/firebaseConfig";
 
 import {
   listenToNotifications,
+  markNotificationsAsRead,
   AppNotification,
 } from "../../utils/notifications";
 
@@ -59,6 +60,28 @@ function NotificationButton() {
   }, []);
 
   // ===================================================
+  // UNREAD COUNT
+  // ===================================================
+
+  const unreadCount = notifications.filter(
+    (notification) => notification.isRead !== true
+  ).length;
+
+  // ===================================================
+  // OPEN NOTIFICATIONS AND MARK CURRENT UNREAD ITEMS
+  // ===================================================
+
+  const openNotifications = async () => {
+    setVisible(true);
+
+    try {
+      await markNotificationsAsRead(notifications);
+    } catch (error) {
+      console.error("Failed to mark notifications as read:", error);
+    }
+  };
+
+  // ===================================================
   // NOTIFICATION HEADER BUTTON
   // ===================================================
 
@@ -66,8 +89,8 @@ function NotificationButton() {
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Notifications, ${notifications.length} total`}
-        onPress={() => setVisible(true)}
+        accessibilityLabel={`Notifications, ${unreadCount} unread`}
+        onPress={openNotifications}
         style={styles.notificationButton}
       >
         <Ionicons
@@ -76,12 +99,10 @@ function NotificationButton() {
           color="#4338CA"
         />
 
-        {notifications.length > 0 && (
+        {unreadCount > 0 && (
           <View style={styles.notificationBadge}>
             <Text style={styles.notificationBadgeText}>
-              {notifications.length > 99
-                ? "99+"
-                : notifications.length}
+              {unreadCount > 99 ? "99+" : unreadCount}
             </Text>
           </View>
         )}
@@ -185,12 +206,27 @@ function NotificationButton() {
                     </View>
 
                     <View style={styles.notificationItemContent}>
-                      <Text style={styles.notificationItemTitle}>
-                        {item.title}
-                      </Text>
+                      <View style={styles.notificationTitleRow}>
+                        <Text style={styles.notificationItemTitle}>
+                          {item.title}
+                        </Text>
+
+                        {item.isRead !== true && (
+                          <View
+                            accessibilityLabel="Unread notification"
+                            style={styles.unreadDot}
+                          />
+                        )}
+                      </View>
 
                       <Text style={styles.notificationItemMessage}>
                         {item.message}
+                      </Text>
+
+                      <Text style={styles.notificationDate}>
+                        {item.createdAt?.toDate
+                          ? item.createdAt.toDate().toLocaleString()
+                          : "Just now"}
                       </Text>
                     </View>
                   </View>
@@ -715,6 +751,27 @@ const styles = StyleSheet.create({
 
   notificationItemContent: {
     flex: 1,
+  },
+
+  notificationTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#4338CA",
+    marginTop: 3,
+  },
+
+  notificationDate: {
+    fontSize: 10,
+    color: "#9CA3AF",
+    marginTop: 7,
   },
 
   notificationItemTitle: {

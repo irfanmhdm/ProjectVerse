@@ -26,6 +26,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { auth, db } from "../../firebase/firebaseConfig";
+import { sendNotification } from "../../utils/notifications";
 
 // =====================================================
 // STUDENT TYPE
@@ -402,6 +403,27 @@ export default function AddStudent() {
             serverTimestamp(),
         },
       );
+
+      // =================================================
+      // NOTIFY STUDENT
+      // =================================================
+
+      try {
+        await sendNotification({
+          recipientUid: student.id,
+          title: "Guide Assigned",
+          message: `${guide.displayName || "Your guide"} has added you to their students in ProjectVerse.`,
+          type: "student_added",
+        });
+      } catch (notificationError: any) {
+        // Show the real Firestore error on the device so it is not hidden
+        // when the Expo terminal does not display console output.
+        console.error("Student was added, but notification failed:", notificationError);
+        Alert.alert(
+          "Student Added — Notification Failed",
+          `The assignment was saved, but the student notification could not be created.\n\nCode: ${notificationError?.code || "unknown"}\nMessage: ${notificationError?.message || String(notificationError)}`
+        );
+      }
 
       // =================================================
       // SUCCESS

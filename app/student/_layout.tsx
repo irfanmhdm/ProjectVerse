@@ -21,6 +21,7 @@ import { auth } from "../../firebase/firebaseConfig";
 import { useEffect, useState } from "react";
 import {
   listenToNotifications,
+  markNotificationsAsRead,
   AppNotification,
 } from "../../utils/notifications";
 // =====================================================
@@ -29,10 +30,42 @@ import {
 // =====================================================
 // NOTIFICATION BUTTON
 // =====================================================
+function formatNotificationDate(createdAt: any): string {
+  if (!createdAt) return "Time unavailable";
+  const date =
+    typeof createdAt.toDate === "function"
+      ? createdAt.toDate()
+      : new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "Time unavailable";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 function NotificationButton() {
   const [notifications, setNotifications] =
     useState<AppNotification[]>([]);
   const [visible, setVisible] = useState(false);
+  const unreadCount = notifications.filter(
+    (notification) => notification.isRead !== true
+  ).length;
+
+  const openNotifications = async () => {
+    setVisible(true);
+    try {
+      await markNotificationsAsRead(
+        notifications.filter((notification) => notification.isRead !== true)
+      );
+    } catch (error) {
+      console.error("Could not mark notifications as read:", error);
+    }
+  };
+
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -45,8 +78,8 @@ function NotificationButton() {
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Notifications, ${notifications.length} total`}
-        onPress={() => setVisible(true)}
+        accessibilityLabel={`Notifications, ${unreadCount} unread`}
+        onPress={openNotifications}
         style={styles.notificationButton}
       >
         <Ionicons
@@ -54,10 +87,10 @@ function NotificationButton() {
           size={25}
           color="#4338CA"
         />
-        {notifications.length > 0 && (
+        {unreadCount > 0 && (
           <View style={styles.notificationBadge}>
             <Text style={styles.notificationBadgeText}>
-              {notifications.length > 99 ? "99+" : notifications.length}
+              {unreadCount > 99 ? "99+" : unreadCount}
             </Text>
           </View>
         )}
@@ -113,7 +146,13 @@ function NotificationButton() {
                 showsVerticalScrollIndicator
               >
                 {notifications.map((item) => (
-                  <View key={item.id} style={styles.notificationItem}>
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.notificationItem,
+                      item.isRead !== true && styles.unreadNotificationItem,
+                    ]}
+                  >
                     <View style={styles.notificationItemIcon}>
                       <Ionicons
                         name={
@@ -132,11 +171,17 @@ function NotificationButton() {
                       />
                     </View>
                     <View style={styles.notificationItemContent}>
-                      <Text style={styles.notificationItemTitle}>
-                        {item.title}
-                      </Text>
+                      <View style={styles.notificationTitleRow}>
+                        <Text style={styles.notificationItemTitle}>
+                          {item.title}
+                        </Text>
+                        {item.isRead !== true && <View style={styles.unreadDot} />}
+                      </View>
                       <Text style={styles.notificationItemMessage}>
                         {item.message}
+                      </Text>
+                      <Text style={styles.notificationDate}>
+                        {formatNotificationDate(item.createdAt)}
                       </Text>
                     </View>
                   </View>
@@ -767,6 +812,30 @@ const styles = StyleSheet.create({
   notificationList: {
     flexGrow: 0,
   },
+  notificationTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#4338CA",
+  },
+
+  unreadNotificationItem: {
+    backgroundColor: "#F5F7FF",
+  },
+
+  notificationDate: {
+    fontSize: 10,
+    color: "#8A909D",
+    marginTop: 6,
+  },
+
   notificationItem: {
     flexDirection: "row",
     alignItems: "flex-start",
