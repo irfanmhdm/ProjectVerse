@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
+  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -68,6 +69,7 @@ export default function StudentChat() {
   const [guideName, setGuideName] = useState("Guide");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   // =====================================================
   // MARK CHAT AS READ
   // =====================================================
@@ -692,6 +694,67 @@ export default function StudentChat() {
     }
   };
   // =====================================================
+  // EDIT MESSAGE
+  // =====================================================
+  const startEditingMessage = (message: Message) => {
+    if (!student?.uid || message.senderId !== student.uid) return;
+    setEditingMessage(message);
+    setMessageText(message.text);
+  };
+
+  const saveEditedMessage = async () => {
+    if (!student?.uid || !guideId || !editingMessage) return;
+    const updatedText = messageText.trim();
+    if (!updatedText) {
+      Alert.alert("Message Required", "Please enter a message.");
+      return;
+    }
+    if (updatedText === editingMessage.text) {
+      setEditingMessage(null);
+      setMessageText("");
+      return;
+    }
+    try {
+      setSending(true);
+      const chatId = `${guideId}_${student.uid}`;
+      const chatRef = doc(db, "chats", chatId);
+      const messageRef = doc(db, "chats", chatId, "messages", editingMessage.id);
+      const batch = writeBatch(db);
+      batch.update(messageRef, { text: updatedText, editedAt: serverTimestamp() });
+      if (messages[messages.length - 1]?.id === editingMessage.id) {
+        batch.set(chatRef, { lastMessage: updatedText, updatedAt: serverTimestamp() }, { merge: true });
+      } else {
+        batch.set(chatRef, { updatedAt: serverTimestamp() }, { merge: true });
+      }
+      await batch.commit();
+      setEditingMessage(null);
+      setMessageText("");
+    } catch (error) {
+      console.log("Edit student message error:", error);
+      Alert.alert("Edit Failed", "Unable to edit this message.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const showMessageActions = (message: Message) => {
+    if (!student?.uid || message.senderId !== student.uid) return;
+    Alert.alert("Message Options", "Choose an action for your message.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Edit", onPress: () => startEditingMessage(message) },
+      { text: "Delete", style: "destructive", onPress: () => deleteMessage(message) },
+    ]);
+  };
+
+  const handleSendOrEdit = () => {
+    if (editingMessage) {
+      void saveEditedMessage();
+    } else {
+      void sendMessage();
+    }
+  };
+
+  // =====================================================
   // MESSAGE ITEM
   // =====================================================
   // =====================================================
@@ -774,7 +837,7 @@ export default function StudentChat() {
         <Pressable
           onLongPress={() => {
             if (isMine) {
-              deleteMessage(item);
+              showMessageActions(item);
             }
           }}
           delayLongPress={450}
@@ -1066,11 +1129,24 @@ export default function StudentChat() {
           },
         ]}
       >
+        {editingMessage && (
+          <Pressable
+            onPress={() => {
+              setEditingMessage(null);
+              setMessageText("");
+            }}
+            style={{ width: 36, height: 44, alignItems: "center", justifyContent: "center", marginRight: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel editing message"
+          >
+            <Ionicons name="close-circle-outline" size={22} color="#6B7280" />
+          </Pressable>
+        )}
         <TextInput
           style={
             styles.input
           }
-          placeholder="Type a message..."
+          placeholder={editingMessage ? "Edit your message..." : "Type a message..."}
           placeholderTextColor="#9CA3AF"
           value={
             messageText
@@ -1094,7 +1170,7 @@ export default function StudentChat() {
               styles.sendButtonDisabled,
           ]}
           onPress={
-            sendMessage
+            handleSendOrEdit
           }
           disabled={
             !messageText.trim() ||
@@ -1108,7 +1184,7 @@ export default function StudentChat() {
             />
           ) : (
             <Ionicons
-              name="send"
+              name={editingMessage ? "checkmark" : "send"}
               size={19}
               color="#FFFFFF"
             />

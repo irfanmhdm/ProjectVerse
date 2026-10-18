@@ -27,7 +27,7 @@ export default function HomeScreen() {
         <Text style={styles.appName}>ProjectVerse</Text>
 
         <Text style={styles.tagline}>
-          Discover. Learn. Innovate.
+          Discover. Develop. Demonstrate.
         </Text>
       </View>
 

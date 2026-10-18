@@ -1349,7 +1349,7 @@ export default function RegisterScreen() {
             </Text>
 
             <Text style={styles.tagline}>
-              Discover. Learn. Innovate.
+              Discover. Develop. Demonstrate.
             </Text>
 
           </View>

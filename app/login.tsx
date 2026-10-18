@@ -457,7 +457,7 @@ export default function LoginScreen() {
           </Text>
 
           <Text style={styles.tagline}>
-            Discover. Learn. Innovate.
+            Discover. Develop. Demonstrate.
           </Text>
         </View>
 

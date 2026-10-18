@@ -9,6 +9,7 @@ import {
   setDoc,
   serverTimestamp,
   Timestamp,
+  updateDoc,
   increment,
   writeBatch,
 } from "firebase/firestore";
@@ -100,6 +101,7 @@ export default function GuideChatConversation() {
     useState(true);
   const [sending, setSending] =
     useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   // =====================================================
   // CURRENT GUIDE
   // =====================================================
@@ -454,6 +456,67 @@ export default function GuideChatConversation() {
       }
     };
   // =====================================================
+  // EDIT MESSAGE
+  // =====================================================
+  const startEditingMessage = (message: Message) => {
+    if (!guide?.uid || message.senderId !== guide.uid) return;
+    setEditingMessage(message);
+    setMessageText(message.text);
+  };
+
+  const saveEditedMessage = async () => {
+    if (!guide?.uid || !studentId || !editingMessage) return;
+    const updatedText = messageText.trim();
+    if (!updatedText) {
+      Alert.alert("Message Required", "Please enter a message.");
+      return;
+    }
+    if (updatedText === editingMessage.text) {
+      setEditingMessage(null);
+      setMessageText("");
+      return;
+    }
+    try {
+      setSending(true);
+      const currentChatId = `${guide.uid}_${studentId}`;
+      const chatRef = doc(db, "chats", currentChatId);
+      const messageRef = doc(db, "chats", currentChatId, "messages", editingMessage.id);
+      const batch = writeBatch(db);
+      batch.update(messageRef, { text: updatedText, editedAt: serverTimestamp() });
+      if (messages[messages.length - 1]?.id === editingMessage.id) {
+        batch.set(chatRef, { lastMessage: updatedText, updatedAt: serverTimestamp() }, { merge: true });
+      } else {
+        batch.set(chatRef, { updatedAt: serverTimestamp() }, { merge: true });
+      }
+      await batch.commit();
+      setEditingMessage(null);
+      setMessageText("");
+    } catch (error) {
+      console.log("Edit guide message error:", error);
+      Alert.alert("Edit Failed", "Unable to edit this message.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const showMessageActions = (message: Message) => {
+    if (!guide?.uid || message.senderId !== guide.uid) return;
+    Alert.alert("Message Options", "Choose an action for your message.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Edit", onPress: () => startEditingMessage(message) },
+      { text: "Delete", style: "destructive", onPress: () => deleteMessage(message) },
+    ]);
+  };
+
+  const handleSendOrEdit = () => {
+    if (editingMessage) {
+      void saveEditedMessage();
+    } else {
+      void sendMessage();
+    }
+  };
+
+  // =====================================================
   // =====================================================
   // DELETE MESSAGE
   // =====================================================
@@ -542,7 +605,7 @@ export default function GuideChatConversation() {
           ]}
         >
           <Pressable
-            onLongPress={isMine ? () => deleteMessage(item) : undefined}
+            onLongPress={isMine ? () => showMessageActions(item) : undefined}
             delayLongPress={500}
             style={[
               styles.messageBubble,
@@ -790,11 +853,24 @@ export default function GuideChatConversation() {
           },
         ]}
       >
+        {editingMessage && (
+          <Pressable
+            onPress={() => {
+              setEditingMessage(null);
+              setMessageText("");
+            }}
+            style={{ width: 36, height: 44, alignItems: "center", justifyContent: "center", marginRight: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel editing message"
+          >
+            <Ionicons name="close-circle-outline" size={22} color="#6B7280" />
+          </Pressable>
+        )}
         <TextInput
           style={
             styles.input
           }
-          placeholder="Type a message..."
+          placeholder={editingMessage ? "Edit your message..." : "Type a message..."}
           placeholderTextColor="#9CA3AF"
           value={
             messageText
@@ -818,7 +894,7 @@ export default function GuideChatConversation() {
               styles.sendButtonDisabled,
           ]}
           onPress={
-            sendMessage
+            handleSendOrEdit
           }
           disabled={
             !messageText.trim() ||
@@ -832,7 +908,7 @@ export default function GuideChatConversation() {
             />
           ) : (
             <Ionicons
-              name="send"
+              name={editingMessage ? "checkmark" : "send"}
               size={19}
               color="#FFFFFF"
             />
