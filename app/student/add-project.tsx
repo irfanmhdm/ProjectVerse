@@ -1,13 +1,17 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-
+import { sendNotification } from "../../utils/notifications";
 import {
   addDoc,
   collection,
   serverTimestamp,
   updateDoc,
   doc,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
+
 
 import { useState } from "react";
 
@@ -722,6 +726,50 @@ export default function AddProject() {
         },
       );
 
+      // =====================================================
+// 7. NOTIFY THE ASSIGNED GUIDE
+// =====================================================
+
+try {
+  const assignmentQuery = query(
+    collection(db, "guideStudents"),
+    where("studentId", "==", user.uid),
+  );
+
+  const assignmentSnapshot = await getDocs(assignmentQuery);
+
+  const guideIds = [
+    ...new Set(
+      assignmentSnapshot.docs
+        .map((assignmentDoc) => assignmentDoc.data().guideId)
+        .filter(
+          (guideId): guideId is string =>
+            typeof guideId === "string" && guideId.length > 0,
+        ),
+    ),
+  ];
+
+  await Promise.all(
+    guideIds.map((guideId) =>
+      sendNotification({
+        recipientUid: guideId,
+        title: "New Project Submission",
+        message: `A student you supervise has submitted "${title.trim()}".`,
+        type: "project_submitted",
+        projectId,
+      }),
+    ),
+  );
+
+  console.log("Guide notifications sent:", guideIds.length);
+} catch (notificationError) {
+  // Do not treat a successful project upload as a failed submission
+  // just because notification delivery failed.
+  console.error(
+    "Project saved, but guide notification failed:",
+    notificationError,
+  );
+}
       console.log("Project submitted successfully.");
 
       // =====================================================

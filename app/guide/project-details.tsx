@@ -10,6 +10,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useEffect, useState } from "react";
 
+import { sendNotification } from "../../utils/notifications";
+
 import {
 
   ActivityIndicator,
@@ -814,6 +816,54 @@ export default function GuideProjectDetails() {
         reviewedAt: serverTimestamp(),
 
       });
+
+      
+      // Notify the student after the review is successfully saved.
+      // Notification failure must not undo or invalidate the saved review.
+      try {
+        const currentProject = project;
+        const studentId = currentProject?.studentId;
+        const projectTitle = currentProject?.title || "Untitled Project";
+
+        const statusMessages: Record<
+          string,
+          { title: string; message: string }
+        > = {
+          approved: {
+            title: "Project Approved",
+            message: `Your project "${projectTitle}" has been approved.`,
+          },
+          revision_required: {
+            title: "Project Revision Requested",
+            message: `Your guide has requested changes to "${projectTitle}". Please check the feedback.`,
+          },
+          rejected: {
+            title: "Project Rejected",
+            message: `Your project "${projectTitle}" has been rejected. Please check your guide's feedback.`,
+          },
+        };
+
+        const notification = statusMessages[newStatus];
+
+        if (studentId && notification) {
+          await sendNotification({
+            recipientUid: studentId,
+            title: notification.title,
+            message: notification.message,
+            type: newStatus,
+            projectId: id,
+          });
+        } else if (!studentId) {
+          console.warn(
+            "Review saved, but no studentId was found; notification was not sent.",
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "Review saved, but student notification failed:",
+          notificationError,
+        );
+      }
 
       // ==================================================
 
