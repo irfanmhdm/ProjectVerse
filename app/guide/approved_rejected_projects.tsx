@@ -281,7 +281,7 @@ export default function ApprovedRejectedProjects() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerCard}>
+      {/* <View style={styles.headerCard}>
         <View style={styles.headerIcon}>
           <Ionicons name="archive-outline" size={25} color="#4338CA" />
         </View>
@@ -291,7 +291,7 @@ export default function ApprovedRejectedProjects() {
             Browse reviewed projects by status
           </Text>
         </View>
-      </View>
+      </View> */}
 
       <View style={styles.tabContainer}>
         <Pressable
