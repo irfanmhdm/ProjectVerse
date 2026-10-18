@@ -360,7 +360,7 @@ export default function AddProject() {
   // SUBMIT PROJECT
   // =========================================================
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (skipTitleCheck = false) => {
     // =======================================================
     // REQUIRED TEXT FIELDS
     // =======================================================
@@ -473,6 +473,59 @@ export default function AddProject() {
 
     try {
       setLoading(true);
+
+      // =====================================================
+      // CHECK FOR AN EXISTING PROJECT TITLE IN FIRESTORE
+      // Titles are compared without case/extra-space differences.
+      // Matching titles show a warning, but are still allowed.
+      // =====================================================
+
+      if (!skipTitleCheck) {
+        console.log("Checking existing project titles...");
+
+        const existingProjectsSnapshot = await getDocs(
+          collection(db, "projects"),
+        );
+
+        const normalizedTitle = title.trim().replace(/\s+/g, " ").toLowerCase();
+        const matchingProjects = existingProjectsSnapshot.docs
+          .map((projectDoc) => ({
+            id: projectDoc.id,
+            title: String(projectDoc.data().title || "").trim().replace(/\s+/g, " "),
+          }))
+          .filter(
+            (project) =>
+              project.title.toLowerCase() === normalizedTitle,
+          );
+
+        if (matchingProjects.length > 0) {
+          setLoading(false);
+
+          const existingTitle = matchingProjects[0].title;
+          const additionalMatches = matchingProjects.length - 1;
+          const matchMessage =
+            `A project with the title "${existingTitle}" already exists in ProjectVerse.` +
+            (additionalMatches > 0
+              ? `\n\nThere are ${matchingProjects.length} projects with this title.`
+              : "") +
+            "\n\nDifferent projects can have the same title. Do you want to continue?";
+
+          Alert.alert(
+            "Similar Project Title Found",
+            matchMessage,
+            [
+              { text: "Edit Title", style: "cancel" },
+              {
+                text: "Continue Anyway",
+                onPress: () => handleSubmit(true),
+              },
+            ],
+          );
+          return;
+        }
+
+        console.log("No matching project title found.");
+      }
 
       // =====================================================
       // 1. CREATE PROJECT DOCUMENT
@@ -1460,7 +1513,7 @@ try {
             styles.submitButton,
             loading && styles.disabledButton,
           ]}
-          onPress={handleSubmit}
+          onPress={() => handleSubmit()}
           disabled={loading}
         >
           {loading ? (

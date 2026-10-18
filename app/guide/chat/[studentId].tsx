@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -8,7 +7,10 @@ import {
   orderBy,
   query,
   setDoc,
+  serverTimestamp,
   Timestamp,
+  increment,
+  writeBatch,
 } from "firebase/firestore";
 import {
   useLocalSearchParams,
@@ -213,6 +215,24 @@ export default function GuideChatConversation() {
     loadStudent();
   }, [studentId]);
   // =====================================================
+  // MARK THIS STUDENT'S MESSAGES AS READ WHILE CHAT IS OPEN
+  // =====================================================
+  useEffect(() => {
+    if (!guide?.uid || !studentId) return;
+
+    const currentChatId = `${guide.uid}_${studentId}`;
+    const chatRef = doc(db, "chats", currentChatId);
+
+    setDoc(
+      chatRef,
+      { unreadGuideCount: 0, guideLastReadAt: Timestamp.now() },
+      { merge: true },
+    ).catch((error) => {
+      console.log("Unable to clear guide unread count:", error?.code || error);
+    });
+  }, [guide?.uid, studentId]);
+
+  // =====================================================
   // REAL-TIME MESSAGE LISTENER
   // =====================================================
   useEffect(() => {
@@ -286,6 +306,14 @@ export default function GuideChatConversation() {
           setMessages(
             loadedMessages,
           );
+          // The guide is viewing this conversation, so incoming student messages are read.
+          setDoc(
+            doc(db, "chats", currentChatId),
+            { unreadGuideCount: 0, guideLastReadAt: Timestamp.now() },
+            { merge: true },
+          ).catch((error) => {
+            console.log("Unable to mark guide chat as read:", error?.code || error);
+          });
           setLoading(false);
           setTimeout(() => {
             flatListRef.current?.scrollToEnd(
@@ -376,51 +404,38 @@ export default function GuideChatConversation() {
         const messageTimestamp =
           Timestamp.now();
         // =================================================
-        // CREATE / UPDATE CHAT DOCUMENT
+        // SAVE MESSAGE + INCREMENT STUDENT UNREAD COUNT
         // =================================================
-        await setDoc(
+        // Use one batch so the message and chat metadata are
+        // written together. increment(1) safely increases the
+        // count without overwriting other unread messages.
+        const batch = writeBatch(db);
+        const messageRef = doc(collection(chatRef, "messages"));
+
+        batch.set(messageRef, {
+          senderId: guide.uid,
+          senderName: guideName,
+          senderRole: "guide",
+          text,
+          createdAt: messageTimestamp,
+        });
+
+        batch.set(
           chatRef,
           {
-            guideId:
-              guide.uid,
-            studentId:
-              studentId,
-            studentName:
-              studentName,
-            guideName:
-              guideName,
-            lastMessage:
-              text,
-            lastMessageAt:
-              messageTimestamp,
-            updatedAt:
-              messageTimestamp,
+            guideId: guide.uid,
+            studentId,
+            studentName,
+            guideName,
+            lastMessage: text,
+            lastMessageAt: messageTimestamp,
+            updatedAt: messageTimestamp,
+            unreadStudentCount: increment(1),
           },
-          {
-            merge: true,
-          },
+          { merge: true },
         );
-        // =================================================
-        // ADD MESSAGE
-        // =================================================
-        await addDoc(
-          collection(
-            chatRef,
-            "messages",
-          ),
-          {
-            senderId:
-              guide.uid,
-            senderName:
-              guideName,
-            senderRole:
-              "guide",
-            text:
-              text,
-            createdAt:
-              messageTimestamp,
-          },
-        );
+
+        await batch.commit();
         // =================================================
         // CLEAR INPUT
         // =================================================
@@ -442,11 +457,13 @@ export default function GuideChatConversation() {
   // =====================================================
   // DELETE MESSAGE
   // =====================================================
-  const deleteMessage = (messageId: string) => {
-    if (!guide || !messageId) return;
+  const deleteMessage = (message: Message) => {
+    if (!guide?.uid || !studentId || !message?.id) return;
+    if (message.senderId !== guide.uid) return;
+
     Alert.alert(
       "Delete Message",
-      "Do you want to delete this message?",
+      "Do you want to delete this message for everyone?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -455,7 +472,41 @@ export default function GuideChatConversation() {
           onPress: async () => {
             try {
               const currentChatId = `${guide.uid}_${studentId}`;
-              await deleteDoc(doc(db, "chats", currentChatId, "messages", messageId));
+              const chatRef = doc(db, "chats", currentChatId);
+              const messageRef = doc(db, "chats", currentChatId, "messages", message.id);
+              const chatSnapshot = await getDoc(chatRef);
+              const chatData = chatSnapshot.exists() ? chatSnapshot.data() : {};
+
+              // Only reduce the student's unread count when the deleted guide
+              // message had not yet been read by the student.
+              const readAt = chatData.studentLastReadAt;
+              const readAtMs = readAt?.toMillis ? readAt.toMillis() : 0;
+              const messageAtMs = message.createdAt?.toMillis
+                ? message.createdAt.toMillis()
+                : 0;
+              const wasUnread = !readAt || messageAtMs > readAtMs;
+              const currentUnread = Math.max(0, Number(chatData.unreadStudentCount || 0));
+              const wasLastMessage = messages[messages.length - 1]?.id === message.id;
+              const remainingMessages = messages.filter((item) => item.id !== message.id);
+              const latestMessage = remainingMessages[remainingMessages.length - 1];
+
+              const batch = writeBatch(db);
+              batch.delete(messageRef);
+
+              const chatUpdate: Record<string, any> = {
+                updatedAt: serverTimestamp(),
+              };
+              if (wasUnread && currentUnread > 0) {
+                chatUpdate.unreadStudentCount = increment(-1);
+              }
+              if (wasLastMessage) {
+                chatUpdate.lastMessage = latestMessage?.text || "";
+                chatUpdate.lastMessageAt = latestMessage?.createdAt || null;
+                chatUpdate.lastMessageSenderId = latestMessage?.senderId || "";
+                chatUpdate.lastMessageSenderRole = latestMessage?.senderRole || "";
+              }
+              batch.set(chatRef, chatUpdate, { merge: true });
+              await batch.commit();
             } catch (error) {
               console.log("Delete guide message error:", error);
               Alert.alert("Delete Failed", "Unable to delete this message.");
@@ -465,8 +516,6 @@ export default function GuideChatConversation() {
       ],
     );
   };
-  // MESSAGE ITEM
-  // =====================================================
   const renderMessage = ({
     item,
   }: {
@@ -493,7 +542,7 @@ export default function GuideChatConversation() {
           ]}
         >
           <Pressable
-            onLongPress={isMine ? () => deleteMessage(item.id) : undefined}
+            onLongPress={isMine ? () => deleteMessage(item) : undefined}
             delayLongPress={500}
             style={[
               styles.messageBubble,

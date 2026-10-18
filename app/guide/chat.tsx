@@ -32,6 +32,8 @@ type ChatItem = {
 
   hasChat: boolean;
 
+  unreadGuideCount: number;
+
   guideUnread: boolean;
 };
 
@@ -137,6 +139,8 @@ export default function Chat() {
 
               hasChat: false,
 
+              unreadGuideCount: 0,
+
               guideUnread: false,
             };
           })
@@ -178,6 +182,8 @@ export default function Chat() {
                 lastMessageAt: existing.lastMessageAt,
 
                 hasChat: existing.hasChat,
+
+                unreadGuideCount: existing.unreadGuideCount || 0,
 
                 guideUnread: existing.guideUnread,
               };
@@ -250,6 +256,8 @@ export default function Chat() {
 
                       hasChat: false,
 
+                      unreadGuideCount: 0,
+
                       guideUnread: false,
                     };
                   }),
@@ -281,7 +289,9 @@ export default function Chat() {
 
                     hasChat: true,
 
-                    guideUnread: chatData.guideUnread === true,
+                    unreadGuideCount: Math.max(0, Number(chatData.unreadGuideCount || 0)),
+
+                    guideUnread: Number(chatData.unreadGuideCount || 0) > 0,
                   };
                 });
 
@@ -486,9 +496,11 @@ export default function Chat() {
               {item.lastMessage || "Start a conversation"}
             </Text>
 
-            {item.guideUnread && (
+            {item.unreadGuideCount > 0 && (
               <View style={styles.newBadge}>
-                <Text style={styles.newBadgeText}>NEW</Text>
+                <Text style={styles.newBadgeText}>
+                  {item.unreadGuideCount > 99 ? "99+" : item.unreadGuideCount}
+                </Text>
               </View>
             )}
           </View>

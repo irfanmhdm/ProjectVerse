@@ -1,7 +1,8 @@
 
 import { Drawer } from "expo-router/drawer";
 import { router, usePathname } from "expo-router";
-import { signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { BackHandler } from "react-native";
 import { useEffect, useState } from "react";
 
@@ -23,7 +24,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 
-import { auth } from "../../firebase/firebaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
 
 import {
   listenToNotifications,
@@ -327,6 +328,84 @@ function CustomDrawerContent(props: any) {
 // =====================================================
 
 export default function GuideLayout() {
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // Keep drawer Chat badge and menu icon synced with the same chat documents
+  // used by the guide chat list. Listen to assignments first, then each chat doc.
+  useEffect(() => {
+    let unsubscribeAssignments: (() => void) | undefined;
+    let unsubscribeAuth: (() => void) | undefined;
+    let chatUnsubscribers: (() => void)[] = [];
+    let unreadByChat = new Map<string, number>();
+
+    const stopChatListeners = () => {
+      chatUnsubscribers.forEach((unsubscribe) => unsubscribe());
+      chatUnsubscribers = [];
+      unreadByChat.clear();
+    };
+
+    unsubscribeAuth = onAuthStateChanged(auth, (guide) => {
+      unsubscribeAssignments?.();
+      unsubscribeAssignments = undefined;
+      stopChatListeners();
+      setUnreadChatCount(0);
+
+      if (!guide?.uid) return;
+
+      const assignmentsQuery = query(
+        collection(db, "guideStudents"),
+        where("guideId", "==", guide.uid),
+      );
+
+      unsubscribeAssignments = onSnapshot(
+        assignmentsQuery,
+        (assignmentsSnapshot) => {
+          stopChatListeners();
+          setUnreadChatCount(0);
+
+          assignmentsSnapshot.docs.forEach((assignmentDoc) => {
+            const assignment = assignmentDoc.data();
+            const studentId = assignment.studentId;
+            if (typeof studentId !== "string" || !studentId) return;
+
+            const chatId = `${guide.uid}_${studentId}`;
+            const unsubscribeChat = onSnapshot(
+              doc(db, "chats", chatId),
+              (chatSnapshot) => {
+                const rawCount = chatSnapshot.exists()
+                  ? chatSnapshot.data().unreadGuideCount
+                  : 0;
+                const count = Number(rawCount ?? 0);
+                unreadByChat.set(
+                  chatId,
+                  Number.isFinite(count) && count > 0 ? count : 0,
+                );
+                const total = Array.from(unreadByChat.values()).reduce(
+                  (sum, value) => sum + value,
+                  0,
+                );
+                setUnreadChatCount(total);
+              },
+              (error) => {
+                console.log("Guide drawer chat badge listener error:", error.code || error);
+              },
+            );
+            chatUnsubscribers.push(unsubscribeChat);
+          });
+        },
+        (error) => {
+          console.log("Guide assignments badge listener error:", error.code || error);
+          setUnreadChatCount(0);
+        },
+      );
+    });
+
+    return () => {
+      unsubscribeAuth?.();
+      unsubscribeAssignments?.();
+      stopChatListeners();
+    };
+  }, []);
   // ===================================================
   // CURRENT ROUTE
   // ===================================================
@@ -398,11 +477,26 @@ export default function GuideLayout() {
         <CustomDrawerContent {...props} />
       )}
       backBehavior="history"
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         // HEADER
-
         headerShown: true,
-
+        headerLeft: () => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open navigation menu${unreadChatCount > 0 ? `, ${unreadChatCount} unread chat messages` : ""}`}
+            onPress={() => navigation.openDrawer()}
+            style={styles.menuButton}
+          >
+            <Ionicons name="menu" size={27} color="#1F2937" />
+            {unreadChatCount > 0 && (
+              <View style={styles.menuChatBadge}>
+                <Text style={styles.menuChatBadgeText}>
+                  {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        ),
         headerRight: () => <NotificationButton />,
 
         // DRAWER COLORS
@@ -438,7 +532,7 @@ export default function GuideLayout() {
           fontWeight: "700",
           color: "#1F2937",
         },
-      }}
+      })}
     >
       {/* HOME */}
 
@@ -514,7 +608,18 @@ export default function GuideLayout() {
         name="chat"
         options={{
           title: "Chat",
-          drawerLabel: "Chat",
+          drawerLabel: ({ color }) => (
+            <View style={styles.chatDrawerLabel}>
+              <Text style={[styles.chatDrawerLabelText, { color }]}>Chat</Text>
+              {unreadChatCount > 0 && (
+                <View style={styles.chatDrawerBadge}>
+                  <Text style={styles.chatDrawerBadgeText}>
+                    {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ),
           drawerIcon: ({ color, size }) => (
             <Ionicons
               name="chatbubbles-outline"
@@ -641,6 +746,60 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#DC2626",
     marginLeft: 12,
+  },
+
+  // CHAT UNREAD BADGES
+  menuButton: {
+    marginLeft: 8,
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuChatBadge: {
+    position: "absolute",
+    top: 0,
+    right: -1,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+  },
+  menuChatBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  chatDrawerLabel: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 24,
+  },
+  chatDrawerLabelText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  chatDrawerBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  chatDrawerBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
   },
 
   // NOTIFICATION HEADER BUTTON

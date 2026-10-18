@@ -12,6 +12,7 @@ import {
   setDoc,
   Timestamp,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -699,6 +700,7 @@ export default function StudentChat() {
   const deleteMessage = (message: Message) => {
     if (!student?.uid || !guideId) return;
     if (message.senderId !== student.uid) return;
+
     Alert.alert(
       "Delete message?",
       "This message will be deleted for everyone.",
@@ -710,35 +712,42 @@ export default function StudentChat() {
           onPress: async () => {
             try {
               const chatId = `${guideId}_${student.uid}`;
-              const messageRef = doc(
-                db,
-                "chats",
-                chatId,
-                "messages",
-                message.id
-              );
-              await deleteDoc(messageRef);
-              const wasLastMessage =
-                messages[messages.length - 1]?.id === message.id;
-              if (wasLastMessage) {
-                const remainingMessages = messages.filter(
-                  (item) => item.id !== message.id
-                );
-                const latestMessage =
-                  remainingMessages[remainingMessages.length - 1];
-                const chatRef = doc(db, "chats", chatId);
-                await setDoc(
-                  chatRef,
-                  {
-                    lastMessage: latestMessage?.text || "",
-                    lastMessageAt: latestMessage?.createdAt || null,
-                    lastMessageSenderId: latestMessage?.senderId || "",
-                    lastMessageSenderRole: latestMessage?.senderRole || "",
-                    updatedAt: serverTimestamp(),
-                  },
-                  { merge: true }
-                );
+              const chatRef = doc(db, "chats", chatId);
+              const messageRef = doc(db, "chats", chatId, "messages", message.id);
+              const chatSnapshot = await getDoc(chatRef);
+              const chatData = chatSnapshot.exists() ? chatSnapshot.data() : {};
+
+              // Only reduce the guide's unread count if this message had not
+              // already been read. guideLastReadAt is updated when the guide
+              // opens the conversation.
+              const readAt = chatData.guideLastReadAt;
+              const readAtMs = readAt?.toMillis ? readAt.toMillis() : 0;
+              const messageAtMs = message.createdAt?.toMillis
+                ? message.createdAt.toMillis()
+                : 0;
+              const wasUnread = !readAt || messageAtMs > readAtMs;
+              const currentUnread = Math.max(0, Number(chatData.unreadGuideCount || 0));
+              const wasLastMessage = messages[messages.length - 1]?.id === message.id;
+              const remainingMessages = messages.filter((item) => item.id !== message.id);
+              const latestMessage = remainingMessages[remainingMessages.length - 1];
+
+              const batch = writeBatch(db);
+              batch.delete(messageRef);
+
+              const chatUpdate: Record<string, any> = {
+                updatedAt: serverTimestamp(),
+              };
+              if (wasUnread && currentUnread > 0) {
+                chatUpdate.unreadGuideCount = increment(-1);
               }
+              if (wasLastMessage) {
+                chatUpdate.lastMessage = latestMessage?.text || "";
+                chatUpdate.lastMessageAt = latestMessage?.createdAt || null;
+                chatUpdate.lastMessageSenderId = latestMessage?.senderId || "";
+                chatUpdate.lastMessageSenderRole = latestMessage?.senderRole || "";
+              }
+              batch.set(chatRef, chatUpdate, { merge: true });
+              await batch.commit();
               console.log("Message deleted for everyone:", message.id);
             } catch (error: any) {
               console.log("DELETE MESSAGE ERROR:", error);

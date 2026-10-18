@@ -17,8 +17,9 @@ import {
   DrawerItemList,
 } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
-import { auth } from "../../firebase/firebaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
 import { useEffect, useState } from "react";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import {
   listenToNotifications,
   markNotificationsAsRead,
@@ -194,7 +195,7 @@ function NotificationButton() {
     </>
   );
 }
-function CustomDrawerContent(props: any) {
+function CustomDrawerContent({ unreadChatCount, ...props }: any) {
   // ===================================================
   // LOGOUT
   // ===================================================
@@ -272,6 +273,36 @@ function CustomDrawerContent(props: any) {
 // STUDENT LAYOUT
 // =====================================================
 export default function StudentLayout() {
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // Keep the student's unread chat count synced with Firestore.
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user?.uid) {
+      setUnreadChatCount(0);
+      return;
+    }
+
+    const chatsQuery = query(
+      collection(db, "chats"),
+      where("studentId", "==", user.uid)
+    );
+
+    return onSnapshot(
+      chatsQuery,
+      (snapshot) => {
+        const totalUnread = snapshot.docs.reduce((total, chatDoc) => {
+          const count = Number(chatDoc.data().unreadStudentCount ?? 0);
+          return total + (Number.isFinite(count) && count > 0 ? count : 0);
+        }, 0);
+        setUnreadChatCount(totalUnread);
+      },
+      (error) => {
+        console.error("Student chat unread-count listener failed:", error);
+      }
+    );
+  }, [auth.currentUser?.uid]);
+
   // =====================================================
   // CURRENT ROUTE
   // =====================================================
@@ -394,13 +425,33 @@ export default function StudentLayout() {
       // =================================================
       backBehavior="history"
       drawerContent={(props) => (
-        <CustomDrawerContent {...props} />
+        <CustomDrawerContent {...props} unreadChatCount={unreadChatCount} />
       )}
-      screenOptions={{
+      screenOptions={({ navigation, route }) => ({
         // =================================================
         // DEFAULT HEADER
         // =================================================
         headerShown: true,
+        headerLeft:
+          route.name === "project" || route.name === "similarity-results"
+            ? undefined
+            : () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open navigation menu${unreadChatCount > 0 ? `, ${unreadChatCount} unread chat messages` : ""}`}
+                  onPress={() => navigation.toggleDrawer()}
+                  style={styles.menuButton}
+                >
+                  <Ionicons name="menu" size={27} color="#4338CA" />
+                  {unreadChatCount > 0 && (
+                    <View style={styles.menuUnreadBadge}>
+                      <Text style={styles.menuUnreadBadgeText}>
+                        {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              ),
         headerRight: () => <NotificationButton /> ,
         // =================================================
         // DRAWER COLORS
@@ -432,7 +483,7 @@ export default function StudentLayout() {
           color: "#1F2937",
         },
         headerTintColor: "#4338CA",
-      }}
+      })}
     >
       {/* =================================================
           HOME
@@ -560,7 +611,18 @@ export default function StudentLayout() {
       <Drawer.Screen
         name="chat"
         options={{
-          drawerLabel: "Chat",
+          drawerLabel: () => (
+            <View style={styles.chatDrawerLabel}>
+              <Text style={styles.chatDrawerLabelText}>Chat</Text>
+              {unreadChatCount > 0 && (
+                <View style={styles.chatUnreadBadge}>
+                  <Text style={styles.chatUnreadBadgeText}>
+                    {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ),
           title: "Chat",
           headerShown: false,
           drawerIcon: ({
@@ -739,9 +801,65 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   // =====================================================
+  // CHAT UNREAD BADGES
+  // =====================================================
+  menuButton: {
+    width: 44,
+    height: 44,
+    marginLeft: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuUnreadBadge: {
+    position: "absolute",
+    top: 0,
+    right: -1,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+  },
+  menuUnreadBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  chatDrawerLabel: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minWidth: 170,
+  },
+  chatDrawerLabelText: {
+    color: "#374151",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  chatUnreadBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  chatUnreadBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  // =====================================================
   // SIMILARITY RESULTS BACK BUTTON
   // =====================================================
-    notificationButton: {
+  notificationButton: {
     marginRight: 18,
     width: 42,
     height: 42,
