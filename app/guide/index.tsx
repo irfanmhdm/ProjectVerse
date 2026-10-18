@@ -160,7 +160,7 @@ export default function GuideDashboard() {
           </View>
 
           <Text style={styles.cardTitle}>
-            Projects
+            Project Review
           </Text>
 
           <Text style={styles.cardDescription}>

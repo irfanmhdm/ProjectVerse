@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -24,6 +25,7 @@ import { db } from "../../firebase/firebaseConfig";
 
 type Guide = {
   id: string;
+  [key: string]: any;
   name?: string;
   email?: string;
   employeeNumber?: string;
@@ -34,6 +36,9 @@ type Guide = {
 export default function GuideApproval() {
   const [guides, setGuides] = useState<Guide[]>([]);
 
+  const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -41,16 +46,8 @@ export default function GuideApproval() {
   const [processingUser, setProcessingUser] =
     useState<string | null>(null);
 
-  // =====================================================
-  // APPROVE ALL LOADING
-  // =====================================================
-
   const [approvingAll, setApprovingAll] =
     useState(false);
-
-  // =====================================================
-  // LOAD GUIDES
-  // =====================================================
 
   const loadGuides = async () => {
     try {
@@ -99,18 +96,10 @@ export default function GuideApproval() {
     loadGuides();
   }, []);
 
-  // =====================================================
-  // REFRESH
-  // =====================================================
-
   const handleRefresh = () => {
     setRefreshing(true);
     loadGuides();
   };
-
-  // =====================================================
-  // APPROVE
-  // =====================================================
 
   const approveGuide = async (
     guideId: string
@@ -147,10 +136,6 @@ export default function GuideApproval() {
       setProcessingUser(null);
     }
   };
-
-  // =====================================================
-  // APPROVE ALL
-  // =====================================================
 
   const approveAllGuides = async () => {
     if (guides.length === 0) {
@@ -193,10 +178,6 @@ export default function GuideApproval() {
     }
   };
 
-  // =====================================================
-  // REJECT
-  // =====================================================
-
   const rejectGuide = async (
     guideId: string
   ) => {
@@ -233,9 +214,31 @@ export default function GuideApproval() {
     }
   };
 
-  // =====================================================
-  // LOADING
-  // =====================================================
+
+  const openDetails = (guide: Guide) => {
+    setSelectedGuide(guide);
+    setDetailsVisible(true);
+  };
+
+  const formatFieldLabel = (field: string) =>
+    field
+      .replace(/([A-Z])/g, " $1")
+      .replace(/[_-]/g, " ")
+      .replace(/^\s*/, "")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+  const formatFieldValue = (value: unknown): string => {
+    if (value === null || value === undefined || value === "") return "Not provided";
+    if (typeof value === "object") {
+      const possibleDate = value as { toDate?: () => Date };
+      if (typeof possibleDate.toDate === "function") return possibleDate.toDate().toLocaleString();
+      return JSON.stringify(value);
+    }
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    return String(value);
+  };
+
+  const hiddenFields = ["id", "password", "confirmPassword", "newPassword", "currentPassword", "token", "fcmToken", "deviceToken"];
 
   if (loading) {
     return (
@@ -252,10 +255,6 @@ export default function GuideApproval() {
     );
   }
 
-  // =====================================================
-  // UI
-  // =====================================================
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -270,33 +269,10 @@ export default function GuideApproval() {
         }
       >
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
-{/* 
-        <View style={styles.header}>
-          <View style={styles.iconBox}>
-            <Ionicons
-              name="school-outline"
-              size={25}
-              color="#4338CA"
-            />
-          </View>
+        
 
-          <View style={styles.headerInfo}>
-            <Text style={styles.title}>
-              Guide Approval
-            </Text>
 
-            <Text style={styles.subtitle}>
-              Review guide registration requests
-            </Text>
-          </View>
-        </View> */}
-
-        {/* =================================================
-            COUNT
-        ================================================= */}
+        
 
         <View style={styles.countCard}>
           <Text style={styles.countNumber}>
@@ -308,9 +284,7 @@ export default function GuideApproval() {
           </Text>
         </View>
 
-        {/* =================================================
-            APPROVE ALL
-        ================================================= */}
+        
 
         {guides.length > 0 && (
           <TouchableOpacity
@@ -344,9 +318,7 @@ export default function GuideApproval() {
           </TouchableOpacity>
         )}
 
-        {/* =================================================
-            EMPTY
-        ================================================= */}
+        
 
         {guides.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -373,9 +345,7 @@ export default function GuideApproval() {
               key={guide.id}
               style={styles.userCard}
             >
-              {/* =================================================
-                  USER INFO
-              ================================================= */}
+              
 
               <View style={styles.userInfo}>
                 <View style={styles.avatar}>
@@ -418,20 +388,24 @@ export default function GuideApproval() {
                 </View>
               </View>
 
-              {/* =================================================
-                  DIVIDER
-              ================================================= */}
+              
 
               <View style={styles.divider} />
 
-              {/* =================================================
-                  ACTION BUTTONS
-              ================================================= */}
+              
 
               <View style={styles.actionRow}>
-                {/* -------------------------------------------------
-                    REJECT
-                ------------------------------------------------- */}
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() => openDetails(guide)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="View full guide details"
+                >
+                  <Ionicons name="eye-outline" size={19} color="#4338CA" />
+                </TouchableOpacity>
+
+                
 
                 <TouchableOpacity
                   style={styles.rejectButton}
@@ -454,9 +428,7 @@ export default function GuideApproval() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* -------------------------------------------------
-                    APPROVE
-                ------------------------------------------------- */}
+                
 
                 <TouchableOpacity
                   style={styles.approveButton}
@@ -489,14 +461,62 @@ export default function GuideApproval() {
             </View>
           ))
         )}
+
+        <Modal
+          visible={detailsVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDetailsVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTitle}>Registration Details</Text>
+                  <Text style={styles.modalSubtitle}>Review the complete profile before approval</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setDetailsVisible(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close details"
+                >
+                  <Ionicons name="close" size={22} color="#374151" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
+                {selectedGuide && ([
+                  ["Employee Number", selectedGuide.employeeNumber ?? selectedGuide.employee_number],
+                  ["Name", selectedGuide.name],
+                  ["Email", selectedGuide.email],
+                  ["Phone", selectedGuide.phone ?? selectedGuide.phoneNumber ?? selectedGuide.mobile],
+                  ["College", selectedGuide.college ?? selectedGuide.collegeName],
+                  ["Class", selectedGuide.class ?? selectedGuide.department ?? selectedGuide.classDepartment],
+                  ["Status", selectedGuide.approvalStatus ?? selectedGuide.status],
+                  ["Created At", selectedGuide.createdAt ?? selectedGuide.created_at ?? selectedGuide.createdOn],
+                ] as [string, unknown][]).map(([label, value]) => (
+                  <View key={label} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{label}</Text>
+                    <Text selectable style={styles.detailValue}>{formatFieldValue(value)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalDoneButton}
+                onPress={() => setDetailsVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalDoneText}>Close Details</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
 }
-
-// =====================================================
-// STYLES
-// =====================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -521,10 +541,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontSize: 14,
   },
-
-  // =====================================================
-  // HEADER
-  // =====================================================
 
   header: {
     flexDirection: "row",
@@ -558,10 +574,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-  // =====================================================
-  // COUNT
-  // =====================================================
-
   countCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -583,10 +595,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-  // =====================================================
-  // APPROVE ALL
-  // =====================================================
-
   approveAllButton: {
     height: 46,
     borderRadius: 11,
@@ -607,10 +615,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-
-  // =====================================================
-  // EMPTY
-  // =====================================================
 
   emptyCard: {
     backgroundColor: "#FFFFFF",
@@ -644,10 +648,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
   },
-
-  // =====================================================
-  // USER CARD
-  // =====================================================
 
   userCard: {
     backgroundColor: "#FFFFFF",
@@ -696,28 +696,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  // =====================================================
-  // DIVIDER
-  // =====================================================
-
   divider: {
     height: 1,
     backgroundColor: "#EEF0F4",
     marginVertical: 15,
   },
 
-  // =====================================================
-  // ACTION ROW
-  // =====================================================
-
   actionRow: {
     flexDirection: "row",
     gap: 10,
   },
-
-  // =====================================================
-  // REJECT
-  // =====================================================
 
   rejectButton: {
     flex: 1,
@@ -738,10 +726,6 @@ const styles = StyleSheet.create({
     color: "#DC2626",
   },
 
-  // =====================================================
-  // APPROVE
-  // =====================================================
-
   approveButton: {
     flex: 1,
     height: 44,
@@ -757,5 +741,87 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+
+  viewButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    width: "100%",
+    maxHeight: "85%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  modalSubtitle: {
+    marginTop: 5,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#6B7280",
+  },
+  closeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+  },
+  detailsScroll: {
+    flexGrow: 0,
+  },
+  detailRow: {
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF0F4",
+  },
+  detailLabel: {
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#1F2937",
+  },
+  modalDoneButton: {
+    height: 44,
+    borderRadius: 11,
+    backgroundColor: "#4338CA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  modalDoneText: {
+    color: "#FFFFFF",
+    fontSize: 13.5,
+    fontWeight: "700",
   },
 });

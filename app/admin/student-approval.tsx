@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -24,6 +25,7 @@ import { db } from "../../firebase/firebaseConfig";
 
 type Student = {
   id: string;
+  [key: string]: any;
   name?: string;
   email?: string;
   registerNumber?: string;
@@ -34,6 +36,9 @@ type Student = {
 export default function StudentApproval() {
   const [students, setStudents] = useState<Student[]>([]);
 
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -41,15 +46,7 @@ export default function StudentApproval() {
   const [processingUser, setProcessingUser] =
     useState<string | null>(null);
 
-  // =====================================================
-  // APPROVE ALL LOADING
-  // =====================================================
-
   const [approvingAll, setApprovingAll] = useState(false);
-
-  // =====================================================
-  // LOAD STUDENTS
-  // =====================================================
 
   const loadStudents = async () => {
     try {
@@ -101,18 +98,10 @@ export default function StudentApproval() {
     loadStudents();
   }, []);
 
-  // =====================================================
-  // REFRESH
-  // =====================================================
-
   const handleRefresh = () => {
     setRefreshing(true);
     loadStudents();
   };
-
-  // =====================================================
-  // APPROVE
-  // =====================================================
 
   const approveStudent = async (
     studentId: string
@@ -149,10 +138,6 @@ export default function StudentApproval() {
       setProcessingUser(null);
     }
   };
-
-  // =====================================================
-  // APPROVE ALL
-  // =====================================================
 
   const approveAllStudents = async () => {
     if (students.length === 0) {
@@ -199,10 +184,6 @@ export default function StudentApproval() {
     }
   };
 
-  // =====================================================
-  // REJECT
-  // =====================================================
-
   const rejectStudent = async (
     studentId: string
   ) => {
@@ -239,9 +220,31 @@ export default function StudentApproval() {
     }
   };
 
-  // =====================================================
-  // LOADING
-  // =====================================================
+
+  const openDetails = (student: Student) => {
+    setSelectedStudent(student);
+    setDetailsVisible(true);
+  };
+
+  const formatFieldLabel = (field: string) =>
+    field
+      .replace(/([A-Z])/g, " $1")
+      .replace(/[_-]/g, " ")
+      .replace(/^\s*/, "")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+  const formatFieldValue = (value: unknown): string => {
+    if (value === null || value === undefined || value === "") return "Not provided";
+    if (typeof value === "object") {
+      const possibleDate = value as { toDate?: () => Date };
+      if (typeof possibleDate.toDate === "function") return possibleDate.toDate().toLocaleString();
+      return JSON.stringify(value);
+    }
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    return String(value);
+  };
+
+  const hiddenFields = ["id", "password", "confirmPassword", "newPassword", "currentPassword", "token", "fcmToken", "deviceToken"];
 
   if (loading) {
     return (
@@ -258,10 +261,6 @@ export default function StudentApproval() {
     );
   }
 
-  // =====================================================
-  // UI
-  // =====================================================
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -275,29 +274,11 @@ export default function StudentApproval() {
           />
         }
       >
-        {/* HEADER */}
+        
 
-        {/* <View style={styles.header}>
-          <View style={styles.iconBox}>
-            <Ionicons
-              name="person-add-outline"
-              size={25}
-              color="#0F766E"
-            />
-          </View>
+        
 
-          <View style={styles.headerInfo}>
-            <Text style={styles.title}>
-              Student Approval
-            </Text>
-
-            <Text style={styles.subtitle}>
-              Review student registration requests
-            </Text>
-          </View>
-        </View> */}
-
-        {/* COUNT */}
+        
 
         <View style={styles.countCard}>
           <View style={styles.countInfo}>
@@ -310,7 +291,7 @@ export default function StudentApproval() {
             </Text>
           </View>
 
-          {/* APPROVE ALL */}
+          
 
           {students.length > 0 && (
             <TouchableOpacity
@@ -340,7 +321,7 @@ export default function StudentApproval() {
           )}
         </View>
 
-        {/* EMPTY */}
+        
 
         {students.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -412,6 +393,16 @@ export default function StudentApproval() {
 
               <View style={styles.actionRow}>
                 <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() => openDetails(student)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="View full student details"
+                >
+                  <Ionicons name="eye-outline" size={19} color="#4338CA" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={styles.rejectButton}
                   disabled={
                     processingUser === student.id ||
@@ -463,6 +454,58 @@ export default function StudentApproval() {
             </View>
           ))
         )}
+
+        <Modal
+          visible={detailsVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDetailsVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTitle}>Registration Details</Text>
+                  <Text style={styles.modalSubtitle}>Review the complete profile before approval</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setDetailsVisible(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close details"
+                >
+                  <Ionicons name="close" size={22} color="#374151" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
+                {selectedStudent && ([
+                  ["Register Number", selectedStudent.registerNumber ?? selectedStudent.register_number],
+                  ["Name", selectedStudent.name],
+                  ["Email", selectedStudent.email],
+                  ["Phone", selectedStudent.phone ?? selectedStudent.phoneNumber ?? selectedStudent.mobile],
+                  ["College", selectedStudent.college ?? selectedStudent.collegeName],
+                  ["Class", selectedStudent.class ?? selectedStudent.department ?? selectedStudent.classDepartment],
+                  ["Status", selectedStudent.approvalStatus ?? selectedStudent.status],
+                  ["Created At", selectedStudent.createdAt ?? selectedStudent.created_at ?? selectedStudent.createdOn],
+                ] as [string, unknown][]).map(([label, value]) => (
+                  <View key={label} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{label}</Text>
+                    <Text selectable style={styles.detailValue}>{formatFieldValue(value)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalDoneButton}
+                onPress={() => setDetailsVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalDoneText}>Close Details</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
@@ -551,10 +594,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6B7280",
   },
-
-  // =====================================================
-  // APPROVE ALL BUTTON
-  // =====================================================
 
   approveAllButton: {
     minHeight: 44,
@@ -698,5 +737,87 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+
+  viewButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    width: "100%",
+    maxHeight: "85%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  modalSubtitle: {
+    marginTop: 5,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#6B7280",
+  },
+  closeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+  },
+  detailsScroll: {
+    flexGrow: 0,
+  },
+  detailRow: {
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF0F4",
+  },
+  detailLabel: {
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#1F2937",
+  },
+  modalDoneButton: {
+    height: 44,
+    borderRadius: 11,
+    backgroundColor: "#4338CA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  modalDoneText: {
+    color: "#FFFFFF",
+    fontSize: 13.5,
+    fontWeight: "700",
   },
 });
