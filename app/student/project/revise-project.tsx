@@ -660,6 +660,16 @@ export default function ReviseProject() {
         updatedFields.push("Project Screenshots");
       }
 
+      // BLOCK SUBMISSION WHEN NOTHING HAS BEEN UPDATED
+      // A revision must contain at least one changed project field or replacement file.
+      if (updatedFields.length === 0) {
+        Alert.alert(
+          "No Changes Detected",
+          "Please make at least one change to the project details or replace the report, demo video, or screenshots before submitting your revision.",
+        );
+        return;
+      }
+
       // CURRENT FILES
 
       // ==================================================
