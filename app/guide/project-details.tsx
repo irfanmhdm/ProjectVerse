@@ -74,6 +74,12 @@ type Project = {
 
   reportPath?: string;
 
+  similarityReportUrl?: string;
+
+  similarityReportName?: string;
+
+  similarityReportPath?: string;
+
   videoUrl?: string;
 
   videoName?: string;
@@ -250,6 +256,12 @@ export default function GuideProjectDetails() {
           reportName: data.reportName || "",
 
           reportPath: data.reportPath || "",
+
+          similarityReportUrl: data.similarityReportUrl || "",
+
+          similarityReportName: data.similarityReportName || "",
+
+          similarityReportPath: data.similarityReportPath || "",
 
           videoUrl: data.videoUrl || "",
 
@@ -1692,6 +1704,96 @@ export default function GuideProjectDetails() {
       </View>
 
       {/* ==================================================
+
+            SIMILARITY ANALYSIS REPORT
+
+        ================================================== */}
+
+      <View style={styles.section}>
+
+        <View style={styles.sectionHeader}>
+
+          <View style={styles.sectionIcon}>
+
+            <Ionicons
+
+              name="analytics-outline"
+
+              size={19}
+
+              color="#4338CA"
+
+            />
+
+          </View>
+
+          <Text style={styles.sectionTitle}>Similarity Analysis Report</Text>
+
+        </View>
+
+        {project.similarityReportUrl ? (
+
+          <Pressable
+
+            style={styles.documentButton}
+
+            onPress={() => openUrl(project.similarityReportUrl!)}
+
+          >
+
+            <View style={styles.documentIcon}>
+
+              <Ionicons
+
+                name="document-text-outline"
+
+                size={22}
+
+                color="#4338CA"
+
+              />
+
+            </View>
+
+            <View style={styles.resourceText}>
+
+              <Text style={styles.resourceTitle}>
+
+                View Similarity Analysis Report
+
+              </Text>
+
+              <Text style={styles.resourceSubtitle} numberOfLines={1}>
+
+                {project.similarityReportName || "Similarity analysis report PDF"}
+
+              </Text>
+
+            </View>
+
+            <Ionicons name="open-outline" size={19} color="#4338CA" />
+
+          </Pressable>
+
+        ) : (
+
+          <View style={styles.unavailableBox}>
+
+            <Ionicons name="document-outline" size={20} color="#9CA3AF" />
+
+            <Text style={styles.notAvailable}>
+
+              No similarity analysis report available.
+
+            </Text>
+
+          </View>
+
+        )}
+
+      </View>
+
+            {/* ==================================================
 
             SOURCE CODE
 
