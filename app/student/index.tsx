@@ -1,5 +1,9 @@
 import { useRouter } from "expo-router";
 import {
+  Animated,
+  Dimensions,
+  Image,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase/firebaseConfig";
@@ -16,6 +20,144 @@ export default function StudentDashboard() {
   const router = useRouter();
 
   const [studentName, setStudentName] = useState("Student");
+
+  // =====================================================
+  // LEO ANIMATION
+  // =====================================================
+
+  const leoFloat = useRef(new Animated.Value(0)).current;
+  const leoTilt = useRef(new Animated.Value(0)).current;
+
+  const leoDrag = useRef(
+    new Animated.ValueXY({ x: 0, y: 0 })
+  ).current;
+
+  const leoDragOffset = useRef({ x: 0, y: 0 });
+
+  // =====================================================
+  // LEO DRAGGABLE MOVEMENT
+  // =====================================================
+
+  const leoPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 4 ||
+        Math.abs(gesture.dy) > 4,
+
+      onPanResponderGrant: () => {
+        leoDrag.setOffset(leoDragOffset.current);
+        leoDrag.setValue({ x: 0, y: 0 });
+      },
+
+      onPanResponderMove: Animated.event(
+        [null, {
+          dx: leoDrag.x,
+          dy: leoDrag.y,
+        }],
+        {
+          useNativeDriver: false,
+        }
+      ),
+
+      onPanResponderRelease: (_, gesture) => {
+        const { width, height } = Dimensions.get("window");
+
+        const mascotWidth = 84;
+        const mascotHeight = 112;
+
+        const rightInset = 12;
+        const bottomInset = 20;
+        const topInset = 55;
+
+        const minX =
+          -(width - mascotWidth - rightInset - 8);
+
+        const minY =
+          -(height - mascotHeight - bottomInset - topInset);
+
+        leoDragOffset.current = {
+          x: Math.max(
+            minX,
+            Math.min(
+              0,
+              leoDragOffset.current.x + gesture.dx
+            )
+          ),
+
+          y: Math.max(
+            minY,
+            Math.min(
+              0,
+              leoDragOffset.current.y + gesture.dy
+            )
+          ),
+        };
+
+        leoDrag.flattenOffset();
+
+        leoDrag.setValue(leoDragOffset.current);
+      },
+    })
+  ).current;
+
+  // =====================================================
+  // LEO FLOATING AND GREETING ANIMATION
+  // =====================================================
+
+  useEffect(() => {
+    const floatingAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(leoFloat, {
+          toValue: -7,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(leoFloat, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // Periodic gentle greeting movement.
+    // This moves the whole mascot, not the individual hand.
+
+    const greetingSway = Animated.loop(
+      Animated.sequence([
+        Animated.delay(4500),
+
+        Animated.timing(leoTilt, {
+          toValue: -0.045,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(leoTilt, {
+          toValue: 0.045,
+          duration: 260,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(leoTilt, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    floatingAnimation.start();
+    greetingSway.start();
+
+    return () => {
+      floatingAnimation.stop();
+      greetingSway.stop();
+    };
+  }, [leoFloat, leoTilt]);
 
   // =====================================================
   // LOAD STUDENT NAME
@@ -64,255 +206,333 @@ export default function StudentDashboard() {
     router.push("/student/add-project");
   };
 
+  const openLeo = () => {
+    router.push("/student/chat");
+  };
+
   // =====================================================
   // UI
   // =====================================================
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* =================================================
-          HERO SECTION
-      ================================================= */}
+    <View style={styles.screen}>
 
-      <View style={styles.heroCard}>
-        {/* Decorative mint circle */}
-        <View style={styles.decorCircle} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
-        <View style={styles.heroContent}>
-          <Text style={styles.studentLabel}>
-            STUDENT
-          </Text>
+        {/* =================================================
+            HERO SECTION
+        ================================================= */}
 
-          <Text style={styles.greeting}>
-            Welcome back,{" "}
-            <Text style={styles.studentName}>
-              {studentName}
+        <View style={styles.heroCard}>
+
+          <View style={styles.decorCircle} />
+
+          <View style={styles.heroContent}>
+
+            <Text style={styles.studentLabel}>
+              STUDENT
             </Text>
-          </Text>
 
-          <Text style={styles.heroDescription}>
-            {"\n"}
-            Manage your projects, track progress,
-            and collaborate with your guide.
-          </Text>
+            <Text style={styles.greeting}>
+              Welcome back,{" "}
+              <Text style={styles.studentName}>
+                {studentName}
+              </Text>
+            </Text>
 
-          <View style={styles.mintAccent} />
+            <Text style={styles.heroDescription}>
+              {"\n"}
+              Manage your projects, track progress,
+              and collaborate with your guide.
+            </Text>
 
-          <Text style={styles.quote}>
-            {"Good ideas become\nbetter projects."}
-          </Text>
+            <View style={styles.mintAccent} />
+
+            <Text style={styles.quote}>
+              {"Good ideas become\nbetter projects."}
+            </Text>
+
+          </View>
         </View>
-      </View>
-
-      {/* =================================================
-          QUICK ACCESS HEADER
-      ================================================= */}
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          Quick Access
-        </Text>
-
-        <Text style={styles.sectionSubtitle}>
-          Manage your ProjectVerse workspace
-        </Text>
-      </View>
-
-      {/* =================================================
-          ACTION CARDS
-      ================================================= */}
-
-      <View style={styles.cardsContainer}>
-        {/* =================================================
-            MY PROJECTS
-        ================================================= */}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            styles.projectCard,
-            pressed && styles.pressed,
-          ]}
-          onPress={goToProjects}
-        >
-          <View style={styles.cardTop}>
-            <View
-              style={[
-                styles.iconBox,
-                styles.indigoIcon,
-              ]}
-            >
-              <Ionicons
-                name="folder-outline"
-                size={25}
-                color="#4338CA"
-              />
-            </View>
-
-            <View style={styles.arrowCircle}>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color="#4338CA"
-              />
-            </View>
-          </View>
-
-          <Text style={styles.cardTitle}>
-            My Projects
-          </Text>
-
-          <Text style={styles.cardDescription}>
-            View and manage your
-            submitted projects.
-          </Text>
-
-          <View style={styles.waveIndigo} />
-        </Pressable>
 
         {/* =================================================
-            EXPLORE
+            QUICK ACCESS HEADER
         ================================================= */}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            styles.exploreCard,
-            pressed && styles.pressed,
-          ]}
-          onPress={goToExplore}
-        >
-          <View style={styles.cardTop}>
-            <View
-              style={[
-                styles.iconBox,
-                styles.mintIcon,
-              ]}
-            >
-              <Ionicons
-                name="search-outline"
-                size={25}
-                color="#238F89"
-              />
-            </View>
+        <View style={styles.sectionHeader}>
 
-            <View
-              style={[
-                styles.arrowCircle,
-                styles.mintArrow,
-              ]}
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color="#238F89"
-              />
-            </View>
-          </View>
-
-          <Text style={styles.cardTitle}>
-            Explore Projects
+          <Text style={styles.sectionTitle}>
+            Quick Access
           </Text>
 
-          <Text style={styles.cardDescription}>
-            Discover existing projects
-            and explore new ideas.
+          <Text style={styles.sectionSubtitle}>
+            Manage your ProjectVerse workspace
           </Text>
 
-          <View style={styles.waveMint} />
-        </Pressable>
+        </View>
 
         {/* =================================================
-            ADD PROJECT
+            ACTION CARDS
         ================================================= */}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            styles.addCard,
-            pressed && styles.pressed,
-          ]}
-          onPress={goToAddProject}
-        >
-          <View style={styles.cardTop}>
-            <View
-              style={[
-                styles.iconBox,
-                styles.addIcon,
-              ]}
-            >
-              <Ionicons
-                name="add"
-                size={27}
-                color="#4338CA"
-              />
+        <View style={styles.cardsContainer}>
+
+          {/* MY PROJECTS */}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionCard,
+              styles.projectCard,
+              pressed && styles.pressed,
+            ]}
+            onPress={goToProjects}
+          >
+
+            <View style={styles.cardTop}>
+
+              <View
+                style={[
+                  styles.iconBox,
+                  styles.indigoIcon,
+                ]}
+              >
+                <Ionicons
+                  name="folder-outline"
+                  size={25}
+                  color="#4338CA"
+                />
+              </View>
+
+              <View style={styles.arrowCircle}>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color="#4338CA"
+                />
+              </View>
+
             </View>
 
-            <View style={styles.arrowCircle}>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color="#4338CA"
-              />
+            <Text style={styles.cardTitle}>
+              My Projects
+            </Text>
+
+            <Text style={styles.cardDescription}>
+              View and manage your
+              submitted projects.
+            </Text>
+
+            <View style={styles.waveIndigo} />
+
+          </Pressable>
+
+          {/* EXPLORE */}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionCard,
+              styles.exploreCard,
+              pressed && styles.pressed,
+            ]}
+            onPress={goToExplore}
+          >
+
+            <View style={styles.cardTop}>
+
+              <View
+                style={[
+                  styles.iconBox,
+                  styles.mintIcon,
+                ]}
+              >
+                <Ionicons
+                  name="search-outline"
+                  size={25}
+                  color="#238F89"
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.arrowCircle,
+                  styles.mintArrow,
+                ]}
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color="#238F89"
+                />
+              </View>
+
             </View>
+
+            <Text style={styles.cardTitle}>
+              Explore Projects
+            </Text>
+
+            <Text style={styles.cardDescription}>
+              Discover existing projects
+              and explore new ideas.
+            </Text>
+
+            <View style={styles.waveMint} />
+
+          </Pressable>
+
+          {/* ADD PROJECT */}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionCard,
+              styles.addCard,
+              pressed && styles.pressed,
+            ]}
+            onPress={goToAddProject}
+          >
+
+            <View style={styles.cardTop}>
+
+              <View
+                style={[
+                  styles.iconBox,
+                  styles.addIcon,
+                ]}
+              >
+                <Ionicons
+                  name="add"
+                  size={27}
+                  color="#4338CA"
+                />
+              </View>
+
+              <View style={styles.arrowCircle}>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color="#4338CA"
+                />
+              </View>
+
+            </View>
+
+            <Text style={styles.cardTitle}>
+              Upload Project
+            </Text>
+
+            <Text style={styles.cardDescription}>
+              Create and submit your
+              project for review.
+            </Text>
+
+            <View style={styles.waveIndigoLight} />
+
+          </Pressable>
+
+        </View>
+
+        {/* =================================================
+            INSPIRATION CARD
+        ================================================= */}
+
+        <View style={styles.inspirationCard}>
+
+          <View style={styles.inspirationIcon}>
+            <Ionicons
+              name="leaf-outline"
+              size={25}
+              color="#238F89"
+            />
           </View>
 
-          <Text style={styles.cardTitle}>
-            Upload Project
+          <View style={styles.inspirationContent}>
+
+            <Text style={styles.inspirationTitle}>
+              Every great project
+              starts with a curious mind.
+            </Text>
+
+            <Text style={styles.inspirationSubtitle}>
+              Keep learning. Keep building.
+            </Text>
+
+          </View>
+
+        </View>
+
+        {/* =================================================
+            FOOTER
+        ================================================= */}
+
+        <View style={styles.footer}>
+
+          <Text style={styles.footerTitle}>
+            ProjectVerse
           </Text>
 
-          <Text style={styles.cardDescription}>
-            Create and submit your
-            project for review.
+          <Text style={styles.footerSubtitle}>
+            Innovate • Collaborate • Succeed
           </Text>
 
-          <View style={styles.waveIndigoLight} />
-        </Pressable>
-      </View>
+        </View>
+
+      </ScrollView>
 
       {/* =================================================
-          INSPIRATION CARD
+          ANIMATED LEO COMPANION
       ================================================= */}
 
-      <View style={styles.inspirationCard}>
-        <View style={styles.inspirationIcon}>
-          <Ionicons
-            name="leaf-outline"
-            size={25}
-            color="#238F89"
+      <Animated.View
+        {...leoPanResponder.panHandlers}
+        style={[
+          styles.leoFloatingContainer,
+          {
+            transform: [
+              {
+                translateX: leoDrag.x,
+              },
+              {
+                translateY: Animated.add(
+                  leoFloat,
+                  leoDrag.y
+                ),
+              },
+              {
+                rotate: leoTilt.interpolate({
+                  inputRange: [-1, 1],
+                  outputRange: ["-1rad", "1rad"],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+
+        <Pressable
+          onPress={openLeo}
+          style={({ pressed }) => [
+            styles.leoPressable,
+            pressed && styles.leoPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Open Leo AI Mentor"
+        >
+
+          <Image
+            source={require("../../assets/images/leo.png")}
+            style={styles.leoImage}
+            resizeMode="contain"
           />
-        </View>
 
-        <View style={styles.inspirationContent}>
-          <Text style={styles.inspirationTitle}>
-            Every great project
-            starts with a curious mind.
-          </Text>
+        </Pressable>
 
-          <Text style={styles.inspirationSubtitle}>
-            Keep learning. Keep building.
-          </Text>
-        </View>
-      </View>
+      </Animated.View>
 
-      {/* =================================================
-          FOOTER
-      ================================================= */}
-
-      <View style={styles.footer}>
-        <Text style={styles.footerTitle}>
-          ProjectVerse
-        </Text>
-
-        <Text style={styles.footerSubtitle}>
-          Innovate • Collaborate • Succeed
-        </Text>
-      </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -321,9 +541,15 @@ export default function StudentDashboard() {
 // =======================================================
 
 const styles = StyleSheet.create({
+
   // =====================================================
   // PAGE
   // =====================================================
+
+  screen: {
+    flex: 1,
+    backgroundColor: "#F5F7FB",
+  },
 
   container: {
     flex: 1,
@@ -635,10 +861,46 @@ const styles = StyleSheet.create({
   },
 
   // =====================================================
+  // ANIMATED LEO COMPANION
+  // =====================================================
+
+  leoFloatingContainer: {
+    position: "absolute",
+    right: 12,
+    bottom: 20,
+    width: 84,
+    height: 112,
+    zIndex: 20,
+    elevation: 8,
+  },
+
+  leoPressable: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+
+  leoImage: {
+    width: 84,
+    height: 112,
+  },
+
+  leoPressed: {
+    opacity: 0.88,
+    transform: [
+      {
+        scale: 0.96,
+      },
+    ],
+  },
+
+  // =====================================================
   // PRESS
   // =====================================================
 
   pressed: {
     opacity: 0.82,
   },
+
 });
