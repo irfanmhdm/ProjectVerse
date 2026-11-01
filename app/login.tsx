@@ -43,7 +43,7 @@ export default function LoginScreen() {
     if (cleanEmail === "" || password === "") {
       Alert.alert(
         "Missing Information",
-        "Please enter your email and password."
+        "Please enter your email and password.",
       );
       return;
     }
@@ -51,10 +51,7 @@ export default function LoginScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
-      Alert.alert(
-        "Invalid Email",
-        "Please enter a valid email address."
-      );
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
       return;
     }
 
@@ -69,28 +66,27 @@ export default function LoginScreen() {
       // STEP 1: FIREBASE AUTHENTICATION
       // =================================================
 
-      const userCredential =
-        await signInWithEmailAndPassword(
-          auth,
-          cleanEmail,
-          password
-        );
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        cleanEmail,
+        password,
+      );
 
       const uid = userCredential.user.uid;
 
-      console.log(
-        "STEP 1 SUCCESS: Firebase Authentication"
-      );
+      console.log("STEP 1 SUCCESS: Firebase Authentication");
 
       console.log("UID:", uid);
+
+      const idToken = await userCredential.user.getIdToken();
+
+      console.log("FIREBASE ID TOKEN:", idToken);
 
       // =================================================
       // STEP 2: GET FIRESTORE USER PROFILE
       // =================================================
 
-      console.log(
-        "STEP 2: Checking user profile..."
-      );
+      console.log("STEP 2: Checking user profile...");
 
       const userRef = doc(db, "users", uid);
 
@@ -107,15 +103,13 @@ export default function LoginScreen() {
 
         Alert.alert(
           "Profile Error",
-          "Your Firebase account exists, but your ProjectVerse user profile could not be found."
+          "Your Firebase account exists, but your ProjectVerse user profile could not be found.",
         );
 
         return;
       }
 
-      console.log(
-        "STEP 2 SUCCESS: User profile found"
-      );
+      console.log("STEP 2 SUCCESS: User profile found");
 
       // =================================================
       // STEP 3: GET USER DATA
@@ -160,16 +154,14 @@ export default function LoginScreen() {
         // -------------------------------------------------
 
         if (status === "pending") {
-          console.log(
-            "Student account is pending approval"
-          );
+          console.log("Student account is pending approval");
 
           // Remove Firebase Auth session
           await auth.signOut();
 
           Alert.alert(
             "Approval Pending",
-            "Your student registration has been submitted successfully. Please wait for admin approval before logging in."
+            "Your student registration has been submitted successfully. Please wait for admin approval before logging in.",
           );
 
           return;
@@ -180,13 +172,9 @@ export default function LoginScreen() {
         // -------------------------------------------------
 
         if (status === "approved") {
-          console.log(
-            "Student account approved"
-          );
+          console.log("Student account approved");
 
-          console.log(
-            "Redirecting to Student Dashboard"
-          );
+          console.log("Redirecting to Student Dashboard");
 
           router.replace("/student");
 
@@ -198,15 +186,13 @@ export default function LoginScreen() {
         // -------------------------------------------------
 
         if (status === "rejected") {
-          console.log(
-            "Student registration rejected"
-          );
+          console.log("Student registration rejected");
 
           await auth.signOut();
 
           Alert.alert(
             "Registration Rejected",
-            "Your student registration was rejected by the administrator. Please contact the administrator for more information."
+            "Your student registration was rejected by the administrator. Please contact the administrator for more information.",
           );
 
           return;
@@ -216,16 +202,13 @@ export default function LoginScreen() {
         // INVALID / MISSING STATUS
         // -------------------------------------------------
 
-        console.log(
-          "Invalid student status:",
-          status
-        );
+        console.log("Invalid student status:", status);
 
         await auth.signOut();
 
         Alert.alert(
           "Account Status Error",
-          "Your student account does not have a valid status. Please contact the administrator."
+          "Your student account does not have a valid status. Please contact the administrator.",
         );
 
         return;
@@ -241,15 +224,13 @@ export default function LoginScreen() {
         // -------------------------------------------------
 
         if (status === "pending") {
-          console.log(
-            "Guide account is pending approval"
-          );
+          console.log("Guide account is pending approval");
 
           await auth.signOut();
 
           Alert.alert(
             "Approval Pending",
-            "Your guide registration has been submitted successfully. Please wait for admin approval before logging in."
+            "Your guide registration has been submitted successfully. Please wait for admin approval before logging in.",
           );
 
           return;
@@ -260,13 +241,9 @@ export default function LoginScreen() {
         // -------------------------------------------------
 
         if (status === "approved") {
-          console.log(
-            "Guide account approved"
-          );
+          console.log("Guide account approved");
 
-          console.log(
-            "Redirecting to Guide Dashboard"
-          );
+          console.log("Redirecting to Guide Dashboard");
 
           router.replace("/guide");
 
@@ -278,15 +255,13 @@ export default function LoginScreen() {
         // -------------------------------------------------
 
         if (status === "rejected") {
-          console.log(
-            "Guide registration rejected"
-          );
+          console.log("Guide registration rejected");
 
           await auth.signOut();
 
           Alert.alert(
             "Registration Rejected",
-            "Your guide registration was rejected by the administrator. Please contact the administrator for more information."
+            "Your guide registration was rejected by the administrator. Please contact the administrator for more information.",
           );
 
           return;
@@ -296,16 +271,13 @@ export default function LoginScreen() {
         // INVALID / MISSING STATUS
         // -------------------------------------------------
 
-        console.log(
-          "Invalid guide status:",
-          status
-        );
+        console.log("Invalid guide status:", status);
 
         await auth.signOut();
 
         Alert.alert(
           "Account Status Error",
-          "Your guide account does not have a valid status. Please contact the administrator."
+          "Your guide account does not have a valid status. Please contact the administrator.",
         );
 
         return;
@@ -321,94 +293,50 @@ export default function LoginScreen() {
 
       Alert.alert(
         "Invalid Account",
-        "Your account does not have a valid ProjectVerse role."
+        "Your account does not have a valid ProjectVerse role.",
       );
-
     } catch (error: any) {
       console.log("=================================");
-      console.log(
-        "LOGIN ERROR CODE:",
-        error?.code
-      );
-      console.log(
-        "LOGIN ERROR MESSAGE:",
-        error?.message
-      );
-      console.log(
-        "FULL LOGIN ERROR:",
-        error
-      );
+      console.log("LOGIN ERROR CODE:", error?.code);
+      console.log("LOGIN ERROR MESSAGE:", error?.message);
+      console.log("FULL LOGIN ERROR:", error);
       console.log("=================================");
 
       // =================================================
       // AUTH ERRORS
       // =================================================
 
-      if (
-        error?.code ===
-        "auth/invalid-credential"
-      ) {
-        Alert.alert(
-          "Login Failed",
-          "The email or password is incorrect."
-        );
-
-      } else if (
-        error?.code ===
-        "auth/user-not-found"
-      ) {
-        Alert.alert(
-          "Login Failed",
-          "No account was found with this email."
-        );
-
-      } else if (
-        error?.code ===
-        "auth/wrong-password"
-      ) {
-        Alert.alert(
-          "Login Failed",
-          "The password is incorrect."
-        );
-
-      } else if (
-        error?.code ===
-        "auth/too-many-requests"
-      ) {
+      if (error?.code === "auth/invalid-credential") {
+        Alert.alert("Login Failed", "The email or password is incorrect.");
+      } else if (error?.code === "auth/user-not-found") {
+        Alert.alert("Login Failed", "No account was found with this email.");
+      } else if (error?.code === "auth/wrong-password") {
+        Alert.alert("Login Failed", "The password is incorrect.");
+      } else if (error?.code === "auth/too-many-requests") {
         Alert.alert(
           "Too Many Attempts",
-          "Too many login attempts. Please try again later."
+          "Too many login attempts. Please try again later.",
         );
-
-      } else if (
-        error?.code ===
-        "auth/network-request-failed"
-      ) {
+      } else if (error?.code === "auth/network-request-failed") {
         Alert.alert(
           "Network Error",
-          "Please check your internet connection and try again."
+          "Please check your internet connection and try again.",
         );
-
-      } else if (
-        error?.code ===
-        "permission-denied"
-      ) {
+      } else if (error?.code === "permission-denied") {
         try {
           await auth.signOut();
         } catch {}
 
         Alert.alert(
           "Permission Error",
-          "ProjectVerse could not access your user profile. Please check your Firebase Firestore security rules."
+          "ProjectVerse could not access your user profile. Please check your Firebase Firestore security rules.",
         );
-
       } else {
         Alert.alert(
           "Login Failed",
-          "Something went wrong while logging in. Please try again."
+          "Something went wrong while logging in. Please try again.",
         );
       }
-
     } finally {
       setLoading(false);
     }
@@ -420,7 +348,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-
       {/* BACK BUTTON */}
 
       <Pressable
@@ -428,21 +355,14 @@ export default function LoginScreen() {
         onPress={() => router.back()}
         disabled={loading}
       >
-        <Ionicons
-          name="arrow-back"
-          size={20}
-          color="#4338CA"
-        />
+        <Ionicons name="arrow-back" size={20} color="#4338CA" />
 
-        <Text style={styles.backText}>
-          Back
-        </Text>
+        <Text style={styles.backText}>Back</Text>
       </Pressable>
 
       {/* CONTENT */}
 
       <View style={styles.content}>
-
         {/* BRAND */}
 
         <View style={styles.brandSection}>
@@ -452,21 +372,15 @@ export default function LoginScreen() {
             resizeMode="contain"
           />
 
-          <Text style={styles.appName}>
-            ProjectVerse
-          </Text>
+          <Text style={styles.appName}>ProjectVerse</Text>
 
-          <Text style={styles.tagline}>
-            Discover. Develop. Demonstrate.
-          </Text>
+          <Text style={styles.tagline}>Discover. Develop. Demonstrate.</Text>
         </View>
 
         {/* HEADING */}
 
         <View style={styles.headingSection}>
-          <Text style={styles.title}>
-            Welcome Back
-          </Text>
+          <Text style={styles.title}>Welcome Back</Text>
 
           <Text style={styles.subtitle}>
             Login to continue exploring projects
@@ -476,13 +390,10 @@ export default function LoginScreen() {
         {/* FORM CARD */}
 
         <View style={styles.formCard}>
-
           {/* EMAIL */}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>
-              Email Address
-            </Text>
+            <Text style={styles.inputLabel}>Email Address</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -509,9 +420,7 @@ export default function LoginScreen() {
           {/* PASSWORD */}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>
-              Password
-            </Text>
+            <Text style={styles.inputLabel}>Password</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -535,17 +444,11 @@ export default function LoginScreen() {
 
               <Pressable
                 style={styles.passwordToggle}
-                onPress={() =>
-                  setShowPassword(!showPassword)
-                }
+                onPress={() => setShowPassword(!showPassword)}
                 disabled={loading}
               >
                 <Ionicons
-                  name={
-                    showPassword
-                      ? "eye-off-outline"
-                      : "eye-outline"
-                  }
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={20}
                   color="#6B7280"
                 />
@@ -558,43 +461,25 @@ export default function LoginScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.loginButton,
-              pressed &&
-                !loading &&
-                styles.buttonPressed,
-              loading &&
-                styles.loginButtonDisabled,
+              pressed && !loading && styles.buttonPressed,
+              loading && styles.loginButtonDisabled,
             ]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <>
-                <ActivityIndicator
-                  size="small"
-                  color="#FFFFFF"
-                />
+                <ActivityIndicator size="small" color="#FFFFFF" />
 
-                <Text style={styles.buttonText}>
-                  Logging in...
-                </Text>
+                <Text style={styles.buttonText}>Logging in...</Text>
               </>
             ) : (
               <>
-                <Ionicons
-                  name="log-in-outline"
-                  size={20}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
 
-                <Text style={styles.buttonText}>
-                  Login
-                </Text>
+                <Text style={styles.buttonText}>Login</Text>
 
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </>
             )}
           </Pressable>
@@ -603,20 +488,15 @@ export default function LoginScreen() {
         {/* REGISTER */}
 
         <View style={styles.registerSection}>
-          <Text style={styles.registerPrompt}>
-            Don't have an account?
-          </Text>
+          <Text style={styles.registerPrompt}>Don't have an account?</Text>
 
           <Pressable
             onPress={() => router.push("/register")}
             disabled={loading}
           >
-            <Text style={styles.registerLink}>
-              Create an Account
-            </Text>
+            <Text style={styles.registerLink}>Create an Account</Text>
           </Pressable>
         </View>
-
       </View>
     </View>
   );

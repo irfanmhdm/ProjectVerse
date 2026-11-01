@@ -5,6 +5,16 @@ from fastapi import (
     File
 )
 
+from fastapi import Header
+from pydantic import BaseModel
+
+from services.ai_mentor import (
+    verify_student_token,
+    create_conversation,
+    list_conversations,
+    get_conversation
+)
+
 from urllib.parse import unquote
 
 from fastapi.responses import FileResponse
@@ -22,7 +32,8 @@ from services.similarity import (
 import os
 import uuid
 
-
+class ConversationCreateRequest(BaseModel):
+    title: str = "New Conversation"
 # =========================================================
 # DIRECTORIES
 # =========================================================
@@ -528,3 +539,115 @@ def download_similarity_report(
         media_type="application/pdf",
         filename=filename
     )
+
+
+# ==========================================
+# PROJECTVERSE AI MENTOR - LEO
+# ==========================================
+
+def get_authenticated_student(authorization: str):
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication token is missing."
+        )
+
+    id_token = authorization.split(" ", 1)[1]
+
+    try:
+        student = verify_student_token(id_token)
+        return student["uid"]
+
+    except ValueError as error:
+        message = str(error)
+
+        status_code = (
+            401 if "token" in message.lower()
+            else 403
+        )
+
+        raise HTTPException(
+            status_code=status_code,
+            detail=message
+        )
+
+
+# ------------------------------------------
+# 1. Create a New Conversation
+# ------------------------------------------
+
+@app.post("/ai-mentor/conversations")
+def create_ai_mentor_conversation(
+    request: ConversationCreateRequest,
+    authorization: str = Header(None)
+):
+
+    uid = get_authenticated_student(authorization)
+
+    title = request.title.strip() or "New Conversation"
+
+    conversation_id = create_conversation(uid, title)
+
+    return {
+        "success": True,
+        "conversationId": conversation_id,
+        "message": "Leo conversation created successfully."
+    }
+
+
+# ------------------------------------------
+# 2. Get Student Conversation History
+# ------------------------------------------
+
+@app.get("/ai-mentor/conversations")
+def get_ai_mentor_conversations(
+    authorization: str = Header(None)
+):
+
+    uid = get_authenticated_student(authorization)
+
+    conversations = list_conversations(uid)
+
+    return {
+        "success": True,
+        "conversations": conversations
+    }
+
+
+# ------------------------------------------
+# 3. Get a Specific Conversation
+# ------------------------------------------
+
+@app.get("/ai-mentor/conversations/{conversation_id}")
+def get_ai_mentor_conversation(
+    conversation_id: str,
+    authorization: str = Header(None)
+):
+
+    uid = get_authenticated_student(authorization)
+
+    try:
+        conversation = get_conversation(
+            conversation_id,
+            uid
+        )
+
+        return {
+            "success": True,
+            "data": conversation
+        }
+
+    except ValueError as error:
+
+        message = str(error)
+
+        status_code = (
+            404 if "not found" in message.lower()
+            else 403
+        )
+
+        raise HTTPException(
+            status_code=status_code,
+            detail=message
+        )
