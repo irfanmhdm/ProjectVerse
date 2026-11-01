@@ -4,15 +4,17 @@ from fastapi import (
     UploadFile,
     File
 )
+from fastapi import Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from fastapi import Header
 from pydantic import BaseModel
 
 from services.ai_mentor import (
     verify_student_token,
     create_conversation,
     list_conversations,
-    get_conversation
+    get_conversation,
+    save_message
 )
 
 from urllib.parse import unquote
@@ -32,8 +34,14 @@ from services.similarity import (
 import os
 import uuid
 
+security = HTTPBearer(auto_error=False)
+
 class ConversationCreateRequest(BaseModel):
     title: str = "New Conversation"
+
+
+class ChatMessageRequest(BaseModel):
+    message: str
 # =========================================================
 # DIRECTORIES
 # =========================================================
@@ -545,15 +553,17 @@ def download_similarity_report(
 # PROJECTVERSE AI MENTOR - LEO
 # ==========================================
 
-def get_authenticated_student(authorization: str):
+def get_authenticated_student(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
 
-    if not authorization or not authorization.startswith("Bearer "):
+    if credentials is None:
         raise HTTPException(
             status_code=401,
             detail="Authentication token is missing."
         )
 
-    id_token = authorization.split(" ", 1)[1]
+    id_token = credentials.credentials
 
     try:
         student = verify_student_token(id_token)
@@ -580,10 +590,10 @@ def get_authenticated_student(authorization: str):
 @app.post("/ai-mentor/conversations")
 def create_ai_mentor_conversation(
     request: ConversationCreateRequest,
-    authorization: str = Header(None)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
-    uid = get_authenticated_student(authorization)
+    uid = get_authenticated_student(credentials)
 
     title = request.title.strip() or "New Conversation"
 
@@ -602,10 +612,10 @@ def create_ai_mentor_conversation(
 
 @app.get("/ai-mentor/conversations")
 def get_ai_mentor_conversations(
-    authorization: str = Header(None)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
-    uid = get_authenticated_student(authorization)
+    uid = get_authenticated_student(credentials)
 
     conversations = list_conversations(uid)
 
@@ -622,10 +632,10 @@ def get_ai_mentor_conversations(
 @app.get("/ai-mentor/conversations/{conversation_id}")
 def get_ai_mentor_conversation(
     conversation_id: str,
-    authorization: str = Header(None)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
-    uid = get_authenticated_student(authorization)
+    uid = get_authenticated_student(credentials)
 
     try:
         conversation = get_conversation(
@@ -650,4 +660,98 @@ def get_ai_mentor_conversation(
         raise HTTPException(
             status_code=status_code,
             detail=message
+        )
+
+
+# ==========================================
+# 4. SEND MESSAGE TO LEO
+# ==========================================
+
+@app.post("/ai-mentor/conversations/{conversation_id}/messages")
+def send_ai_mentor_message(
+    conversation_id: str,
+    request: ChatMessageRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # STEP 1: Verify student authentication
+    uid = get_authenticated_student(credentials)
+
+    # STEP 2: Validate message
+    user_message = request.message.strip()
+
+    if not user_message:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty."
+        )
+
+    if len(user_message) > 5000:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot exceed 5000 characters."
+        )
+
+    try:
+        # STEP 3: Save student's message
+        user_message_id = save_message(
+            conversation_id=conversation_id,
+            uid=uid,
+            role="user",
+            content=user_message
+        )
+
+        # STEP 4: Generate temporary mock response
+        leo_response = (
+            f"Hey! I'm Leo, your ProjectVerse AI Mentor. "
+            f"I received your message: '{user_message}'. "
+            "I'm currently running in test mode. "
+            "Soon, I'll be able to provide intelligent "
+            "academic project guidance and suggestions!"
+        )
+
+        # STEP 5: Save Leo's response
+        leo_message_id = save_message(
+            conversation_id=conversation_id,
+            uid=uid,
+            role="assistant",
+            content=leo_response
+        )
+
+        # STEP 6: Return both messages
+        return {
+            "success": True,
+            "conversationId": conversation_id,
+            "messages": [
+                {
+                    "id": user_message_id,
+                    "role": "user",
+                    "content": user_message
+                },
+                {
+                    "id": leo_message_id,
+                    "role": "assistant",
+                    "content": leo_response
+                }
+            ]
+        }
+
+    except ValueError as error:
+        message = str(error)
+
+        status_code = (
+            404 if "not found" in message.lower()
+            else 403
+        )
+
+        raise HTTPException(
+            status_code=status_code,
+            detail=message
+        )
+
+    except Exception as error:
+        print("Leo message error:", error)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to process your message."
         )
