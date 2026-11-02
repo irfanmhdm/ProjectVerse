@@ -1,27 +1,33 @@
+
 from fastapi import (
     FastAPI,
     HTTPException,
     UploadFile,
-    File
+    File,
+    Depends
 )
-from fastapi import Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from fastapi.security import (
+    HTTPBearer,
+    HTTPAuthorizationCredentials
+)
 
 from pydantic import BaseModel
-
-from services.ai_mentor import (
-    verify_student_token,
-    create_conversation,
-    list_conversations,
-    get_conversation,
-    save_message
-)
 
 from urllib.parse import unquote
 
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+from services.ai_mentor import (
+    verify_student_token,
+    create_conversation,
+    list_conversations,
+    get_conversation,
+    save_message,
+    generate_leo_response
+)
 
 from services.project_processor import (
     process_approved_project
@@ -34,7 +40,17 @@ from services.similarity import (
 import os
 import uuid
 
+
+# =========================================================
+# AUTHENTICATION
+# =========================================================
+
 security = HTTPBearer(auto_error=False)
+
+
+# =========================================================
+# REQUEST MODELS
+# =========================================================
 
 class ConversationCreateRequest(BaseModel):
     title: str = "New Conversation"
@@ -42,11 +58,14 @@ class ConversationCreateRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     message: str
+
+
 # =========================================================
 # DIRECTORIES
 # =========================================================
 
 TEMP_REPORTS_DIRECTORY = "temp_reports"
+
 SIMILARITY_REPORTS_DIRECTORY = "similarity_reports"
 
 
@@ -70,20 +89,17 @@ os.makedirs(
 # =========================================================
 
 app = FastAPI(
-    title="ProjectVerse Similarity Analysis API",
-    description="Backend API for ProjectVerse report similarity analysis",
+    title="ProjectVerse API",
+    description=(
+        "Backend API for ProjectVerse Similarity Analysis "
+        "and AI Mentor Leo"
+    ),
     version="1.0.0"
 )
 
 
 # =========================================================
 # STATIC SIMILARITY REPORTS
-# =========================================================
-#
-# Generated reports can also be accessed through:
-#
-# http://YOUR_IP:8000/similarity-reports/<filename>
-#
 # =========================================================
 
 app.mount(
@@ -101,13 +117,9 @@ app.mount(
 
 app.add_middleware(
     CORSMiddleware,
-
     allow_origins=["*"],
-
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
 )
 
@@ -120,8 +132,7 @@ app.add_middleware(
 def root():
 
     return {
-        "message":
-            "ProjectVerse Similarity Analysis API is running"
+        "message": "ProjectVerse API is running"
     }
 
 
@@ -133,8 +144,7 @@ def root():
 def health_check():
 
     return {
-        "status":
-            "healthy"
+        "status": "healthy"
     }
 
 
@@ -172,14 +182,11 @@ def process_project(
 
         return {
 
-            "success":
-                True,
+            "success": True,
 
-            "message":
-                "Project processed successfully",
+            "message": "Project processed successfully",
 
-            "data":
-                result
+            "data": result
 
         }
 
@@ -222,7 +229,6 @@ async def analyze_project_similarity(
         "=========================================="
     )
 
-
     # =====================================================
     # CHECK FILE
     # =====================================================
@@ -234,19 +240,8 @@ async def analyze_project_similarity(
             detail="No file was provided."
         )
 
-
     # =====================================================
     # DECODE FILENAME
-    # =====================================================
-    #
-    # Example:
-    #
-    # Muhammed%20Irfan%20S%20Synopsis.pdf
-    #
-    # becomes:
-    #
-    # Muhammed Irfan S Synopsis.pdf
-    #
     # =====================================================
 
     decoded_filename = unquote(
@@ -263,20 +258,16 @@ async def analyze_project_similarity(
         decoded_filename
     )
 
-
     # =====================================================
     # CHECK PDF
     # =====================================================
 
-    if not decoded_filename.lower().endswith(
-        ".pdf"
-    ):
+    if not decoded_filename.lower().endswith(".pdf"):
 
         raise HTTPException(
             status_code=400,
             detail="Only PDF files are supported."
         )
-
 
     # =====================================================
     # CREATE UNIQUE TEMP FILE
@@ -290,7 +281,6 @@ async def analyze_project_similarity(
         TEMP_REPORTS_DIRECTORY,
         temporary_filename
     )
-
 
     try:
 
@@ -316,22 +306,18 @@ async def analyze_project_similarity(
                     chunk
                 )
 
-
         print(
             "Uploaded PDF saved:",
             pdf_path
         )
-
 
         # =================================================
         # RUN SIMILARITY ANALYSIS
         # =================================================
 
         result = analyze_similarity(
-            pdf_path,
-            
+            pdf_path
         )
-
 
         # =================================================
         # CHECK GENERATED REPORT
@@ -341,13 +327,11 @@ async def analyze_project_similarity(
             "report"
         )
 
-
         if report:
 
             report_filename = report.get(
                 "filename"
             )
-
 
             if report_filename:
 
@@ -355,7 +339,6 @@ async def analyze_project_similarity(
                     SIMILARITY_REPORTS_DIRECTORY,
                     report_filename
                 )
-
 
                 print(
                     "Generated similarity report:"
@@ -378,24 +361,21 @@ async def analyze_project_similarity(
                     )
                 )
 
-
         # =================================================
         # RETURN RESULT
         # =================================================
 
         return {
 
-            "success":
-                True,
+            "success": True,
 
-            "message":
-                "Similarity analysis completed successfully",
+            "message": (
+                "Similarity analysis completed successfully"
+            ),
 
-            "data":
-                result
+            "data": result
 
         }
-
 
     except Exception as error:
 
@@ -409,28 +389,15 @@ async def analyze_project_similarity(
             detail=str(error)
         )
 
-
     finally:
 
         # =================================================
         # DELETE ONLY TEMPORARY UPLOAD
         # =================================================
-        #
-        # IMPORTANT:
-        #
-        # This deletes only the student's temporary
-        # uploaded PDF.
-        #
-        # The generated similarity evidence PDF
-        # remains inside similarity_reports.
-        #
-        # =================================================
 
         try:
 
-            if os.path.exists(
-                pdf_path
-            ):
+            if os.path.exists(pdf_path):
 
                 os.remove(
                     pdf_path
@@ -474,23 +441,13 @@ def download_similarity_report(
         "=========================================="
     )
 
-
     # =====================================================
     # DECODE FILENAME
-    # =====================================================
-    #
-    # This handles URLs such as:
-    #
-    # similarity_report_123.pdf
-    #
-    # and also safely handles encoded filenames.
-    #
     # =====================================================
 
     filename = unquote(
         filename
     )
-
 
     # =====================================================
     # SECURITY
@@ -499,7 +456,6 @@ def download_similarity_report(
     filename = os.path.basename(
         filename
     )
-
 
     # =====================================================
     # BUILD FILE PATH
@@ -510,7 +466,6 @@ def download_similarity_report(
         filename
     )
 
-
     print(
         "File path:",
         file_path
@@ -518,25 +473,19 @@ def download_similarity_report(
 
     print(
         "File exists:",
-        os.path.exists(
-            file_path
-        )
+        os.path.exists(file_path)
     )
-
 
     # =====================================================
     # CHECK FILE
     # =====================================================
 
-    if not os.path.exists(
-        file_path
-    ):
+    if not os.path.exists(file_path):
 
         raise HTTPException(
             status_code=404,
             detail="Similarity evidence report not found."
         )
-
 
     # =====================================================
     # RETURN PDF
@@ -549,15 +498,21 @@ def download_similarity_report(
     )
 
 
-# ==========================================
+# =========================================================
 # PROJECTVERSE AI MENTOR - LEO
-# ==========================================
+# =========================================================
+
+
+# =========================================================
+# AUTHENTICATE STUDENT
+# =========================================================
 
 def get_authenticated_student(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
     if credentials is None:
+
         raise HTTPException(
             status_code=401,
             detail="Authentication token is missing."
@@ -566,10 +521,15 @@ def get_authenticated_student(
     id_token = credentials.credentials
 
     try:
-        student = verify_student_token(id_token)
+
+        student = verify_student_token(
+            id_token
+        )
+
         return student["uid"]
 
     except ValueError as error:
+
         message = str(error)
 
         status_code = (
@@ -583,9 +543,9 @@ def get_authenticated_student(
         )
 
 
-# ------------------------------------------
-# 1. Create a New Conversation
-# ------------------------------------------
+# =========================================================
+# 1. CREATE A NEW CONVERSATION
+# =========================================================
 
 @app.post("/ai-mentor/conversations")
 def create_ai_mentor_conversation(
@@ -593,41 +553,62 @@ def create_ai_mentor_conversation(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
-    uid = get_authenticated_student(credentials)
+    uid = get_authenticated_student(
+        credentials
+    )
 
-    title = request.title.strip() or "New Conversation"
+    title = (
+        request.title.strip()
+        or "New Conversation"
+    )
 
-    conversation_id = create_conversation(uid, title)
+    conversation_id = create_conversation(
+        uid,
+        title
+    )
 
     return {
+
         "success": True,
+
         "conversationId": conversation_id,
-        "message": "Leo conversation created successfully."
+
+        "message": (
+            "Leo conversation created successfully."
+        )
+
     }
 
 
-# ------------------------------------------
-# 2. Get Student Conversation History
-# ------------------------------------------
+# =========================================================
+# 2. GET STUDENT CONVERSATION HISTORY
+# =========================================================
 
 @app.get("/ai-mentor/conversations")
 def get_ai_mentor_conversations(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
-    uid = get_authenticated_student(credentials)
+    uid = get_authenticated_student(
+        credentials
+    )
 
-    conversations = list_conversations(uid)
+    conversations = list_conversations(
+        uid
+    )
 
     return {
+
         "success": True,
+
         "conversations": conversations
+
     }
 
 
-# ------------------------------------------
-# 3. Get a Specific Conversation
-# ------------------------------------------
+# =========================================================
+# 3. GET A SPECIFIC CONVERSATION
+# =========================================================
 
 @app.get("/ai-mentor/conversations/{conversation_id}")
 def get_ai_mentor_conversation(
@@ -635,17 +616,23 @@ def get_ai_mentor_conversation(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
 
-    uid = get_authenticated_student(credentials)
+    uid = get_authenticated_student(
+        credentials
+    )
 
     try:
+
         conversation = get_conversation(
             conversation_id,
             uid
         )
 
         return {
+
             "success": True,
+
             "data": conversation
+
         }
 
     except ValueError as error:
@@ -663,36 +650,97 @@ def get_ai_mentor_conversation(
         )
 
 
-# ==========================================
-# 4. SEND MESSAGE TO LEO
-# ==========================================
+# =========================================================
+# 4. SEND MESSAGE TO LEO - GEMINI INTEGRATION
+# =========================================================
 
-@app.post("/ai-mentor/conversations/{conversation_id}/messages")
+@app.post(
+    "/ai-mentor/conversations/{conversation_id}/messages"
+)
 def send_ai_mentor_message(
     conversation_id: str,
     request: ChatMessageRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    # STEP 1: Verify student authentication
-    uid = get_authenticated_student(credentials)
 
-    # STEP 2: Validate message
+    # =====================================================
+    # STEP 1: VERIFY STUDENT AUTHENTICATION
+    # =====================================================
+
+    uid = get_authenticated_student(
+        credentials
+    )
+
+    # =====================================================
+    # STEP 2: VALIDATE MESSAGE
+    # =====================================================
+
     user_message = request.message.strip()
 
     if not user_message:
+
         raise HTTPException(
             status_code=400,
             detail="Message cannot be empty."
         )
 
     if len(user_message) > 5000:
+
         raise HTTPException(
             status_code=400,
             detail="Message cannot exceed 5000 characters."
         )
 
     try:
-        # STEP 3: Save student's message
+
+        # =================================================
+        # STEP 3: VERIFY CONVERSATION OWNERSHIP
+        # =================================================
+
+        conversation = get_conversation(
+            conversation_id,
+            uid
+        )
+
+        # =================================================
+        # STEP 4: GET PREVIOUS CONVERSATION HISTORY
+        # =================================================
+
+        conversation_history = conversation.get(
+            "messages",
+            []
+        )
+
+        # =================================================
+        # STEP 5: GENERATE GEMINI RESPONSE
+        # =================================================
+
+        print(
+            "\n=========================================="
+        )
+
+        print(
+            "Leo is generating a Gemini response..."
+        )
+
+        print(
+            "Conversation ID:",
+            conversation_id
+        )
+
+        print(
+            "=========================================="
+        )
+
+        leo_response = generate_leo_response(
+            conversation_history=conversation_history,
+            user_message=user_message
+        )
+
+        # =================================================
+        # STEP 6: SAVE STUDENT MESSAGE
+        # =================================================
+
         user_message_id = save_message(
             conversation_id=conversation_id,
             uid=uid,
@@ -700,16 +748,10 @@ def send_ai_mentor_message(
             content=user_message
         )
 
-        # STEP 4: Generate temporary mock response
-        leo_response = (
-            f"Hey! I'm Leo, your ProjectVerse AI Mentor. "
-            f"I received your message: '{user_message}'. "
-            "I'm currently running in test mode. "
-            "Soon, I'll be able to provide intelligent "
-            "academic project guidance and suggestions!"
-        )
+        # =================================================
+        # STEP 7: SAVE LEO RESPONSE
+        # =================================================
 
-        # STEP 5: Save Leo's response
         leo_message_id = save_message(
             conversation_id=conversation_id,
             uid=uid,
@@ -717,25 +759,48 @@ def send_ai_mentor_message(
             content=leo_response
         )
 
-        # STEP 6: Return both messages
+        print(
+            "Leo response generated and saved successfully."
+        )
+
+        # =================================================
+        # STEP 8: RETURN BOTH MESSAGES
+        # =================================================
+
         return {
+
             "success": True,
+
             "conversationId": conversation_id,
+
             "messages": [
+
                 {
+
                     "id": user_message_id,
+
                     "role": "user",
+
                     "content": user_message
+
                 },
+
                 {
+
                     "id": leo_message_id,
+
                     "role": "assistant",
+
                     "content": leo_response
+
                 }
+
             ]
+
         }
 
     except ValueError as error:
+
         message = str(error)
 
         status_code = (
@@ -749,7 +814,11 @@ def send_ai_mentor_message(
         )
 
     except Exception as error:
-        print("Leo message error:", error)
+
+        print(
+            "❌ Leo message error:",
+            error
+        )
 
         raise HTTPException(
             status_code=500,

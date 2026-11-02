@@ -59,3 +59,22 @@ __pycache__/
 *.pyc
 # Uploaded/test PDF files
 similarity_backend/*.pdf
+
+
+# Environment variables and API keys
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Firebase private credentials
+**/serviceAccountKey.json
+**/*serviceAccount*.json
+
+# Python environment and cache
+**/venv/
+**/__pycache__/
+*.py[cod]
+
+# Local Gemini test
+similarity_backend/test_gemini.py
