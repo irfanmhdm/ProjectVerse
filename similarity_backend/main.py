@@ -712,7 +712,7 @@ def send_ai_mentor_message(
         )
 
         # =================================================
-        # STEP 5: GENERATE GEMINI RESPONSE
+        # STEP 5: GENERATE Groq RESPONSE
         # =================================================
 
         print(
@@ -720,7 +720,7 @@ def send_ai_mentor_message(
         )
 
         print(
-            "Leo is generating a Gemini response..."
+            "Leo is generating a Groq response..."
         )
 
         print(

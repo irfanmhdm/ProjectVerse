@@ -1,17 +1,17 @@
+
 import time
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from groq import Groq
 
 from firebase_admin import auth, firestore
 from services.firebase_service import db
 
 
 # ==========================================
-# 1. GEMINI CONFIGURATION
+# 1. GROQ CONFIGURATION
 # ==========================================
 
 # ProjectVerse root directory
@@ -20,17 +20,23 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # Load .env from the ProjectVerse root folder
 load_dotenv(PROJECT_ROOT / ".env")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
-if not GEMINI_API_KEY:
+if not GROQ_API_KEY:
     raise RuntimeError(
-        "GEMINI_API_KEY is missing from the ProjectVerse .env file."
+        "GROQ_API_KEY is missing from the ProjectVerse .env file."
     )
 
-# Initialize Gemini client
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# Initialize Groq client.
+# Manual retry handling is implemented below.
+groq_client = Groq(
+    api_key=GROQ_API_KEY,
+    max_retries=0
+)
 
+print("Leo AI Provider: Groq")
+print("Leo Model:", GROQ_MODEL)
 
 # ==========================================
 # 2. LEO SYSTEM INSTRUCTIONS
@@ -276,9 +282,8 @@ def list_conversations(uid: str):
 
 
 # ==========================================
-# 9. GENERATE LEO'S GEMINI RESPONSE
+# 9. GENERATE LEO'S GROQ RESPONSE
 # ==========================================
-
 
 def generate_leo_response(
     conversation_history: list,
@@ -288,9 +293,15 @@ def generate_leo_response(
     if not user_message or not user_message.strip():
         raise ValueError("Message cannot be empty.")
 
-    contents = []
-
+    # Keep only the most recent 20 conversation messages
     recent_history = conversation_history[-20:]
+
+    messages = [
+        {
+            "role": "system",
+            "content": LEO_SYSTEM_INSTRUCTION
+        }
+    ]
 
     for message in recent_history:
 
@@ -300,68 +311,50 @@ def generate_leo_response(
         if not content or not content.strip():
             continue
 
-        if role == "user":
-            gemini_role = "user"
+        if role in ["user", "assistant"]:
+            messages.append({
+                "role": role,
+                "content": content.strip()
+            })
 
-        elif role == "assistant":
-            gemini_role = "model"
+    # Add the current user message
+    messages.append({
+        "role": "user",
+        "content": user_message.strip()
+    })
 
-        else:
-            continue
-
-        contents.append(
-            types.Content(
-                role=gemini_role,
-                parts=[
-                    types.Part.from_text(text=content)
-                ]
-            )
-        )
-
-    contents.append(
-        types.Content(
-            role="user",
-            parts=[
-                types.Part.from_text(
-                    text=user_message.strip()
-                )
-            ]
-        )
-    )
-
-    # Retry temporary Gemini failures
+    # Retry temporary Groq failures
     max_attempts = 3
 
     for attempt in range(max_attempts):
 
         try:
 
-            response = gemini_client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=LEO_SYSTEM_INSTRUCTION,
-                    temperature=0.7,
-                    max_output_tokens=2048
-                )
+            response = groq_client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=messages,
+                max_completion_tokens=2048
             )
 
-            if not response.text:
+            answer = response.choices[0].message.content
+
+            if not answer or not answer.strip():
                 raise RuntimeError(
                     "Leo could not generate a response."
                 )
 
-            return response.text.strip()
+            return answer.strip()
 
         except Exception as error:
 
-            error_text = str(error)
+            status_code = getattr(error, "status_code", None)
 
             temporary_error = (
-                "503" in error_text
-                or "UNAVAILABLE" in error_text
-                or "429" in error_text
-                or "RESOURCE_EXHAUSTED" in error_text
+                status_code in [408, 409, 429, 500, 502, 503, 504]
+                or error.__class__.__name__ in [
+                    "APIConnectionError",
+                    "APITimeoutError"
+                ]
             )
 
             if not temporary_error:
@@ -376,7 +369,7 @@ def generate_leo_response(
             wait_time = 2 ** attempt
 
             print(
-                f"Gemini temporarily unavailable. "
+                f"Groq temporarily unavailable. "
                 f"Retrying in {wait_time} seconds..."
             )
 
