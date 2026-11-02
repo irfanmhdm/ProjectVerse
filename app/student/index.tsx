@@ -207,7 +207,7 @@ export default function StudentDashboard() {
   };
 
   const openLeo = () => {
-    router.push("/student/chat");
+    router.push("/student/ai-mentor");
   };
 
   // =====================================================
