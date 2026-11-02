@@ -4,6 +4,7 @@ from fastapi import (
     HTTPException,
     UploadFile,
     File,
+    Form,
     Depends
 )
 
@@ -26,7 +27,8 @@ from services.ai_mentor import (
     list_conversations,
     get_conversation,
     save_message,
-    generate_leo_response
+    generate_leo_response,
+    generate_leo_attachment_response
 )
 
 from services.project_processor import (
@@ -823,4 +825,243 @@ def send_ai_mentor_message(
         raise HTTPException(
             status_code=500,
             detail="Unable to process your message."
+        )
+
+
+# =========================================================
+# 5. SEND MESSAGE TO LEO WITH PDF / IMAGE ATTACHMENT
+# =========================================================
+
+@app.post(
+    "/ai-mentor/conversations/{conversation_id}/messages-with-attachment"
+)
+async def send_ai_mentor_message_with_attachment(
+    conversation_id: str,
+    message: str = Form(""),
+    file: UploadFile = File(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+
+    # =====================================================
+    # STEP 1: VERIFY STUDENT
+    # =====================================================
+
+    uid = get_authenticated_student(credentials)
+
+    # =====================================================
+    # STEP 2: VALIDATE MESSAGE
+    # =====================================================
+
+    user_message = message.strip()
+
+    if len(user_message) > 5000:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot exceed 5000 characters."
+        )
+
+    if not user_message:
+        user_message = (
+            "Please analyse the uploaded file and help me understand it."
+        )
+
+    # =====================================================
+    # STEP 3: VALIDATE FILE
+    # =====================================================
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No file was provided."
+        )
+
+    filename = os.path.basename(file.filename)
+    extension = os.path.splitext(filename)[1].lower()
+
+    supported_types = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp"
+    }
+
+    if extension not in supported_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF, JPEG, PNG and WEBP files are supported."
+        )
+
+    mime_type = supported_types[extension]
+
+    if file.content_type and file.content_type != mime_type:
+        raise HTTPException(
+            status_code=400,
+            detail="File type does not match its extension."
+        )
+
+    # =====================================================
+    # STEP 4: READ FILE WITH SIZE LIMIT
+    # =====================================================
+
+    max_size = 15 * 1024 * 1024
+    file_chunks = []
+    total_size = 0
+
+    try:
+
+        while True:
+
+            chunk = await file.read(1024 * 1024)
+
+            if not chunk:
+                break
+
+            total_size += len(chunk)
+
+            if total_size > max_size:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File size cannot exceed 15 MB."
+                )
+
+            file_chunks.append(chunk)
+
+        file_bytes = b"".join(file_chunks)
+
+    finally:
+        await file.close()
+
+    if not file_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty."
+        )
+
+    # Verify PDF signature before processing
+    if mime_type == "application/pdf":
+        if not file_bytes.startswith(b"%PDF-"):
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded file is not a valid PDF."
+            )
+
+    # =====================================================
+    # STEP 5: VERIFY CONVERSATION OWNERSHIP
+    # =====================================================
+
+    try:
+
+        conversation = get_conversation(
+            conversation_id,
+            uid
+        )
+
+        conversation_history = conversation.get(
+            "messages",
+            []
+        )
+
+        # =================================================
+        # STEP 6: GENERATE LEO RESPONSE
+        # =================================================
+
+        print("\n==========================================")
+        print("Leo is processing an attachment...")
+        print("Conversation ID:", conversation_id)
+        print("Filename:", filename)
+        print("File type:", mime_type)
+        print("File size:", total_size)
+        print("==========================================")
+
+        leo_response = generate_leo_attachment_response(
+            conversation_history=conversation_history,
+            user_message=user_message,
+            file_bytes=file_bytes,
+            filename=filename,
+            mime_type=mime_type
+        )
+
+        # =================================================
+        # STEP 7: SAVE ATTACHMENT METADATA
+        # =================================================
+
+        attachment_metadata = [{
+            "name": filename,
+            "mimeType": mime_type,
+            "size": total_size
+        }]
+
+        # =================================================
+        # STEP 8: SAVE STUDENT MESSAGE
+        # =================================================
+
+        user_message_id = save_message(
+            conversation_id=conversation_id,
+            uid=uid,
+            role="user",
+            content=user_message,
+            attachments=attachment_metadata
+        )
+
+        # =================================================
+        # STEP 9: SAVE LEO RESPONSE
+        # =================================================
+
+        leo_message_id = save_message(
+            conversation_id=conversation_id,
+            uid=uid,
+            role="assistant",
+            content=leo_response
+        )
+
+        print("Leo attachment response generated successfully.")
+
+        # =================================================
+        # STEP 10: RETURN RESPONSE
+        # =================================================
+
+        return {
+            "success": True,
+            "conversationId": conversation_id,
+            "messages": [
+                {
+                    "id": user_message_id,
+                    "role": "user",
+                    "content": user_message,
+                    "attachments": attachment_metadata
+                },
+                {
+                    "id": leo_message_id,
+                    "role": "assistant",
+                    "content": leo_response,
+                    "attachments": []
+                }
+            ]
+        }
+
+    except ValueError as error:
+
+        message = str(error)
+
+        status_code = (
+            404 if "not found" in message.lower()
+            else 403
+        )
+
+        raise HTTPException(
+            status_code=status_code,
+            detail=message
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+
+        print("❌ Leo attachment error:", error)
+
+        raise HTTPException(
+            status_code=502,
+            detail="Leo could not process the attachment. Please try again."
         )

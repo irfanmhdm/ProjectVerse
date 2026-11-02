@@ -8,7 +8,11 @@ from groq import Groq
 
 from firebase_admin import auth, firestore
 from services.firebase_service import db
+import base64
+import io
 
+from pypdf import PdfReader
+from PIL import Image
 
 # ==========================================
 # 1. GROQ CONFIGURATION
@@ -37,6 +41,19 @@ groq_client = Groq(
 
 print("Leo AI Provider: Groq")
 print("Leo Model:", GROQ_MODEL)
+
+# ==========================================
+# ADDITIONAL FILE PROCESSING CONFIGURATION
+# ==========================================
+
+GROQ_VISION_MODEL = os.getenv(
+    "GROQ_VISION_MODEL",
+    "qwen/qwen3.8-27b"
+)
+
+MAX_ATTACHMENT_SIZE = 15 * 1024 * 1024  # 15 MB
+MAX_PDF_PAGES = 50
+MAX_PDF_TEXT_LENGTH = 40000
 
 # ==========================================
 # 2. LEO SYSTEM INSTRUCTIONS
@@ -374,3 +391,267 @@ def generate_leo_response(
             )
 
             time.sleep(wait_time)
+
+
+# =========================================================
+# 10. EXTRACT TEXT FROM UPLOADED PDF
+# =========================================================
+
+def extract_pdf_text(pdf_bytes: bytes) -> str:
+
+    if not pdf_bytes:
+        raise ValueError("The uploaded PDF is empty.")
+
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+
+        if reader.is_encrypted:
+            raise ValueError(
+                "Password-protected PDFs are not supported."
+            )
+
+        if len(reader.pages) > MAX_PDF_PAGES:
+            raise ValueError(
+                f"PDF cannot contain more than {MAX_PDF_PAGES} pages."
+            )
+
+        extracted_pages = []
+
+        for page_number, page in enumerate(reader.pages, start=1):
+
+            page_text = page.extract_text() or ""
+
+            if page_text.strip():
+                extracted_pages.append(
+                    f"Page {page_number}:\n{page_text}"
+                )
+
+        extracted_text = "\n\n".join(extracted_pages)
+
+        if not extracted_text.strip():
+            raise ValueError(
+                "No readable text was found in this PDF. "
+                "Scanned PDFs currently require OCR."
+            )
+
+        return extracted_text[:MAX_PDF_TEXT_LENGTH]
+
+    except ValueError:
+        raise
+
+    except Exception as error:
+        raise ValueError(
+            "Unable to read this PDF. Please upload a valid PDF."
+        ) from error
+
+
+# =========================================================
+# 11. GENERATE LEO RESPONSE WITH PDF
+# =========================================================
+
+def generate_leo_pdf_response(
+    conversation_history: list,
+    user_message: str,
+    pdf_bytes: bytes,
+    filename: str
+) -> str:
+
+    extracted_text = extract_pdf_text(pdf_bytes)
+
+    document_prompt = f"""
+The student has uploaded a PDF document.
+
+Filename: {filename}
+
+The following is the extracted text from the document.
+
+Use this document as context when answering the student's question.
+Do not claim that information is present if it is not in the text.
+If something cannot be determined from the extracted content,
+clearly explain that.
+
+---------------- DOCUMENT CONTENT ----------------
+
+{extracted_text}
+
+---------------- END OF DOCUMENT ----------------
+
+Student's question:
+{user_message}
+"""
+
+    return generate_leo_response(
+        conversation_history=conversation_history,
+        user_message=document_prompt
+    )
+
+
+# =========================================================
+# 12. GENERATE LEO RESPONSE WITH IMAGE
+# =========================================================
+
+def generate_leo_image_response(
+    conversation_history: list,
+    user_message: str,
+    image_bytes: bytes,
+    mime_type: str
+) -> str:
+
+    if not image_bytes:
+        raise ValueError("The uploaded image is empty.")
+
+    if mime_type not in [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    ]:
+        raise ValueError(
+            "Only JPEG, PNG and WEBP images are supported."
+        )
+
+    if len(image_bytes) > MAX_ATTACHMENT_SIZE:
+        raise ValueError(
+            "Image size cannot exceed 15 MB."
+        )
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        image.verify()
+
+    except Exception as error:
+        raise ValueError(
+            "The uploaded image is invalid or corrupted."
+        ) from error
+
+    encoded_image = base64.b64encode(
+        image_bytes
+    ).decode("utf-8")
+
+    image_data_url = (
+        f"data:{mime_type};base64,{encoded_image}"
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": LEO_SYSTEM_INSTRUCTION
+        }
+    ]
+
+    recent_history = conversation_history[-20:]
+
+    for message in recent_history:
+
+        role = message.get("role")
+        content = message.get("content", "")
+
+        if role not in ["user", "assistant"]:
+            continue
+
+        if not isinstance(content, str) or not content.strip():
+            continue
+
+        messages.append({
+            "role": role,
+            "content": content.strip()
+        })
+
+    messages.append({
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"{user_message.strip()}\n\n"
+                    "Please carefully analyse the attached image "
+                    "and answer the student's question."
+                )
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_data_url
+                }
+            }
+        ]
+    })
+
+    try:
+
+        response = groq_client.chat.completions.create(
+            model=GROQ_VISION_MODEL,
+            messages=messages,
+            max_completion_tokens=2048
+        )
+
+        answer = response.choices[0].message.content
+
+        if not answer or not answer.strip():
+            raise RuntimeError(
+                "Leo could not analyse the uploaded image."
+            )
+
+        return answer.strip()
+
+    except Exception as error:
+
+        status_code = getattr(error, "status_code", None)
+
+        if status_code == 429:
+            raise RuntimeError(
+                "Leo has temporarily reached the image-analysis "
+                "request limit. Please try again later."
+            ) from error
+
+        print("❌ Groq vision error:", error)
+
+        raise RuntimeError(
+            "Leo could not analyse this image. Please try again."
+        ) from error
+
+
+# =========================================================
+# 13. GENERATE LEO RESPONSE WITH ATTACHMENT
+# =========================================================
+
+def generate_leo_attachment_response(
+    conversation_history: list,
+    user_message: str,
+    file_bytes: bytes,
+    filename: str,
+    mime_type: str
+) -> str:
+
+    if not file_bytes:
+        raise ValueError("Uploaded file is empty.")
+
+    if len(file_bytes) > MAX_ATTACHMENT_SIZE:
+        raise ValueError(
+            "File size cannot exceed 15 MB."
+        )
+
+    if mime_type == "application/pdf":
+
+        return generate_leo_pdf_response(
+            conversation_history=conversation_history,
+            user_message=user_message,
+            pdf_bytes=file_bytes,
+            filename=filename
+        )
+
+    if mime_type in [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    ]:
+
+        return generate_leo_image_response(
+            conversation_history=conversation_history,
+            user_message=user_message,
+            image_bytes=file_bytes,
+            mime_type=mime_type
+        )
+
+    raise ValueError(
+        "Unsupported file type. Upload a PDF, JPEG, PNG or WEBP image."
+    )
