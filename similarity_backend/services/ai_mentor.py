@@ -165,7 +165,8 @@ def create_conversation(
         "createdAt": firestore.SERVER_TIMESTAMP,
         "updatedAt": firestore.SERVER_TIMESTAMP,
         "hasReport": False,
-        "reportName": None
+        "reportName": None,
+        "isPinned": False
     })
 
     return conversation_ref.id
@@ -291,11 +292,84 @@ def list_conversations(uid: str):
         conversations.append(data)
 
     conversations.sort(
-        key=lambda item: item.get("updatedAt"),
+        key=lambda item: (
+            bool(item.get("isPinned", False)),
+            item.get("updatedAt") or item.get("createdAt") or 0
+        ),
         reverse=True
     )
 
     return conversations
+
+
+# ==========================================
+# 8A. RENAME A CONVERSATION
+# ==========================================
+
+def rename_conversation(conversation_id: str, uid: str, title: str):
+    title = title.strip()
+    if not title:
+        raise ValueError("Conversation title cannot be empty.")
+    if len(title) > 60:
+        raise ValueError("Conversation title cannot exceed 60 characters.")
+    conversation_ref, _ = verify_conversation_owner(conversation_id, uid)
+    conversation_ref.update({
+        "title": title,
+        "updatedAt": firestore.SERVER_TIMESTAMP
+    })
+    return title
+
+
+# ==========================================
+# 8B. PIN / UNPIN A CONVERSATION (MAX 10)
+# ==========================================
+
+def set_conversation_pin(conversation_id: str, uid: str, is_pinned: bool):
+    conversation_ref, _ = verify_conversation_owner(conversation_id, uid)
+
+    if is_pinned:
+        # Query only by userId, then count pinned records in Python.
+        # This avoids requiring a Firestore composite index for userId + isPinned.
+        student_conversations = (
+            db.collection("aiMentorConversations")
+            .where("userId", "==", uid)
+            .stream()
+        )
+        pinned_ids = [
+            doc.id for doc in student_conversations
+            if doc.to_dict().get("isPinned", False) is True
+        ]
+        if conversation_id not in pinned_ids and len(pinned_ids) >= 10:
+            raise ValueError("You can pin a maximum of 10 conversations.")
+
+    conversation_ref.update({
+        "isPinned": bool(is_pinned),
+        "updatedAt": firestore.SERVER_TIMESTAMP
+    })
+    return bool(is_pinned)
+
+
+# ==========================================
+# 8C. DELETE A CONVERSATION AND ITS MESSAGES
+# ==========================================
+
+def delete_conversation(conversation_id: str, uid: str):
+    conversation_ref, _ = verify_conversation_owner(conversation_id, uid)
+
+    # Firestore does not automatically delete subcollection documents.
+    # Delete messages in batches before deleting the parent conversation.
+    messages_ref = conversation_ref.collection("messages")
+    while True:
+        message_docs = list(messages_ref.limit(400).stream())
+        if not message_docs:
+            break
+        batch = db.batch()
+        for message_doc in message_docs:
+            batch.delete(message_doc.reference)
+        batch.commit()
+
+    conversation_ref.delete()
+    return True
 
 
 # ==========================================

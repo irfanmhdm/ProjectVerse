@@ -28,7 +28,10 @@ from services.ai_mentor import (
     get_conversation,
     save_message,
     generate_leo_response,
-    generate_leo_attachment_response
+    generate_leo_attachment_response,
+    rename_conversation,
+    set_conversation_pin,
+    delete_conversation
 )
 
 from services.project_processor import (
@@ -60,6 +63,14 @@ class ConversationCreateRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     message: str
+
+
+class ConversationTitleRequest(BaseModel):
+    title: str
+
+
+class ConversationPinRequest(BaseModel):
+    isPinned: bool
 
 
 # =========================================================
@@ -650,6 +661,65 @@ def get_ai_mentor_conversation(
             status_code=status_code,
             detail=message
         )
+
+
+# =========================================================
+# 3A. RENAME A CONVERSATION
+# =========================================================
+
+@app.patch("/ai-mentor/conversations/{conversation_id}/title")
+def update_ai_mentor_conversation_title(
+    conversation_id: str,
+    request: ConversationTitleRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    uid = get_authenticated_student(credentials)
+    try:
+        title = rename_conversation(conversation_id, uid, request.title)
+        return {"success": True, "title": title}
+    except ValueError as error:
+        message = str(error)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise HTTPException(status_code=status_code, detail=message)
+
+
+# =========================================================
+# 3B. PIN / UNPIN A CONVERSATION
+# =========================================================
+
+@app.patch("/ai-mentor/conversations/{conversation_id}/pin")
+def update_ai_mentor_conversation_pin(
+    conversation_id: str,
+    request: ConversationPinRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    uid = get_authenticated_student(credentials)
+    try:
+        is_pinned = set_conversation_pin(conversation_id, uid, request.isPinned)
+        return {"success": True, "isPinned": is_pinned}
+    except ValueError as error:
+        message = str(error)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise HTTPException(status_code=status_code, detail=message)
+
+
+# =========================================================
+# 3C. DELETE A CONVERSATION
+# =========================================================
+
+@app.delete("/ai-mentor/conversations/{conversation_id}")
+def delete_ai_mentor_conversation(
+    conversation_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    uid = get_authenticated_student(credentials)
+    try:
+        delete_conversation(conversation_id, uid)
+        return {"success": True, "message": "Conversation deleted successfully."}
+    except ValueError as error:
+        message = str(error)
+        status_code = 404 if "not found" in message.lower() else 403
+        raise HTTPException(status_code=status_code, detail=message)
 
 
 # =========================================================
