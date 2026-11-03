@@ -2352,11 +2352,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     paddingHorizontal: 7,
     paddingVertical: 7,
-    shadowColor: COLORS.indigo,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    // shadowColor: COLORS.indigo,
+    // shadowOffset: { width: 0, height: 6 },
+    // shadowOpacity: 0.08,
+    // shadowRadius: 16,
+    // elevation: 4,
   },
 
   composerCardFocused: {
