@@ -1,9 +1,10 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 
 import {
-  View, Text, StyleSheet, Image, TextInput, TouchableOpacity,
-  FlatList, KeyboardAvoidingView, Platform, ActivityIndicator,
-  Alert, StatusBar, Animated, Easing,
+  View, Text, StyleSheet, Image, TextInput, FlatList,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
+  Alert, StatusBar, Animated, Easing, Pressable, ScrollView, TouchableOpacity,
+  useWindowDimensions, Keyboard, BackHandler, StyleProp, ViewStyle,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -22,21 +23,69 @@ import { auth } from "../../firebase/firebaseConfig";
 
 const API_URL = "https://projectverse-backend-3cwn.onrender.com";
 
+const LEO_IMAGE = require("../../assets/images/leo.png");
+
+// Leo's artwork is 1086 x 1448. These ratios locate his head and the
+// antenna ball inside the image, so the avatar crop and the signal rings
+// line up with the artwork.
+const LEO_ASPECT = 1086 / 1448;
+const LEO_ANTENNA_X = 0.624;
+const LEO_ANTENNA_Y = 0.046;
+const LEO_HEAD_X = 0.53;
+const LEO_HEAD_Y = 0.33;
+
+const MAX_PINNED_CHATS = 10;
+
+// Official ProjectVerse palette plus tints and shades derived from it.
 const COLORS = {
-  background: "#F5F7FB",
-  introBackground: "#E8F8F4",
-  primary: "#4338CA",
-  purple: "#7C3AED",
+  // Primary Indigo and its derived shades
+  indigo: "#4338CA",
+  indigoDeep: "#312E81",
+  indigoInk: "#1E1B4B",
+  indigoSoft: "#EEF0FF",
+  indigoTint: "#E0E2FB",
+  indigoMuted: "#9F9BE6",
+
+  // Secondary Mint and its derived shades
   mint: "#38B2AC",
   mintDark: "#0D9488",
-  mintLight: "#D5F5F2",
-  white: "#FFFFFF",
-  text: "#111827",
+  mintSoft: "#D5F5F2",
+  mintTint: "#EEFBF9",
+
+  // Neutrals
+  background: "#F5F7FB",
+  surface: "#FFFFFF",
+  text: "#1F2937",
   secondary: "#6B7280",
   border: "#E5E7EB",
-  userBubble: "#4338CA",
-  leoBubble: "#FFFFFF",
+  borderSoft: "#ECEFF5",
+
+  // Used only for the destructive "delete" action, as before.
   error: "#DC2626",
+};
+
+// Rounded display face on iOS, heavy sans on Android; body text uses the
+// platform default for legibility.
+const FONT_DISPLAY = Platform.select({
+  ios: "ArialRoundedMTBold",
+  android: "sans-serif-black",
+  default: undefined,
+});
+
+const FONT_MONO = Platform.select({
+  ios: "Menlo",
+  android: "monospace",
+  default: undefined,
+});
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+
+  if (hour < 5) return "Burning the midnight oil";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  if (hour < 22) return "Good evening";
+  return "Burning the midnight oil";
 };
 
 // =====================================================
@@ -64,18 +113,322 @@ type SelectedAttachment = {
   size?: number;
 };
 
+type DrawerRow =
+  | { key: string; type: "header"; title: string; meta: string; pinned: boolean }
+  | { key: string; type: "empty"; text: string }
+  | { key: string; type: "chat"; item: Conversation };
+
+// =====================================================
+// SMALL BUILDING BLOCKS
+// =====================================================
+
+// Pressable that springs down slightly while held.
+type ScalePressProps = {
+  onPress?: () => void;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+  accessibilityLabel?: string;
+  scaleTo?: number;
+  hitSlop?: number;
+};
+
+function ScalePress({
+  onPress,
+  disabled,
+  style,
+  containerStyle,
+  children,
+  accessibilityLabel,
+  scaleTo = 0.93,
+  hitSlop,
+}: ScalePressProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const springTo = (toValue: number) => {
+    Animated.spring(scale, {
+      toValue,
+      speed: 40,
+      bounciness: 6,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      onPressIn={() => springTo(scaleTo)}
+      onPressOut={() => springTo(1)}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: !!disabled }}
+      hitSlop={hitSlop}
+      style={containerStyle}
+    >
+      <Animated.View style={[style, { transform: [{ scale }] }]}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// Expanding rings, like a signal leaving Leo's antenna.
+type PingRingsProps = {
+  size: number;
+  color: string;
+  from?: number;
+  to?: number;
+  count?: number;
+  borderWidth?: number;
+  peakOpacity?: number;
+  duration?: number;
+  active?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+function PingRings({
+  size,
+  color,
+  from = 1,
+  to = 2.1,
+  count = 2,
+  borderWidth = 1.5,
+  peakOpacity = 0.5,
+  duration = 1800,
+  active = true,
+  style,
+}: PingRingsProps) {
+  const values = useRef(
+    Array.from({ length: count }, () => new Animated.Value(0)),
+  ).current;
+
+  useEffect(() => {
+    if (!active) {
+      values.forEach((value) => value.setValue(0));
+      return;
+    }
+
+    const gap = duration / 2;
+
+    const loops = values.map((value, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * gap),
+          Animated.timing(value, {
+            toValue: 1,
+            duration,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.delay((count - 1 - index) * gap),
+        ]),
+      ),
+    );
+
+    loops.forEach((loop) => loop.start());
+    return () => loops.forEach((loop) => loop.stop());
+  }, [active, count, duration, values]);
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[{ position: "absolute", width: size, height: size }, style]}
+    >
+      {values.map((value, index) => (
+        <Animated.View
+          key={index}
+          style={{
+            position: "absolute",
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth,
+            borderColor: color,
+            opacity: value.interpolate({
+              inputRange: [0, 0.12, 1],
+              outputRange: [0, peakOpacity, 0],
+            }),
+            transform: [
+              {
+                scale: value.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [from, to],
+                }),
+              },
+            ],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// Round crop of Leo's head (antenna included) on soft mint.
+function LeoAvatar({
+  size,
+  pinging = false,
+  badge = false,
+}: {
+  size: number;
+  pinging?: boolean;
+  badge?: boolean;
+}) {
+  const imageWidth = size * 1.15;
+  const imageHeight = imageWidth / LEO_ASPECT;
+  const badgeSize = Math.max(9, size * 0.28);
+
+  return (
+    <View style={{ width: size, height: size }}>
+      {pinging && <PingRings size={size} color={COLORS.mint} />}
+
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          overflow: "hidden",
+          backgroundColor: COLORS.mintSoft,
+        }}
+      >
+        <Image
+          source={LEO_IMAGE}
+          resizeMode="contain"
+          style={{
+            position: "absolute",
+            width: imageWidth,
+            height: imageHeight,
+            left: size / 2 - imageWidth * LEO_HEAD_X,
+            top: size / 2 - imageHeight * LEO_HEAD_Y,
+          }}
+        />
+      </View>
+
+      {badge && (
+        <View
+          style={{
+            position: "absolute",
+            right: -1,
+            bottom: -1,
+            width: badgeSize,
+            height: badgeSize,
+            borderRadius: badgeSize / 2,
+            backgroundColor: COLORS.mint,
+            borderWidth: 2,
+            borderColor: COLORS.surface,
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+// One chat message. The user's messages are indigo bubbles; Leo's replies
+// are white notes with a mint spine, so the two voices never blur together.
+// New messages ease in once; restored messages appear instantly.
+const MessageItem = React.memo(function MessageItem({
+  item,
+  seenIds,
+}: {
+  item: Message;
+  seenIds: React.MutableRefObject<Set<string>>;
+}) {
+  const isUser = item.role === "user";
+  const alreadySeen = useRef(seenIds.current.has(item.id)).current;
+  const progress = useRef(new Animated.Value(alreadySeen ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (alreadySeen) return;
+
+    seenIds.current.add(item.id);
+
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [alreadySeen, item.id, progress, seenIds]);
+
+  const animatedStyle = {
+    opacity: progress,
+    transform: [
+      {
+        translateY: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [10, 0],
+        }),
+      },
+    ],
+  };
+
+  if (isUser) {
+    return (
+      <Animated.View style={[styles.userRow, animatedStyle]}>
+        <View style={styles.userBubble}>
+          <Text style={styles.userText}>{item.content}</Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={[styles.leoRow, animatedStyle]}>
+      <View style={styles.leoMeta}>
+        <LeoAvatar size={26} />
+        <Text style={styles.leoName}>Leo</Text>
+      </View>
+
+      <View style={styles.leoCardShadow}>
+        <View style={styles.leoCard}>
+          <View style={styles.leoSpine} />
+
+          <View style={styles.leoCardContent}>
+            <Markdown style={markdownStyles}>{item.content || ""}</Markdown>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+});
+
+// "Leo is thinking" row: his avatar pings like an antenna transmitting.
+function ThinkingRow({ creating }: { creating: boolean }) {
+  return (
+    <View style={styles.thinkingRow}>
+      <LeoAvatar size={30} pinging />
+
+      <View style={styles.thinkingBubble}>
+        <ActivityIndicator size="small" color={COLORS.mint} />
+
+        <Text style={styles.thinkingText}>
+          {creating ? "Starting conversation..." : "Leo is thinking..."}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // =====================================================
 // MAIN SCREEN
 // =====================================================
 
 export default function AIMentorScreen() {
   const navigation = useNavigation();
+  const { width, height } = useWindowDimensions();
 
   const flatListRef = useRef<FlatList>(null);
+  const pendingRestoreScrollRef = useRef(false);
+  const restoreSettleUntilRef = useRef(0);
+  const messageContentHeightRef = useRef(0);
+  const messageListLaidOutRef = useRef(false);
+  const restoreScrollFrameRef = useRef<number | null>(null);
   const inputRef = useRef<TextInput>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const pendingMessageRef = useRef("");
   const pendingMessageIdRef = useRef<string | null>(null);
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
 
   // HIDE NAVIGATION HEADER
 
@@ -96,13 +449,13 @@ export default function AIMentorScreen() {
       Animated.sequence([
         Animated.timing(floatAnimation, {
           toValue: 1,
-          duration: 1400,
+          duration: 1500,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(floatAnimation, {
           toValue: 0,
-          duration: 1400,
+          duration: 1500,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -115,7 +468,7 @@ export default function AIMentorScreen() {
 
   const mascotTranslateY = floatAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -8],
+    outputRange: [0, -7],
   });
 
   // STATES
@@ -126,6 +479,7 @@ export default function AIMentorScreen() {
   const [loading, setLoading] = useState(false);
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
 
   const [selectedAttachment, setSelectedAttachment] =
     useState<SelectedAttachment | null>(null);
@@ -136,6 +490,57 @@ export default function AIMentorScreen() {
   const [editingConversationId, setEditingConversationId] =
     useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+
+  // LEFT DRAWER ANIMATION
+
+  const drawerAnim = useRef(new Animated.Value(0)).current;
+  const drawerWidth = Math.min(width * 0.86, 340);
+
+  useEffect(() => {
+    if (!historyVisible) return;
+
+    drawerAnim.setValue(0);
+
+    Animated.timing(drawerAnim, {
+      toValue: 1,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [historyVisible, drawerAnim]);
+
+  const openHistory = () => {
+    Keyboard.dismiss();
+    drawerAnim.setValue(0);
+    setHistoryVisible(true);
+    fetchConversations();
+  };
+
+  const closeHistory = () => {
+    Animated.timing(drawerAnim, {
+      toValue: 0,
+      duration: 210,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setHistoryVisible(false);
+    });
+  };
+
+  // Android hardware back button closes the drawer first.
+  useEffect(() => {
+    if (!historyVisible) return;
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        closeHistory();
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
+  }, [historyVisible]);
 
   // LOAD CHAT HISTORY
 
@@ -192,6 +597,42 @@ export default function AIMentorScreen() {
     return unsubscribe;
   }, []);
 
+  // Restore an opened conversation at its latest message.
+  // Wait for both the FlatList viewport and its content to be laid out before scrolling.
+  const scrollRestoredConversationToBottom = () => {
+    if (
+      !pendingRestoreScrollRef.current ||
+      !messageListLaidOutRef.current ||
+      messageContentHeightRef.current <= 0
+    ) {
+      return;
+    }
+
+    if (restoreScrollFrameRef.current !== null) {
+      cancelAnimationFrame(restoreScrollFrameRef.current);
+    }
+
+    restoreScrollFrameRef.current = requestAnimationFrame(() => {
+      restoreScrollFrameRef.current = requestAnimationFrame(() => {
+        const contentHeight = messageContentHeightRef.current;
+
+        // scrollToOffset uses the measured content height and lets the native
+        // ScrollView clamp to the actual maximum offset.
+        flatListRef.current?.scrollToOffset({
+          offset: contentHeight + 100,
+          animated: false,
+        });
+
+        pendingRestoreScrollRef.current = false;
+        restoreScrollFrameRef.current = null;
+
+        // Long Markdown replies can finish measuring after this scroll, so
+        // keep following the content height for a moment while it settles.
+        restoreSettleUntilRef.current = Date.now() + 900;
+      });
+    });
+  };
+
   // OPEN A SAVED CONVERSATION
 
   const openConversation = async (id: string) => {
@@ -222,23 +663,31 @@ export default function AIMentorScreen() {
         : [];
 
       setConversationId(id);
+      pendingRestoreScrollRef.current = savedMessages.length > 0;
+      restoreSettleUntilRef.current = 0;
+      messageContentHeightRef.current = 0;
+      messageListLaidOutRef.current = false;
 
-      setMessages(
-        savedMessages.map((message: any, index: number) => ({
+      const restoredMessages: Message[] = savedMessages.map(
+        (message: any, index: number) => ({
           id: message.id || `${message.role}-${index}`,
           role: message.role === "user" ? "user" : "assistant",
           content: message.content || "",
-        })),
+        }),
       );
+
+      // Restored messages appear instantly; only new ones animate in.
+      restoredMessages.forEach((message) =>
+        seenMessageIdsRef.current.add(message.id),
+      );
+
+      setMessages(restoredMessages);
 
       setInput("");
       setSelectedAttachment(null);
       setHasStarted(true);
-      setHistoryVisible(false);
+      closeHistory();
 
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 250);
     } catch (error: any) {
       console.error(
         "OPEN LEO CONVERSATION ERROR:",
@@ -617,7 +1066,7 @@ export default function AIMentorScreen() {
 
     if (
       !item.isPinned &&
-      conversations.filter((chat) => chat.isPinned).length >= 10
+      conversations.filter((chat) => chat.isPinned).length >= MAX_PINNED_CHATS
     ) {
       Alert.alert(
         "Pin limit reached",
@@ -772,43 +1221,71 @@ export default function AIMentorScreen() {
 
   // MESSAGE ITEM
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isUser = item.role === "user";
+  const renderMessage = ({ item }: { item: Message }) => (
+    <MessageItem item={item} seenIds={seenMessageIdsRef} />
+  );
 
-    return (
-      <View style={[styles.messageRow, isUser && styles.userMessageRow]}>
-        {!isUser && (
-          <Image
-            source={require("../../assets/images/leo.png")}
-            style={styles.messageAvatar}
-            resizeMode="contain"
-          />
-        )}
+  // Title of the conversation currently open (shown under Leo's name).
+  const activeConversationTitle = useMemo(
+    () => conversations.find((chat) => chat.id === conversationId)?.title,
+    [conversations, conversationId],
+  );
 
-        <View
-          style={[
-            styles.messageBubble,
-            isUser ? styles.userBubble : styles.leoBubble,
-          ]}
-        >
-          {!isUser && <Text style={styles.messageSender}>Leo</Text>}
+  const canSend = !!input.trim() || !!selectedAttachment;
+  const greeting = useMemo(getGreeting, []);
 
-          {isUser ? (
-            <Text style={[styles.messageText, styles.userMessageText]}>
-              {item.content}
-            </Text>
-          ) : (
-            <Markdown style={markdownStyles}>
-              {item.content || ""}
-            </Markdown>
-          )}
-        </View>
-      </View>
-    );
-  };
+  // Drawer content: a dedicated Pinned Chats section, then Recent Chats.
+  const drawerRows = useMemo<DrawerRow[]>(() => {
+    const pinned = conversations.filter((chat) => chat.isPinned);
+    const recent = conversations.filter((chat) => !chat.isPinned);
+
+    const rows: DrawerRow[] = [];
+
+    rows.push({
+      key: "header-pinned",
+      type: "header",
+      title: "Pinned Chats",
+      meta: `${pinned.length}/${MAX_PINNED_CHATS}`,
+      pinned: true,
+    });
+
+    if (pinned.length === 0) {
+      rows.push({
+        key: "empty-pinned",
+        type: "empty",
+        text: "Pin a chat to keep it here.",
+      });
+    } else {
+      pinned.forEach((item) =>
+        rows.push({ key: `chat-${item.id}`, type: "chat", item }),
+      );
+    }
+
+    rows.push({
+      key: "header-recent",
+      type: "header",
+      title: "Recent Chats",
+      meta: recent.length > 0 ? String(recent.length) : "",
+      pinned: false,
+    });
+
+    if (recent.length === 0) {
+      rows.push({
+        key: "empty-recent",
+        type: "empty",
+        text: "No saved conversations yet.",
+      });
+    } else {
+      recent.forEach((item) =>
+        rows.push({ key: `chat-${item.id}`, type: "chat", item }),
+      );
+    }
+
+    return rows;
+  }, [conversations]);
 
   // =====================================================
-  // WELCOME / INTRO SCREEN
+  // WELCOME SCREEN
   // =====================================================
 
   const renderWelcomeScreen = () => (
@@ -821,13 +1298,10 @@ export default function AIMentorScreen() {
 
         <TouchableOpacity
           style={styles.welcomeHistoryButton}
-          onPress={() => {
-            setHistoryVisible(true);
-            fetchConversations();
-          }}
+          onPress={openHistory}
           activeOpacity={0.75}
         >
-          <Ionicons name="time-outline" size={18} color={COLORS.primary} />
+          <Ionicons name="time-outline" size={18} color={COLORS.indigo} />
           <Text style={styles.welcomeHistoryText}>History</Text>
         </TouchableOpacity>
       </View>
@@ -880,47 +1354,37 @@ export default function AIMentorScreen() {
 
   const renderChatScreen = () => (
     <View style={styles.chatContainer}>
-      <View style={styles.chatTopBar}>
-        <View style={styles.chatTopInfo}>
-          <Image
-            source={require("../../assets/images/leo.png")}
-            style={styles.chatHeaderMascot}
-            resizeMode="contain"
-          />
+      {/* FLOATING HEADER */}
 
-          <View>
+      <View style={styles.chatTopBar}>
+        <ScalePress
+          onPress={openHistory}
+          style={styles.menuButtonTinted}
+          accessibilityLabel="Open menu"
+        >
+          <Ionicons name="menu" size={22} color={COLORS.indigo} />
+        </ScalePress>
+
+        <View style={styles.chatTopInfo}>
+          <LeoAvatar size={40} pinging={loading} badge />
+
+          <View style={styles.chatTitleColumn}>
             <Text style={styles.chatTopTitle}>Leo</Text>
 
-            <View style={styles.chatSubtitleRow}>
-              <View style={styles.chatOnlineDot} />
-              <Text style={styles.chatSubtitle}>Your AI Mentor</Text>
-            </View>
+            <Text style={styles.chatSubtitle} numberOfLines={1}>
+              {activeConversationTitle || "ProjectVerse AI Mentor"}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.chatHeaderActions}>
-          <TouchableOpacity
-            style={styles.historyButton}
-            onPress={() => {
-              setHistoryVisible(true);
-              fetchConversations();
-            }}
-            activeOpacity={0.75}
-            accessibilityLabel="Open chat history"
-          >
-            <Ionicons name="time-outline" size={19} color={COLORS.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.newChatButton}
-            onPress={handleNewChat}
-            disabled={loading}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="create-outline" size={19} color={COLORS.primary} />
-            <Text style={styles.newChatText}>New Chat</Text>
-          </TouchableOpacity>
-        </View>
+        <ScalePress
+          onPress={handleNewChat}
+          disabled={loading}
+          style={[styles.newChatIconButton, loading && styles.dimmed]}
+          accessibilityLabel="Start a new chat"
+        >
+          <Ionicons name="create-outline" size={20} color={COLORS.mintDark} />
+        </ScalePress>
       </View>
 
       {/* MESSAGES */}
@@ -930,6 +1394,7 @@ export default function AIMentorScreen() {
         data={messages}
         keyExtractor={(item, index) => item.id || `${item.role}-${index}`}
         renderItem={renderMessage}
+        style={styles.messageListWrapper}
         contentContainerStyle={styles.messageList}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -942,7 +1407,7 @@ export default function AIMentorScreen() {
               ]}
             >
               <Image
-                source={require("../../assets/images/leo.png")}
+                source={LEO_IMAGE}
                 style={styles.emptyChatMascot}
                 resizeMode="contain"
               />
@@ -954,32 +1419,191 @@ export default function AIMentorScreen() {
           </View>
         }
         ListFooterComponent={
-          loading ? (
-            <View style={styles.typingRow}>
-              <Image
-                source={require("../../assets/images/leo.png")}
-                style={styles.typingAvatar}
-                resizeMode="contain"
-              />
-
-              <View style={styles.typingBubble}>
-                <ActivityIndicator size="small" color={COLORS.mint} />
-
-                <Text style={styles.typingText}>
-                  {creatingConversation
-                    ? "Starting conversation..."
-                    : "Leo is thinking..."}
-                </Text>
-              </View>
-            </View>
-          ) : null
+          loading ? <ThinkingRow creating={creatingConversation} /> : null
         }
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
+        onLayout={() => {
+          messageListLaidOutRef.current = true;
+          scrollRestoredConversationToBottom();
+        }}
+        onContentSizeChange={(_width, contentHeight) => {
+          messageContentHeightRef.current = contentHeight;
+          scrollRestoredConversationToBottom();
+
+          // Keep following the bottom while a restored conversation settles.
+          if (
+            !pendingRestoreScrollRef.current &&
+            Date.now() < restoreSettleUntilRef.current
+          ) {
+            flatListRef.current?.scrollToOffset({
+              offset: contentHeight + 100,
+              animated: false,
+            });
+          }
+        }}
       />
     </View>
   );
+
+  // =====================================================
+  // DRAWER ROWS
+  // =====================================================
+
+  const renderDrawerRow = ({ item: row }: { item: DrawerRow }) => {
+    if (row.type === "header") {
+      return (
+        <View style={styles.drawerSectionHeader}>
+          <View
+            style={[
+              styles.drawerSectionIcon,
+              row.pinned && styles.drawerSectionIconPinned,
+            ]}
+          >
+            <Ionicons
+              name={row.pinned ? "pin" : "time-outline"}
+              size={13}
+              color={row.pinned ? COLORS.mintDark : COLORS.indigo}
+            />
+          </View>
+
+          <Text style={styles.drawerSectionTitle}>{row.title}</Text>
+
+          {!!row.meta && (
+            <Text style={styles.drawerSectionMeta}>{row.meta}</Text>
+          )}
+        </View>
+      );
+    }
+
+    if (row.type === "empty") {
+      return <Text style={styles.drawerEmptyText}>{row.text}</Text>;
+    }
+
+    const item = row.item;
+    const isActive = conversationId === item.id;
+    const isEditing = editingConversationId === item.id;
+
+    return (
+      <View style={[styles.historyItem, isActive && styles.historyItemActive]}>
+        {isActive && <View style={styles.historyItemActiveBar} />}
+
+        <View
+          style={[
+            styles.historyItemIcon,
+            item.isPinned && styles.historyItemIconPinned,
+          ]}
+        >
+          <Ionicons
+            name={item.isPinned ? "pin" : "chatbubble-ellipses-outline"}
+            size={16}
+            color={item.isPinned ? COLORS.mintDark : COLORS.indigo}
+          />
+        </View>
+
+        <View style={styles.historyItemTextContainer}>
+          {isEditing ? (
+            <View style={styles.renameRow}>
+              <TextInput
+                value={editingTitle}
+                onChangeText={setEditingTitle}
+                style={styles.renameInput}
+                placeholder="Conversation title"
+                placeholderTextColor="#9CA3AF"
+                maxLength={60}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => saveConversationTitle(item.id)}
+              />
+
+              <Pressable
+                onPress={() => saveConversationTitle(item.id)}
+                style={styles.historyActionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Save title"
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={23}
+                  color={COLORS.mintDark}
+                />
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setEditingConversationId(null);
+                  setEditingTitle("");
+                }}
+                style={styles.historyActionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel rename"
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={23}
+                  color={COLORS.secondary}
+                />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => openConversation(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${item.title || "Leo conversation"}`}
+            >
+              <Text style={styles.historyItemTitle} numberOfLines={2}>
+                {item.title || "Leo conversation"}
+              </Text>
+
+              <Text style={styles.historyItemDate} numberOfLines={1}>
+                {item.isPinned
+                  ? "Pinned · Tap to continue"
+                  : "Tap to continue this chat"}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {!isEditing && (
+          <View style={styles.historyItemActions}>
+            <Pressable
+              onPress={() => toggleConversationPin(item)}
+              style={styles.historyActionButton}
+              accessibilityRole="button"
+              accessibilityLabel={
+                item.isPinned ? "Unpin conversation" : "Pin conversation"
+              }
+            >
+              <Ionicons
+                name={item.isPinned ? "pin" : "pin-outline"}
+                size={17}
+                color={item.isPinned ? COLORS.mintDark : COLORS.secondary}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                setEditingConversationId(item.id);
+                setEditingTitle(item.title || "");
+              }}
+              style={styles.historyActionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Rename conversation"
+            >
+              <Ionicons name="pencil-outline" size={17} color={COLORS.indigo} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => deleteConversation(item)}
+              style={styles.historyActionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Delete conversation"
+            >
+              <Ionicons name="trash-outline" size={17} color={COLORS.error} />
+            </Pressable>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   // =====================================================
   // MAIN RENDER
@@ -990,12 +1614,7 @@ export default function AIMentorScreen() {
       style={styles.safeArea}
       edges={["top", "left", "right"]}
     >
-      <StatusBar
-        backgroundColor={
-          hasStarted ? COLORS.background : COLORS.introBackground
-        }
-        barStyle="dark-content"
-      />
+      <StatusBar backgroundColor={COLORS.background} barStyle="dark-content" />
 
       <KeyboardAvoidingView
         style={styles.mainContainer}
@@ -1006,349 +1625,239 @@ export default function AIMentorScreen() {
 
         {/* MESSAGE COMPOSER */}
 
-        <View
-          style={[
-            styles.composerContainer,
-            !hasStarted && styles.welcomeComposerContainer,
-          ]}
-        >
-          {/* SELECTED FILE PREVIEW */}
+        <View style={styles.composerDock}>
+          <View
+            style={[
+              styles.composerCard,
+              inputFocused && styles.composerCardFocused,
+            ]}
+          >
+            {/* SELECTED FILE PREVIEW */}
 
-          {hasStarted && selectedAttachment && (
-            <View style={styles.attachmentPreview}>
-              <View style={styles.attachmentIcon}>
-                <Ionicons
-                  name={
-                    selectedAttachment.mimeType === "application/pdf"
-                      ? "document-text-outline"
-                      : "image-outline"
-                  }
-                  size={23}
-                  color={COLORS.primary}
-                />
+            {hasStarted && selectedAttachment && (
+              <View style={styles.attachmentPreview}>
+                <View style={styles.attachmentIcon}>
+                  <Ionicons
+                    name={
+                      selectedAttachment.mimeType === "application/pdf"
+                        ? "document-text-outline"
+                        : "image-outline"
+                    }
+                    size={22}
+                    color={COLORS.mintDark}
+                  />
+                </View>
+
+                <View style={styles.attachmentInfo}>
+                  <Text style={styles.attachmentName} numberOfLines={1}>
+                    {selectedAttachment.name}
+                  </Text>
+
+                  <Text style={styles.attachmentType}>
+                    {selectedAttachment.mimeType === "application/pdf"
+                      ? "PDF Document"
+                      : "Image"}
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={removeAttachment}
+                  style={styles.removeAttachmentButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove attachment"
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={22}
+                    color={COLORS.secondary}
+                  />
+                </Pressable>
               </View>
-
-              <View style={styles.attachmentInfo}>
-                <Text style={styles.attachmentName} numberOfLines={1}>
-                  {selectedAttachment.name}
-                </Text>
-
-                <Text style={styles.attachmentType}>
-                  {selectedAttachment.mimeType === "application/pdf"
-                    ? "PDF Document"
-                    : "Image"}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={removeAttachment}
-                style={styles.removeAttachmentButton}
-                accessibilityLabel="Remove attachment"
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={23}
-                  color={COLORS.secondary}
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* INPUT AREA */}
-
-          <View style={styles.composer}>
-            {hasStarted && (
-              <TouchableOpacity
-                style={styles.attachButton}
-                onPress={pickAttachment}
-                disabled={loading}
-                activeOpacity={0.7}
-                accessibilityLabel="Attach PDF or image"
-              >
-                <Ionicons
-                  name="attach-outline"
-                  size={23}
-                  color={COLORS.primary}
-                />
-              </TouchableOpacity>
             )}
 
-            <TextInput
-              ref={inputRef}
-              style={styles.textInput}
-              placeholder="Ask Leo anything..."
-              placeholderTextColor="#9CA3AF"
-              value={input}
-              onChangeText={setInput}
-              multiline
-              maxLength={5000}
-              editable={!loading}
-              returnKeyType="default"
-              blurOnSubmit={false}
-            />
+            {/* INPUT AREA */}
 
-            {/* SEND / STOP BUTTON */}
+            <View style={styles.composerRow}>
+              {hasStarted && (
+                <ScalePress
+                  onPress={pickAttachment}
+                  disabled={loading}
+                  style={[styles.attachButton, loading && styles.dimmed]}
+                  accessibilityLabel="Attach PDF or image"
+                >
+                  <Ionicons
+                    name="attach-outline"
+                    size={22}
+                    color={COLORS.mintDark}
+                  />
+                </ScalePress>
+              )}
 
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                loading
-                  ? styles.stopButton
-                  : !input.trim() &&
-                    !selectedAttachment &&
-                    styles.sendButtonDisabled,
-              ]}
-              onPress={() => {
-                if (loading) {
-                  stopThinking();
-                  return;
-                }
-
-                sendMessage();
-              }}
-              disabled={!loading && !input.trim() && !selectedAttachment}
-              activeOpacity={0.8}
-              accessibilityLabel={loading ? "Stop response" : "Send message"}
-            >
-              <Ionicons
-                name={loading ? "stop" : "send"}
-                size={loading ? 18 : 19}
-                color={COLORS.white}
+              <TextInput
+                ref={inputRef}
+                style={styles.textInput}
+                placeholder="Ask Leo anything..."
+                placeholderTextColor="#9CA3AF"
+                value={input}
+                onChangeText={setInput}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                multiline
+                maxLength={5000}
+                editable={!loading}
+                returnKeyType="default"
+                blurOnSubmit={false}
               />
-            </TouchableOpacity>
+
+              {/* SEND / STOP BUTTON */}
+
+              <ScalePress
+                onPress={() => {
+                  if (loading) {
+                    stopThinking();
+                    return;
+                  }
+
+                  sendMessage();
+                }}
+                disabled={!loading && !canSend}
+                style={[
+                  styles.sendButton,
+                  loading
+                    ? styles.sendButtonStop
+                    : canSend
+                      ? styles.sendButtonActive
+                      : styles.sendButtonIdle,
+                ]}
+                accessibilityLabel={loading ? "Stop response" : "Send message"}
+              >
+                <Ionicons
+                  name={loading ? "stop" : "arrow-up"}
+                  size={loading ? 17 : 21}
+                  color={
+                    loading || canSend ? COLORS.surface : COLORS.indigoMuted
+                  }
+                />
+              </ScalePress>
+            </View>
           </View>
 
           <Text style={styles.composerFooter}>
             Leo can make mistakes. Verify important information.
           </Text>
         </View>
+      </KeyboardAvoidingView>
 
-        {/* CHAT HISTORY DRAWER */}
+      {/* LEFT NAVIGATION DRAWER */}
 
-        {historyVisible && (
-          <View style={styles.historyOverlay}>
-            <TouchableOpacity
-              style={styles.historyBackdrop}
-              activeOpacity={1}
-              onPress={() => setHistoryVisible(false)}
+      {historyVisible && (
+        <View style={styles.drawerOverlay}>
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              styles.drawerBackdrop,
+              { opacity: drawerAnim },
+            ]}
+          >
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={closeHistory}
+              accessibilityRole="button"
+              accessibilityLabel="Close menu"
             />
+          </Animated.View>
 
-            <View style={styles.historyDrawer}>
-              <View style={styles.historyDrawerHeader}>
-                <View>
-                  <Text style={styles.historyDrawerTitle}>Chat history</Text>
+          <Animated.View
+            style={[
+              styles.drawer,
+              {
+                width: drawerWidth,
+                transform: [
+                  {
+                    translateX: drawerAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-drawerWidth, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {/* TOP SECTION: LEO IDENTITY + NEW CHAT */}
 
-                  <Text style={styles.historyDrawerSubtitle}>
-                    Your conversations with Leo
-                  </Text>
-                </View>
+            <View style={styles.drawerHeader}>
+              <LeoAvatar size={46} badge />
 
-                <TouchableOpacity
-                  style={styles.historyCloseButton}
-                  onPress={() => setHistoryVisible(false)}
-                  accessibilityLabel="Close chat history"
-                >
-                  <Ionicons name="close" size={22} color={COLORS.text} />
-                </TouchableOpacity>
+              <View style={styles.drawerBrandText}>
+                <Text style={styles.drawerBrandName}>Leo</Text>
+
+                <Text style={styles.drawerBrandSub} numberOfLines={1}>
+                  ProjectVerse AI Mentor
+                </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.historyNewChatButton}
-                onPress={() => {
-                  setHistoryVisible(false);
-
-                  if (messages.length > 0 || conversationId) {
-                    handleNewChat();
-                  }
-                }}
-                disabled={loading}
-                activeOpacity={0.75}
+              <ScalePress
+                onPress={closeHistory}
+                style={styles.drawerCloseButton}
+                accessibilityLabel="Close menu"
               >
-                <Ionicons
-                  name="add-circle-outline"
-                  size={20}
-                  color={COLORS.white}
-                />
-
-                <Text style={styles.historyNewChatText}>
-                  Start new chat
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={styles.historySectionTitle}>RECENT CHATS</Text>
-
-              {historyLoading ? (
-                <View style={styles.historyLoading}>
-                  <ActivityIndicator size="small" color={COLORS.mint} />
-
-                  <Text style={styles.historyEmptyText}>
-                    Loading conversations...
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={conversations}
-                  keyExtractor={(item, index) =>
-                    item.id || `conversation-${index}`
-                  }
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.historyList}
-                  ListEmptyComponent={
-                    <View style={styles.historyEmpty}>
-                      <Ionicons
-                        name="chatbubbles-outline"
-                        size={30}
-                        color={COLORS.mint}
-                      />
-
-                      <Text style={styles.historyEmptyText}>
-                        No saved conversations yet.
-                      </Text>
-                    </View>
-                  }
-                  renderItem={({ item }) => (
-                    <View
-                      style={[
-                        styles.historyItem,
-                        conversationId === item.id &&
-                          styles.historyItemActive,
-                      ]}
-                    >
-                      <View style={styles.historyItemIcon}>
-                        <Ionicons
-                          name="chatbubble-ellipses-outline"
-                          size={17}
-                          color={COLORS.primary}
-                        />
-                      </View>
-
-                      <View style={styles.historyItemTextContainer}>
-                        {editingConversationId === item.id ? (
-                          <View style={styles.renameRow}>
-                            <TextInput
-                              value={editingTitle}
-                              onChangeText={setEditingTitle}
-                              style={styles.renameInput}
-                              placeholder="Conversation title"
-                              maxLength={60}
-                              autoFocus
-                              returnKeyType="done"
-                              onSubmitEditing={() =>
-                                saveConversationTitle(item.id)
-                              }
-                            />
-
-                            <TouchableOpacity
-                              onPress={() =>
-                                saveConversationTitle(item.id)
-                              }
-                              style={styles.historyActionButton}
-                            >
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={22}
-                                color={COLORS.mintDark}
-                              />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              onPress={() => {
-                                setEditingConversationId(null);
-                                setEditingTitle("");
-                              }}
-                              style={styles.historyActionButton}
-                            >
-                              <Ionicons
-                                name="close-circle"
-                                size={22}
-                                color={COLORS.secondary}
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        ) : (
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => openConversation(item.id)}
-                          >
-                            <Text
-                              style={styles.historyItemTitle}
-                              numberOfLines={1}
-                            >
-                              {item.title || "Leo conversation"}
-                            </Text>
-
-                            <Text
-                              style={styles.historyItemDate}
-                              numberOfLines={1}
-                            >
-                              {item.isPinned
-                                ? "Pinned · Tap to continue"
-                                : "Tap to continue this chat"}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      {editingConversationId !== item.id && (
-                        <View style={styles.historyItemActions}>
-                          <TouchableOpacity
-                            onPress={() => toggleConversationPin(item)}
-                            style={styles.historyActionButton}
-                            accessibilityLabel={
-                              item.isPinned
-                                ? "Unpin conversation"
-                                : "Pin conversation"
-                            }
-                          >
-                            <Ionicons
-                              name={
-                                item.isPinned ? "pin" : "pin-outline"
-                              }
-                              size={17}
-                              color={
-                                item.isPinned
-                                  ? COLORS.mintDark
-                                  : COLORS.secondary
-                              }
-                            />
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            onPress={() => {
-                              setEditingConversationId(item.id);
-                              setEditingTitle(item.title || "");
-                            }}
-                            style={styles.historyActionButton}
-                            accessibilityLabel="Rename conversation"
-                          >
-                            <Ionicons
-                              name="pencil-outline"
-                              size={17}
-                              color={COLORS.primary}
-                            />
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            onPress={() => deleteConversation(item)}
-                            style={styles.historyActionButton}
-                            accessibilityLabel="Delete conversation"
-                          >
-                            <Ionicons
-                              name="trash-outline"
-                              size={17}
-                              color={COLORS.error}
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-                  )}
-                />
-              )}
+                <Ionicons name="close" size={20} color={COLORS.text} />
+              </ScalePress>
             </View>
-          </View>
-        )}
-      </KeyboardAvoidingView>
+
+            <ScalePress
+              onPress={() => {
+                closeHistory();
+
+                if (messages.length > 0 || conversationId) {
+                  handleNewChat();
+                }
+              }}
+              disabled={loading}
+              scaleTo={0.97}
+              containerStyle={styles.drawerNewChatContainer}
+              style={[styles.drawerNewChatButton, loading && styles.dimmed]}
+              accessibilityLabel="Start new chat"
+            >
+              <Ionicons name="add-circle" size={21} color={COLORS.surface} />
+
+              <Text style={styles.drawerNewChatText}>New Chat</Text>
+            </ScalePress>
+
+            {/* PINNED CHATS + RECENT CHATS */}
+
+            {historyLoading && conversations.length === 0 ? (
+              <View style={styles.historyLoading}>
+                <ActivityIndicator size="small" color={COLORS.mint} />
+
+                <Text style={styles.drawerEmptyText}>
+                  Loading conversations...
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={drawerRows}
+                keyExtractor={(row) => row.key}
+                renderItem={renderDrawerRow}
+                style={styles.drawerList}
+                contentContainerStyle={styles.historyList}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                  historyLoading ? (
+                    <View style={styles.historyRefreshing}>
+                      <ActivityIndicator size="small" color={COLORS.mint} />
+
+                      <Text style={styles.drawerEmptyInline}>Updating...</Text>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+          </Animated.View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1359,79 +1868,102 @@ export default function AIMentorScreen() {
 
 const markdownStyles = {
   body: {
-    color: "#111827",
-    fontSize: 13,
-    lineHeight: 20,
+    color: COLORS.text,
+    fontSize: 15,
+    lineHeight: 23,
   },
   heading1: {
-    fontSize: 19,
-    fontWeight: "800" as const,
-    color: "#312E81",
+    fontFamily: FONT_DISPLAY,
+    fontSize: 21,
+    lineHeight: 27,
+    color: COLORS.indigoDeep,
     marginTop: 8,
     marginBottom: 6,
   },
   heading2: {
-    fontSize: 17,
-    fontWeight: "800" as const,
-    color: "#312E81",
+    fontFamily: FONT_DISPLAY,
+    fontSize: 18,
+    lineHeight: 24,
+    color: COLORS.indigoDeep,
     marginTop: 8,
     marginBottom: 5,
   },
   heading3: {
-    fontSize: 15,
-    fontWeight: "700" as const,
-    color: "#312E81",
+    fontFamily: FONT_DISPLAY,
+    fontSize: 16,
+    lineHeight: 22,
+    color: COLORS.indigo,
     marginTop: 7,
     marginBottom: 4,
   },
-  paragraph: { marginTop: 3, marginBottom: 8 },
-  strong: { fontWeight: "800" as const },
-  bullet_list: { marginVertical: 5 },
-  ordered_list: { marginVertical: 5 },
+  paragraph: { marginTop: 0, marginBottom: 10 },
+  strong: { fontWeight: "700" as const, color: COLORS.indigoDeep },
+  em: { fontStyle: "italic" as const },
+  link: {
+    color: COLORS.indigo,
+    textDecorationLine: "underline" as const,
+  },
+  bullet_list: { marginVertical: 4 },
+  ordered_list: { marginVertical: 4 },
   list_item: { marginVertical: 2 },
+  bullet_list_icon: { color: COLORS.mint, fontWeight: "700" as const },
+  ordered_list_icon: { color: COLORS.mintDark, fontWeight: "700" as const },
   code_inline: {
-    backgroundColor: "#EEF0F5",
-    color: "#4338CA",
-    paddingHorizontal: 3,
-    borderRadius: 3,
+    backgroundColor: COLORS.mintSoft,
+    color: COLORS.mintDark,
+    borderWidth: 0,
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    fontFamily: FONT_MONO,
   },
   code_block: {
-    backgroundColor: "#F1F3F8",
-    padding: 10,
-    borderRadius: 8,
-    color: "#1F2937",
+    backgroundColor: COLORS.indigoInk,
+    color: "#E4E5FB",
+    borderWidth: 0,
+    padding: 12,
+    borderRadius: 12,
+    fontSize: 12.5,
+    lineHeight: 19,
+    fontFamily: FONT_MONO,
   },
   fence: {
-    backgroundColor: "#F1F3F8",
-    padding: 10,
-    borderRadius: 8,
-    color: "#1F2937",
+    backgroundColor: COLORS.indigoInk,
+    color: "#E4E5FB",
+    borderWidth: 0,
+    padding: 12,
+    borderRadius: 12,
+    fontSize: 12.5,
+    lineHeight: 19,
+    fontFamily: FONT_MONO,
   },
   blockquote: {
-    backgroundColor: "#F5F7FB",
-    borderLeftColor: "#38B2AC",
+    backgroundColor: COLORS.mintTint,
+    borderLeftColor: COLORS.mint,
     borderLeftWidth: 3,
-    paddingHorizontal: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+    marginLeft: 0,
+    borderRadius: 4,
   },
   table: {
     borderWidth: 1,
-    borderColor: "#DDE2EA",
-    borderRadius: 6,
+    borderColor: COLORS.border,
+    borderRadius: 8,
   },
   th: {
-    backgroundColor: "#EEF0FF",
+    backgroundColor: COLORS.indigoSoft,
     padding: 6,
     fontWeight: "700" as const,
   },
   td: {
     padding: 6,
     borderTopWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.border,
   },
   hr: {
-    backgroundColor: "#E5E7EB",
+    backgroundColor: COLORS.border,
     height: 1,
-    marginVertical: 8,
+    marginVertical: 12,
   },
 };
 
@@ -1443,13 +1975,18 @@ const styles = StyleSheet.create({
 
   mainContainer: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
+  dimmed: {
+    opacity: 0.45,
   },
 
   // WELCOME SCREEN
 
   welcomeScreen: {
     flex: 1,
-    backgroundColor: COLORS.introBackground,
+    backgroundColor: COLORS.mintTint,
     paddingHorizontal: 23,
     paddingTop: 12,
     paddingBottom: 12,
@@ -1466,7 +2003,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 30,
@@ -1476,20 +2013,15 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 1,
-    color: "#267F79",
+    color: COLORS.mintDark,
   },
 
-  onlineContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
 
   welcomeHistoryButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255,255,255,0.75)",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 20,
@@ -1498,21 +2030,9 @@ const styles = StyleSheet.create({
   welcomeHistoryText: {
     fontSize: 11,
     fontWeight: "700",
-    color: COLORS.primary,
+    color: COLORS.secondary,
   },
 
-  onlineDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#22C55E",
-  },
-
-  onlineText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#39877F",
-  },
 
   welcomeCenter: {
     flex: 1,
@@ -1522,8 +2042,8 @@ const styles = StyleSheet.create({
   },
 
   heroMascotContainer: {
-    width: 190,
-    height: 195,
+    width: 174,
+    height: 180,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -1531,22 +2051,22 @@ const styles = StyleSheet.create({
 
   mascotGlow: {
     position: "absolute",
-    width: 155,
-    height: 155,
+    width: 142,
+    height: 142,
     borderRadius: 80,
-    backgroundColor: "#D2F1E9",
+    backgroundColor: COLORS.mintSoft,
     opacity: 0.85,
   },
 
   heroMascot: {
-    width: 150,
-    height: 175,
+    width: 138,
+    height: 158,
   },
 
   welcomeTitle: {
     fontSize: 31,
     fontWeight: "900",
-    color: "#312E81",
+    color: COLORS.indigoDeep,
     letterSpacing: -0.8,
     textAlign: "center",
   },
@@ -1554,7 +2074,7 @@ const styles = StyleSheet.create({
   welcomeSubtitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#475569",
+    color: COLORS.secondary,
     marginTop: 9,
     textAlign: "center",
   },
@@ -1562,7 +2082,7 @@ const styles = StyleSheet.create({
   welcomeDescription: {
     fontSize: 13,
     lineHeight: 21,
-    color: "#64748B",
+    color: COLORS.secondary,
     marginTop: 13,
     textAlign: "center",
   },
@@ -1570,7 +2090,7 @@ const styles = StyleSheet.create({
   welcomeStatus: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.75)",
+    backgroundColor: COLORS.surface,
     borderRadius: 30,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -1586,7 +2106,7 @@ const styles = StyleSheet.create({
   welcomeStatusText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#318A83",
+    color: COLORS.mintDark,
   },
 
   welcomeFooter: {
@@ -1596,7 +2116,7 @@ const styles = StyleSheet.create({
 
   footerText: {
     fontSize: 10,
-    color: "#82A9A2",
+    color: COLORS.secondary,
     fontWeight: "500",
   },
 
@@ -1608,349 +2128,430 @@ const styles = StyleSheet.create({
   },
 
   chatTopBar: {
-    minHeight: 62,
-    paddingHorizontal: 16,
+    marginHorizontal: 12,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EAEDF2",
+    gap: 10,
+    borderRadius: 30,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.borderSoft,
+    shadowColor: COLORS.indigo,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+
+  menuButtonTinted: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.indigoSoft,
   },
 
   chatTopInfo: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: 10,
   },
 
-  chatHeaderMascot: {
-    width: 43,
-    height: 45,
+  chatTitleColumn: {
+    flex: 1,
   },
 
   chatTopTitle: {
-    fontSize: 14,
-    fontWeight: "800",
+    fontFamily: FONT_DISPLAY,
+    fontSize: 17,
     color: COLORS.text,
-  },
-
-  chatSubtitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 3,
-    gap: 5,
   },
 
   chatSubtitle: {
-    fontSize: 10,
+    fontSize: 11.5,
     color: COLORS.secondary,
+    marginTop: 1,
   },
 
-  chatOnlineDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#22C55E",
-  },
-
-  chatHeaderActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  historyButton: {
-    width: 37,
-    height: 37,
+  newChatIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 11,
-    backgroundColor: "#EEF0FF",
+    backgroundColor: COLORS.mintSoft,
   },
 
-  newChatButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 11,
-    backgroundColor: "#EEF0FF",
-  },
-
-  newChatText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.primary,
+  messageListWrapper: {
+    flex: 1,
   },
 
   messageList: {
-    paddingHorizontal: 15,
-    paddingTop: 18,
-    paddingBottom: 20,
-  },
-
-  messageRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    marginBottom: 16,
-  },
-
-  userMessageRow: {
-    justifyContent: "flex-end",
-  },
-
-  messageAvatar: {
-    width: 32,
-    height: 37,
-    marginRight: 7,
-  },
-
-  messageBubble: {
-    maxWidth: "83%",
     paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 17,
+    paddingTop: 18,
+    paddingBottom: 18,
   },
 
-  leoBubble: {
-    backgroundColor: COLORS.white,
-    borderBottomLeftRadius: 5,
+  // Leo's replies: a labelled note with a mint spine.
+
+  leoRow: {
+    alignSelf: "flex-start",
+    maxWidth: "96%",
+    marginBottom: 22,
+  },
+
+  leoMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 7,
+    marginLeft: 2,
+  },
+
+  leoName: {
+    fontFamily: FONT_DISPLAY,
+    fontSize: 13,
+    color: COLORS.indigo,
+  },
+
+  leoCardShadow: {
+    borderRadius: 20,
+    borderTopLeftRadius: 6,
+    backgroundColor: COLORS.surface,
+    shadowColor: COLORS.indigo,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  leoCard: {
+    borderRadius: 20,
+    borderTopLeftRadius: 6,
     borderWidth: 1,
-    borderColor: "#E9ECF2",
+    borderColor: COLORS.borderSoft,
+    backgroundColor: COLORS.surface,
+    overflow: "hidden",
+  },
+
+  leoSpine: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: COLORS.mint,
+  },
+
+  leoCardContent: {
+    paddingLeft: 17,
+    paddingRight: 15,
+    paddingTop: 12,
+    paddingBottom: 3,
+  },
+
+  // The user's messages: indigo bubbles.
+
+  userRow: {
+    alignItems: "flex-end",
+    marginBottom: 22,
   },
 
   userBubble: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 5,
+    maxWidth: "80%",
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 20,
+    borderBottomRightRadius: 6,
+    backgroundColor: COLORS.indigo,
+    shadowColor: COLORS.indigo,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 3,
   },
 
-  messageSender: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: COLORS.mint,
-    marginBottom: 5,
-  },
-
-  messageText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: COLORS.text,
-  },
-
-  userMessageText: {
-    color: COLORS.white,
+  userText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.surface,
   },
 
   emptyChat: {
-    paddingVertical: 20,
+    paddingVertical: 36,
     alignItems: "center",
   },
 
   emptyChatMascotContainer: {
-    width: 115,
-    height: 115,
-    borderRadius: 60,
-    backgroundColor: "#D5F5F2",
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: COLORS.mintSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
 
   emptyChatMascot: {
-    width: 90,
-    height: 95,
+    width: 82,
+    height: 100,
   },
 
   emptyChatText: {
-    fontSize: 12,
-    color: COLORS.secondary,
+    fontFamily: FONT_DISPLAY,
+    fontSize: 16,
+    color: COLORS.indigoDeep,
     textAlign: "center",
   },
 
-  // TYPING INDICATOR
+  // THINKING INDICATOR
 
-  typingRow: {
+  thinkingRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 5,
+    gap: 12,
     marginBottom: 12,
+    marginLeft: 2,
   },
 
-  typingAvatar: {
-    width: 32,
-    height: 37,
-    marginRight: 7,
-  },
-
-  typingBubble: {
+  thinkingBubble: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: 15,
-    paddingHorizontal: 13,
-    paddingVertical: 11,
     gap: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: "#E9ECF2",
+    borderColor: COLORS.borderSoft,
   },
 
-  typingText: {
-    fontSize: 11,
+  thinkingText: {
+    fontSize: 12.5,
     color: COLORS.secondary,
   },
 
-  // COMPOSER
+  // COMPOSER (fixed at the bottom)
 
-  composerContainer: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 14,
-    paddingTop: 10,
+  composerDock: {
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 12,
+    paddingTop: 6,
     paddingBottom: Platform.OS === "ios" ? 5 : 9,
-    borderTopWidth: 1,
-    borderTopColor: "#EAEDF2",
   },
 
-  welcomeComposerContainer: {
-    backgroundColor: COLORS.introBackground,
-    borderTopColor: "rgba(255,255,255,0.5)",
+  composerCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+    shadowColor: COLORS.indigo,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
 
-  composer: {
-    minHeight: 50,
+  composerCardFocused: {
+    borderColor: COLORS.indigo,
+  },
+
+  composerRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: "#E5EAF0",
-    borderRadius: 17,
-    paddingLeft: 7,
-    paddingRight: 6,
+    alignItems: "flex-end",
+    gap: 6,
   },
 
   attachButton: {
-    width: 38,
-    height: 40,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 5,
+    backgroundColor: COLORS.mintSoft,
   },
 
   textInput: {
     flex: 1,
     minHeight: 42,
-    maxHeight: 110,
-    fontSize: 13,
+    maxHeight: 120,
+    fontSize: 15,
     color: COLORS.text,
+    paddingHorizontal: 8,
     paddingTop: 10,
     paddingBottom: 10,
+    textAlignVertical: "center",
   },
 
   sendButton: {
-    width: 39,
-    height: 39,
-    borderRadius: 13,
-    backgroundColor: COLORS.primary,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 7,
   },
 
-  stopButton: {
-    backgroundColor: COLORS.error,
+  sendButtonActive: {
+    backgroundColor: COLORS.indigo,
   },
 
-  sendButtonDisabled: {
-    backgroundColor: "#AAA8DD",
+  sendButtonIdle: {
+    backgroundColor: COLORS.indigoSoft,
+  },
+
+  sendButtonStop: {
+    backgroundColor: COLORS.indigoDeep,
   },
 
   composerFooter: {
     textAlign: "center",
-    fontSize: 9,
-    color: "#A0A7B3",
-    marginTop: 7,
+    fontSize: 10.5,
+    color: COLORS.secondary,
+    marginTop: 8,
+    marginBottom: 2,
   },
 
-  // CHAT HISTORY DRAWER
+  // LEFT DRAWER
 
-  historyOverlay: {
+  drawerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
+    zIndex: 30,
     flexDirection: "row",
   },
 
-  historyBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.38)",
+  drawerBackdrop: {
+    backgroundColor: "rgba(31, 41, 55, 0.42)",
   },
 
-  historyDrawer: {
-    width: "82%",
-    maxWidth: 340,
+  drawer: {
     height: "100%",
-    backgroundColor: COLORS.white,
-    paddingTop: 22,
-    paddingHorizontal: 17,
-    paddingBottom: 12,
-    elevation: 12,
+    backgroundColor: COLORS.surface,
+    borderTopRightRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    elevation: 16,
     shadowColor: "#000000",
     shadowOffset: { width: 3, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
 
-  historyDrawerHeader: {
+  drawerHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 20,
+    gap: 12,
+    marginTop:46,
+    marginBottom: 16,
   },
 
-  historyDrawerTitle: {
+  drawerBrandText: {
+    flex: 1,
+  },
+
+  drawerBrandName: {
+    fontFamily: FONT_DISPLAY,
     fontSize: 20,
-    fontWeight: "800",
-    color: COLORS.text,
+    color: COLORS.indigo,
   },
 
-  historyDrawerSubtitle: {
-    fontSize: 11,
+  drawerBrandSub: {
+    fontSize: 12,
     color: COLORS.secondary,
-    marginTop: 4,
+    marginTop: 1,
   },
 
-  historyCloseButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 18,
+  drawerCloseButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.background,
   },
 
-  historyNewChatButton: {
-    minHeight: 45,
+  drawerNewChatContainer: {
+    marginBottom: 14,
+  },
+
+  drawerNewChatButton: {
+    minHeight: 50,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary,
-    marginBottom: 24,
+    borderRadius: 18,
+    backgroundColor: COLORS.indigo,
+    shadowColor: COLORS.indigo,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 5,
   },
 
-  historyNewChatText: {
-    fontSize: 12,
+  drawerNewChatText: {
+    fontSize: 15,
     fontWeight: "700",
-    color: COLORS.white,
+    color: COLORS.surface,
   },
 
-  historySectionTitle: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1,
+  drawerList: {
+    flex: 1,
+  },
+
+  drawerSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+    marginLeft: 2,
+  },
+
+  drawerSectionIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.indigoSoft,
+  },
+
+  drawerSectionIconPinned: {
+    backgroundColor: COLORS.mintSoft,
+  },
+
+  drawerSectionTitle: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+
+  drawerSectionMeta: {
+    fontSize: 12,
+    fontWeight: "600",
     color: COLORS.secondary,
-    marginBottom: 10,
+  },
+
+  drawerEmptyText: {
+    fontSize: 12.5,
+    color: COLORS.secondary,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+
+  drawerEmptyInline: {
+    fontSize: 12,
+    color: COLORS.secondary,
   },
 
   historyList: {
@@ -1965,41 +2566,50 @@ const styles = StyleSheet.create({
     paddingVertical: 25,
   },
 
-  historyEmpty: {
+  historyRefreshing: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 35,
-    gap: 10,
-  },
-
-  historyEmptyText: {
-    fontSize: 11,
-    color: COLORS.secondary,
-    textAlign: "center",
+    gap: 8,
+    paddingVertical: 4,
   },
 
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 9,
-    borderRadius: 12,
-    marginBottom: 5,
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: 4,
+    borderRadius: 16,
+    marginBottom: 2,
     gap: 10,
+    overflow: "hidden",
   },
 
   historyItemActive: {
-    backgroundColor: "#EEF0FF",
+    backgroundColor: COLORS.indigoSoft,
+  },
+
+  historyItemActiveBar: {
+    position: "absolute",
+    left: 0,
+    top: 10,
+    bottom: 10,
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.indigo,
   },
 
   historyItemIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
-    backgroundColor: "#EEF0FF",
+    borderRadius: 17,
+    backgroundColor: COLORS.indigoSoft,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  historyItemIconPinned: {
+    backgroundColor: COLORS.mintSoft,
   },
 
   historyItemTextContainer: {
@@ -2009,11 +2619,10 @@ const styles = StyleSheet.create({
   historyItemActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
   },
 
   historyActionButton: {
-    width: 29,
+    width: 28,
     height: 34,
     alignItems: "center",
     justifyContent: "center",
@@ -2022,31 +2631,31 @@ const styles = StyleSheet.create({
   renameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 2,
   },
 
   renameInput: {
     flex: 1,
     minWidth: 70,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 7,
-    paddingHorizontal: 7,
+    borderBottomWidth: 1.5,
+    borderBottomColor: COLORS.indigo,
+    paddingHorizontal: 2,
     paddingVertical: 5,
-    fontSize: 11,
+    fontSize: 13.5,
     color: COLORS.text,
   },
 
   historyItemTitle: {
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 19,
     fontWeight: "700",
     color: COLORS.text,
   },
 
   historyItemDate: {
-    fontSize: 10,
+    fontSize: 11.5,
     color: COLORS.secondary,
-    marginTop: 4,
+    marginTop: 3,
   },
 
   // ATTACHMENT PREVIEW
@@ -2054,19 +2663,17 @@ const styles = StyleSheet.create({
   attachmentPreview: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4FF",
-    borderWidth: 1,
-    borderColor: "#E0E3FA",
-    borderRadius: 13,
-    padding: 10,
-    marginBottom: 9,
+    backgroundColor: COLORS.mintTint,
+    borderRadius: 20,
+    padding: 8,
+    marginBottom: 7,
   },
 
   attachmentIcon: {
-    width: 39,
-    height: 39,
-    borderRadius: 11,
-    backgroundColor: COLORS.white,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: COLORS.mintSoft,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -2077,15 +2684,15 @@ const styles = StyleSheet.create({
   },
 
   attachmentName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: COLORS.text,
   },
 
   attachmentType: {
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.secondary,
-    marginTop: 4,
+    marginTop: 2,
   },
 
   removeAttachmentButton: {
